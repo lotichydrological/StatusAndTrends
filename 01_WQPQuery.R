@@ -14,9 +14,23 @@ source('wqpquery_functions.R')
 #NEED TO REWRITE SO WE DON"T NEED THIS FUNCTION#
 #con <- odbcConnect('WQAssessment')
 
-#### Define state to query ####
-#you can use the wqp.domain.get if you want outside Oregon but here is the Oregon code
-Oregon <- 'US%3A41'
+#### Define geographic area for search ####
+#You can query by the whole state, a county or set of counties or by HUC
+#Uncomment the section you wish to use and comment out the other two otptions
+
+#Query the whole state of Oregon
+#myArea <- 'US%3A41'
+
+#Query by county
+# e.g. a single county: Enter "US:41:001" for Baker County in the function URLencode.PTB("US:41:001")
+# e.g. for more than one county: Separate codes with a semi-colon. URLencode.PTB("US:41:001;US:41:003")
+wqp.Counties <- WQP.domain.get('county')
+myArea <- URLencode.PTB('US:41:001;US:41:003')
+
+#Query by 8-digit HUC
+#Refer to http://water.usgs.gov/GIS/regions.html to identify the HUCS
+# Separate multiple by semicolons. 17100203;17100204;17100205
+#myArea <- URLencode.PTB('17100203;17100204;17100205')
 
 #### Define site types to query ####
 #Returns list of available domain values for site type
@@ -36,36 +50,17 @@ sampleMedia <- 'Water'
 #First get the list of Characteristic names from the WQP. These names are consistent with EPA's SRS. 
 wqp.characteristics <- WQP.domain.get('Characteristicname')
 
-## Compare to Table 30 names ##
-#Pull in the compiled criteria table used for the Toxics Monitoring prgram
-source('//deqlead01/wqm/TOXICS_2012/Data/R/criteria.R')
-
-#Select only those parameters that have a Table 30 or Table 40 criterion.
-deq.pollutants <- criteria.values.melted.applicable[criteria.values.melted.applicable$variable %in% 
-                                                      c('Table 40 Human Health Criteria for Toxic Pollutants - Water + Organism',
-                                                        'Table 40 Human Health Criteria for Toxic Pollutants - Organism Only',
-                                                        'Table 30 Toxic Substances - Freshwater Acute',
-                                                        'Table 30 Toxic Substances - Freshwater Chronic',
-                                                        'Table 30 Toxic Substances - Saltwater Acute',
-                                                        'Table 30 Toxic Substances - Saltwater Chronic'),]
-
-#look for matching names in the Water Quality Portal
-matched <- deq.pollutants[deq.pollutants$Pollutant %in% wqp.characteristics$value,]
-
-#Identify the parameters we need to resolve for naming issues.
-not.matched <- deq.pollutants[!deq.pollutants$Pollutant %in% wqp.characteristics$value,]
-
-#output DEQ table pollutants that we do not have a match for
-#write.csv(unique(not.matched$Pollutant),'//deqhq1/wqassessment/2012_WQAssessment/ToxicsRedo/WQPNameMatch.csv')
-
 #once the matches have been identified
-to.match <- read.csv('//deqhq1/wqassessment/2012_WQAssessment/ToxicsRedo/WQPNameMatch.csv', stringsAsFactors = FALSE)
+toxics <- read.csv('WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #for PCBs the standard is a total of all aroclors and congeners and so is a many to one. No comparison is done to individual compounds.
 #given that I'll list out all the aroclor and pcb names to include in the wqp query after taking out the blank match.
 #to.match[to.match$Criteria.Name != 'Polychlorinated Biphenyls (PCBs)',]
 aroclors <- wqp.characteristics[grep('[Aa]roclor',wqp.characteristics$value),'value']
 pcbs <- wqp.characteristics[grep('[Pp][Cc][Bb]',wqp.characteristics$value),'value']
+ap <- c(aroclors, pcbs)
+ap.df <- data.frame(Criteria.Name = rep('Polychlorinated Biphenyls (PCBs)',length(ap)), WQP.Name = ap, DEQ.Table.name = rep('Polychlorinated Biphenyls (PCBs)',length(ap)))
+toxics <- rbind(toxics, ap.df)
 
 #then we put the characterisitic names together
 #The last character vector here includes parameters that were missed in the initial parameter identification

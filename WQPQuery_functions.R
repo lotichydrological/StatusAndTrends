@@ -8,8 +8,12 @@ library(XML)
 #As of 4/8/2014 the available parameter names include: countrycode, statecode, countycode, Sitetype, Organization, Samplemedia,
 #Characteristictype, Characteristicname, providers
 WQP.domain.get <- function(value) {
-  theURL <- paste('http://www.waterqualitydata.us/Codes/', value, '?mimeType=xml', sep = '')
-  tmp <- getURL(theURL)
+  if (value == 'county' | value == 'County') {
+    theURL <- 'http://www.waterqualitydata.us/Codes/countycode?statecode=US:41'
+  } else {
+    theURL <- paste('http://www.waterqualitydata.us/Codes/', value, '?mimeType=xml', sep = '')
+  }
+    tmp <- getURL(theURL)
   tmp.top <- xmlRoot(xmlTreeParse(tmp))
   tmp.df <- data.frame(value = rep("",length(tmp.top)),desc = rep("",length(tmp.top)),providers = rep("",length(tmp.top)), stringsAsFactors = FALSE)
   for (i in 1:length(tmp.top)) {
