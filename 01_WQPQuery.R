@@ -5,6 +5,7 @@
 #### Using the water quality portal REST service for Characteristic names ####
 library(RCurl)
 library(XML)
+library(dataRetrieval)
 #library(RODBC)
 
 options(stringsAsFactors = FALSE)
@@ -25,7 +26,7 @@ source('wqpquery_functions.R')
 # e.g. a single county: Enter "US:41:001" for Baker County in the function URLencode.PTB("US:41:001")
 # e.g. for more than one county: Separate codes with a semi-colon. URLencode.PTB("US:41:001;US:41:003")
 wqp.Counties <- WQP.domain.get('county')
-myArea <- URLencode.PTB('US:41:001;US:41:003')
+myArea <- 'US:41:001;US:41:003'
 
 #Query by 8-digit HUC
 #Refer to http://water.usgs.gov/GIS/regions.html to identify the HUCS
@@ -65,16 +66,13 @@ toxics <- rbind(toxics, ap.df)
 #then we put the characterisitic names together
 #The last character vector here includes parameters that were missed in the initial parameter identification
 #as well as parameters necessary to calculate sample specific criteria.
-to.query <- c(to.match$WQP.Name, 
-              aroclors, 
-              pcbs, 
-              matched$Pollutant, 
-              c('pH','Temperature, water','Temperature','Hardness, Ca, Mg','Hardness, Ca, Mg as CaCO3',
+to.query <- c('pH','Temperature, water','Temperature','Hardness, Ca, Mg','Hardness, Ca, Mg as CaCO3',
                 'Hardness, Calcium','Hardness, carbonate','Hardness, carbonate as CaCO3','Hardness, magnesium',
                 'Total Hardness','Calcium','Magnesium','Calcium as CaCO3','Magnesium as CaCO3','Ammonia', 'Ammonia as N',
                 'Chlordane, technical, and/or chlordane metabolites','Oxychlordane','cis-Nonachlor','trans-Nonachlor',
-                'Nonachlor','trans-Chlordane','cis-Chlordane','Chlordane, technical'))
-to.query <- to.query[!to.query %in% c('Dinitrophenol','','Nitrosamine')]
+                'Nonachlor','trans-Chlordane','cis-Chlordane','Chlordane, technical')
+add.df <- data.frame(Criteria.Name = to.query, WQP.Name = to.query, DEQ.Table.name = to.query)
+toxics <- rbind(toxics, add.df)
 to.query <- unique(to.query)
 
 #build out table for relate back to criteria names so it's a whole table operation and not based on similar names
@@ -87,18 +85,25 @@ to.add <- to.add[!duplicated(to.add$Criteria.Name),]
 
 wqp.criteria.relate <- rbind(to.match[,c(2:5)], to.add)
 
+write.csv(toxics, 'WQP_Table3040_Names.csv')
 #write.csv(wqp.criteria.relate,'//deqhq1/wqassessment/2012_WQAssessment/ToxicsRedo/WQPNameMatch_05142014.csv',row.names = FALSE)
-
-#somehow chlordane isn't getting into the to.query vector now when it originally did at index 204
-#this code inserts it back into that specific index
-#to.query.start <- to.query[1:203]
-#to.query.end <- to.query[204:length(to.query)]
-#to.query <- c(to.query.start, 'Chlordane', to.query.end)
 
 #### Define start and end date ####
 #The expected format is mm-dd-yyyy
-startDate <- '01-01-2000'
-endDate <- '12-31-2011'
+startDate <- '01-01-1995'
+endDate <- '02-01-2015'
+
+#### Pass the query ####
+wqp.data <- readWQPdata(countycode = myArea, 
+                        characteristicName = 'pH', 
+                        startDate = startDate, 
+                        endDate = endDate,
+                        sampleMedia = 'Water')
+wqp.stations <- attr(wqp.data, 'siteInfo')
+
+#Remove blank columns
+wqp.data <- wqp.data[,which(!apply(wqp.data,2,FUN = function(x){all(x == '')}))]
+wqp.stations <- wqp.stations[,which(!apply(wqp.stations,2,FUN = function(x){all(x == '')}))]
 
 #### Pass the query using the arguments you defined above ####
 #Note that you can also pass different geographical scales but that is not currently built into this
