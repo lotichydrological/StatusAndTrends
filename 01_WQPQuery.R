@@ -52,41 +52,10 @@ sampleMedia <- 'Water'
 wqp.characteristics <- WQP.domain.get('Characteristicname')
 
 #once the matches have been identified
-toxics <- read.csv('WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+parms <- read.csv('WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
-#for PCBs the standard is a total of all aroclors and congeners and so is a many to one. No comparison is done to individual compounds.
-#given that I'll list out all the aroclor and pcb names to include in the wqp query after taking out the blank match.
-#to.match[to.match$Criteria.Name != 'Polychlorinated Biphenyls (PCBs)',]
-aroclors <- wqp.characteristics[grep('[Aa]roclor',wqp.characteristics$value),'value']
-pcbs <- wqp.characteristics[grep('[Pp][Cc][Bb]',wqp.characteristics$value),'value']
-ap <- c(aroclors, pcbs)
-ap.df <- data.frame(Criteria.Name = rep('Polychlorinated Biphenyls (PCBs)',length(ap)), WQP.Name = ap, DEQ.Table.name = rep('Polychlorinated Biphenyls (PCBs)',length(ap)))
-toxics <- rbind(toxics, ap.df)
-
-#then we put the characterisitic names together
-#The last character vector here includes parameters that were missed in the initial parameter identification
-#as well as parameters necessary to calculate sample specific criteria.
-to.query <- c('pH','Temperature, water','Temperature','Hardness, Ca, Mg','Hardness, Ca, Mg as CaCO3',
-                'Hardness, Calcium','Hardness, carbonate','Hardness, carbonate as CaCO3','Hardness, magnesium',
-                'Total Hardness','Calcium','Magnesium','Calcium as CaCO3','Magnesium as CaCO3','Ammonia', 'Ammonia as N',
-                'Chlordane, technical, and/or chlordane metabolites','Oxychlordane','cis-Nonachlor','trans-Nonachlor',
-                'Nonachlor','trans-Chlordane','cis-Chlordane','Chlordane, technical')
-add.df <- data.frame(Criteria.Name = to.query, WQP.Name = to.query, DEQ.Table.name = to.query)
-toxics <- rbind(toxics, add.df)
-to.query <- unique(to.query)
-
-#build out table for relate back to criteria names so it's a whole table operation and not based on similar names
-#which make it hard to track
-to.add <- data.frame('Criteria.Name' = matched$Pollutant, 
-                     'WQP.Name' = matched$Pollutant, 
-                     'Requires.followup' = rep(0,length(matched$Pollutant)), 
-                     'DEQ.Table.name' = matched$Pollutant)
-to.add <- to.add[!duplicated(to.add$Criteria.Name),]
-
-wqp.criteria.relate <- rbind(to.match[,c(2:5)], to.add)
-
-write.csv(toxics, 'WQP_Table3040_Names.csv')
-#write.csv(wqp.criteria.relate,'//deqhq1/wqassessment/2012_WQAssessment/ToxicsRedo/WQPNameMatch_05142014.csv',row.names = FALSE)
+#grab just the parameters we want
+characteristics <- paste(parms[parms$WQP.Name %in% c('Temperature','pH'),'WQP.Name'],collapse=';')
 
 #### Define start and end date ####
 #The expected format is mm-dd-yyyy
@@ -95,7 +64,7 @@ endDate <- '02-01-2015'
 
 #### Pass the query ####
 wqp.data <- readWQPdata(countycode = myArea, 
-                        characteristicName = 'pH', 
+                        characteristicName = characteristics, 
                         startDate = startDate, 
                         endDate = endDate,
                         sampleMedia = 'Water')
