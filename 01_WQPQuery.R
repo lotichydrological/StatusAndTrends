@@ -25,13 +25,13 @@ source('wqpquery_functions.R')
 #Query by county
 # e.g. a single county: Enter "US:41:001" for Baker County in the function URLencode.PTB("US:41:001")
 # e.g. for more than one county: Separate codes with a semi-colon. URLencode.PTB("US:41:001;US:41:003")
-wqp.Counties <- WQP.domain.get('county')
-myArea <- 'US:41:001;US:41:003'
+#wqp.Counties <- WQP.domain.get('county')
+#myArea <- 'US:41:001;US:41:003'
 
 #Query by 8-digit HUC
 #Refer to http://water.usgs.gov/GIS/regions.html to identify the HUCS
 # Separate multiple by semicolons. 17100203;17100204;17100205
-#myArea <- URLencode.PTB('17100203;17100204;17100205')
+myArea <- '17100307;17100308;17100309;17100310;17100311' #Inland Rogue plus a little lower
 
 #### Define site types to query ####
 #Returns list of available domain values for site type
@@ -39,7 +39,7 @@ wqp.siteTypes <- WQP.domain.get('Sitetype')
 
 #Using the wqp.siteTypes enter the values you want to query for in siteType.
 #Separate each value with the URL encoded semi-colon '%3B'. For values with commas use the URL encoded value '%2C+'
-siteType = 'Estuary%3BOcean%3BStream%3BStream%3BLake%2C+Reservoir%2C+Impoundment'
+siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
 
 #### Define sample media to query ####
 wqp.sampleMedia <- WQP.domain.get('Samplemedia')
@@ -51,11 +51,12 @@ sampleMedia <- 'Water'
 #First get the list of Characteristic names from the WQP. These names are consistent with EPA's SRS. 
 wqp.characteristics <- WQP.domain.get('Characteristicname')
 
-#once the matches have been identified
+#The entire list of parameters that match to a criteria
 parms <- read.csv('WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #grab just the parameters we want
-characteristics <- paste(parms[parms$WQP.Name %in% c('Temperature','pH'),'WQP.Name'],collapse=';')
+characteristics <- paste(parms[parms$WQP.Name %in% c('Temperature, water','pH','Escherichia coli','Fecal Coliform',
+                                                     'Fecal coliforms', 'Enterococci', 'Enterococcus'),'WQP.Name'],collapse=';')
 
 #### Define start and end date ####
 #The expected format is mm-dd-yyyy
@@ -63,12 +64,21 @@ startDate <- '01-01-1995'
 endDate <- '02-01-2015'
 
 #### Pass the query ####
-wqp.data <- readWQPdata(countycode = myArea, 
+start <- Sys.time()
+print(start)
+wqp.data <- readWQPdata(#stateCode = myArea,
+                        #countycode = myArea,
+                        huc = myArea, 
                         characteristicName = characteristics, 
                         startDate = startDate, 
                         endDate = endDate,
-                        sampleMedia = 'Water')
+                        sampleMedia = sampleMedia)
 wqp.stations <- attr(wqp.data, 'siteInfo')
+end <- Sys.time()
+elapsed <- end - start
+print(end)
+print(elapsed)
+
 
 #Remove blank columns
 wqp.data <- wqp.data[,which(!apply(wqp.data,2,FUN = function(x){all(x == '')}))]
