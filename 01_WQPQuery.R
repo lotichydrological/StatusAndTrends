@@ -6,6 +6,7 @@
 library(RCurl)
 library(XML)
 library(dataRetrieval)
+library(plyr)
 #library(RODBC)
 
 options(stringsAsFactors = FALSE)
@@ -84,6 +85,21 @@ print(elapsed)
 wqp.data <- wqp.data[,which(!apply(wqp.data,2,FUN = function(x){all(x == '')}))]
 wqp.stations <- wqp.stations[,which(!apply(wqp.stations,2,FUN = function(x){all(x == '')}))]
 
+#In order to accurately plot the points they have to be placed in the same projection
+wqp.stations$CRS <- mapvalues(wqp.stations$HorizontalCoordinateReferenceSystemDatumName,
+                              from = c('NAD27','NAD83','UNKWN','WGS84'),
+                              to = c("+proj=longlat +datum=NAD27",
+                                     "+proj=longlat +datum=NAD83",
+                                     "+proj=longlat +datum=NAD83",
+                                     "+proj=longlat +datum=WGS84"))
+d.list <- split(wqp.stations,wqp.stations$CRS)
+#list2env(d.list, env = .GlobalEnv)
+sp.list <- lapply(d.list, function(x) {SpatialPointsDataFrame(coords = x[,c('LongitudeMeasure','LatitudeMeasure')],
+                                                   data = x,
+                                                   proj4string = CRS(unique(x$CRS)))})
+sp.proj <- lapply(sp.list, function(x) {if(!any(grepl('NAD83',x$CRS))){spTransform(x, CRS("+proj=longlat +datum=NAD83"))}
+                                        else x})
+wqp.sp <- do.call(rbind, sp.proj)
 #### Pass the query using the arguments you defined above ####
 #Note that you can also pass different geographical scales but that is not currently built into this
 #Please refer to the linked page from the function definition for other available search parameters
