@@ -7,6 +7,8 @@ library(RCurl)
 library(XML)
 library(dataRetrieval)
 library(plyr)
+library(sp)
+library(rgdal)
 #library(RODBC)
 
 options(stringsAsFactors = FALSE)
@@ -80,6 +82,18 @@ elapsed <- end - start
 print(end)
 print(elapsed)
 
+#Write query output to .csv
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
+
+wqp.data.filename <- paste('./Data/wqpData',timestamp,'.csv',sep='')
+write.csv(wqp.data,wqp.data.filename)
+
+wqp.stations.filename <- paste('./Data/wqpStations',timestamp,'.csv',sep='')
+write.csv(wqp.stations,wqp.stations.filename)
+
+#Import saved wqp data
+wqp.data <- read.csv('./Data/wqpData20150211_0848.csv')
+wqp.stations <- read.csv('./Data/wqpStations20150211_0848.csv')
 
 #Remove blank columns
 wqp.data <- wqp.data[,which(!apply(wqp.data,2,FUN = function(x){all(x == '')}))]
@@ -100,6 +114,19 @@ sp.list <- lapply(d.list, function(x) {SpatialPointsDataFrame(coords = x[,c('Lon
 sp.proj <- lapply(sp.list, function(x) {if(!any(grepl('NAD83',x$CRS))){spTransform(x, CRS("+proj=longlat +datum=NAD83"))}
                                         else x})
 wqp.sp <- do.call(rbind, sp.proj)
+
+#We want to extract only those stations in the current AgWQMA so let's bring that layer in and match the projection
+agwqma <- readOGR(dsn = './GIS', layer = 'ODA_AgWQMA')
+
+#Transform agwqma to same projection as points
+agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
+
+#Specify the name of the Water Quality Management Area for this review
+wqma.name <- 'Inland Rogue'
+
+#Extract the points in the WQMA
+wqp.wqma2 <- wqp.sp[agwqma[agwqma$PlanName == wqma.name,],]
+
 #### Pass the query using the arguments you defined above ####
 #Note that you can also pass different geographical scales but that is not currently built into this
 #Please refer to the linked page from the function definition for other available search parameters
