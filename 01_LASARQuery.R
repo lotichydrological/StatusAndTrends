@@ -1,3 +1,52 @@
+#### Define geographic area for search ####
+#You can query by the whole state, a county or set of counties or by HUC
+#Uncomment the section you wish to use and comment out the other two otptions
+
+#Query the whole state of Oregon
+#myArea <- 'US%3A41'
+
+#Query by county
+# e.g. a single county: Enter "US:41:001" for Baker County in the function URLencode.PTB("US:41:001")
+# e.g. for more than one county: Separate codes with a semi-colon. URLencode.PTB("US:41:001;US:41:003")
+#wqp.Counties <- WQP.domain.get('county')
+#myArea <- 'US:41:001;US:41:003'
+
+#Query by 8-digit HUC
+#Refer to http://water.usgs.gov/GIS/regions.html to identify the HUCS
+# Separate multiple by semicolons. 17100203;17100204;17100205
+myArea <- '17100307;17100308;17100309;17100310;17100311' #Inland Rogue plus a little lower
+
+#### Define site types to query ####
+#Returns list of available domain values for site type
+wqp.siteTypes <- WQP.domain.get('Sitetype')
+
+#Using the wqp.siteTypes enter the values you want to query for in siteType.
+#Separate each value with the URL encoded semi-colon '%3B'. For values with commas use the URL encoded value '%2C+'
+siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
+
+#### Define sample media to query ####
+wqp.sampleMedia <- WQP.domain.get('Samplemedia')
+
+#Separate each value you want to query with the URL encoded semi-colon '%3B'.
+sampleMedia <- 'Water'
+
+#### Define characteristics to query ####
+#First get the list of Characteristic names from the WQP. These names are consistent with EPA's SRS. 
+wqp.characteristics <- WQP.domain.get('Characteristicname')
+
+#The entire list of parameters that match to a criteria
+parms <- read.csv('WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+
+#grab just the parameters we want
+characteristics <- paste(parms[parms$WQP.Name %in% c('Temperature, water','pH','Escherichia coli','Fecal Coliform',
+                                                     'Fecal coliforms', 'Enterococci', 'Enterococcus'),'WQP.Name'],collapse=';')
+
+#### Define start and end date ####
+#The expected format is mm-dd-yyyy
+startDate <- '01-01-1995'
+endDate <- '02-01-2015'
+
+
 ## Setup Steps ##
 # This creates a data source name driver for R to use when connecting to the database
 
@@ -40,9 +89,7 @@ outpath <-"D:/LASAR/"
 outfile <- paste("LASAR_Query2_",thedate,".csv",sep="")  
 
 ## Make a connection to LASAR2 DEV
-channel <- odbcConnect("LASAR2_DEV")
 channel <- odbcConnect("LASAR2_GIS")
-access.con <- odbcConnectAccess('//deqlab1/biomon/databases/Biomon_Phoenix_nhaxton_Copy.mdb')
 
 ## Grab the names of all the tables in the database
 TableNames<- sqlTables(channel,errors = FALSE,schema='dbo')

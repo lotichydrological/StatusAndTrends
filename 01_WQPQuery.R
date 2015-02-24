@@ -9,6 +9,8 @@ library(dataRetrieval)
 library(plyr)
 library(sp)
 library(rgdal)
+library(raster)
+library(rgeos)
 #library(RODBC)
 
 options(stringsAsFactors = FALSE)
@@ -34,6 +36,7 @@ source('wqpquery_functions.R')
 #Query by 8-digit HUC
 #Refer to http://water.usgs.gov/GIS/regions.html to identify the HUCS
 # Separate multiple by semicolons. 17100203;17100204;17100205
+# May include wildcards for HUC higher level HUC e.g. 010801* OR 01010003;010801*;01010005
 myArea <- '17100307;17100308;17100309;17100310;17100311' #Inland Rogue plus a little lower
 
 #### Define site types to query ####
@@ -117,9 +120,29 @@ wqp.sp <- do.call(rbind, sp.proj)
 
 #We want to extract only those stations in the current AgWQMA so let's bring that layer in and match the projection
 agwqma <- readOGR(dsn = './GIS', layer = 'ODA_AgWQMA')
+path = 'T:/AgWQM/DataAnalysis/StatusAndTrends/GIS/ODA_AgWQMA.shp'
+agwqma <- shapefile(x = path, stringsAsFactors = FALSE)
 
 #Transform agwqma to same projection as points
 agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
+agwqma <- spTransform(agwqma, CRS("+init=epsg:2994"))
+
+
+#Bring in the WBD for 8 digit HUC
+HUC <- readOGR(dsn = '//deqhq1/gislibrary/base_data/hydrography/nhd/2008_Watershed_Boundary_Dataset/WBD_HUC_4th/hydrologic_units', layer = 'huc250k_a_or')
+path2 = '//deqhq1/gislibrary/base_data/hydrography/nhd/2008_Watershed_Boundary_Dataset/WBD_HUC_4th/hydrologic_units/huc250k_a_or.shp'
+HUC <- shapefile(x = path2, stringsAsFactors = FALSE)
+HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
+HUC <- spTransform(HUC, CRS("+init=epsg:2994"))
+HUC_OR <- HUC[agwqma,]
+
+#Generate list of HUCs
+agAreas <- as.list(agwqma$PlanName)
+HUC.list <- lapply(agAreas, function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
+HUC.list <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
+
+names(HUC.list) <- agwqma$PlanName
+myHUCs <- HUC.list[wqma.name][[1]]$HUC_8
 
 #Specify the name of the Water Quality Management Area for this review
 wqma.name <- 'Inland Rogue'
