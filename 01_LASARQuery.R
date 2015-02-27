@@ -162,15 +162,15 @@ myAreaKeys <- myAreas$AREA_KEY
 #AreaStations <- subset(StationAreas, XLU_AREA == myAreaKey)
 AreaStations <- StationAreas[StationAreas$XLU_AREA %in% myAreaKeys,]
 myStations <- as.integer(AreaStations$STATION) # Should be an integer
-
-myStationsdf <- sqlQuery(access.con, "SELECT * FROM FINALReferenceData_SMiller_may2014 
-                       WHERE agency = 'DEQ'")
-myStations <- myStationsdf$agency_ID
-myStations <- as.character(myStations[1:1025])
+# 
+# myStationsdf <- sqlQuery(access.con, "SELECT * FROM FINALReferenceData_SMiller_may2014 
+#                        WHERE agency = 'DEQ'")
+# myStations <- myStationsdf$agency_ID
+# myStations <- as.character(myStations[1:1025])
 
 ##Restrict stations to types of interest
 #UsedUses <- XLU_STATION_USE[XLU_STATION_USE$XLU_STATION_USE_KEY %in% unique_use,]
-#XLU_STATION_USE
+#XLU_STATION_USE - This is a list of the station use codes that are actually used.
 # XLU_STATION_USE_KEY DESCRIPTION
 # 32  Beaches
 # 51	Domestic Supply
@@ -222,6 +222,7 @@ myDatatype <- 1
 ## Grab a list of all the parameters and numerical codes
 AllParameters <- sqlFetch(channel, "XLU_LASAR_PARAMETERS")
 
+AllParameters[AllParameters$PARAMETER_NM == 'Temperature',]
 ## Find the code for Field Temperature (Note the space at the end) in units of Celcius
 #Tempcodes <- subset(AllParameters, INDEX_COLUMN == "Field Temperature " & UNIT == 21)
 
@@ -288,6 +289,114 @@ mydata <- merge(mydata,
                 by.y = 'XLU_LASAR_PARAMETERS_KEY', 
                 all.x = TRUE)
 
+check <- sqlQuery(channel, "SELECT r.SAMPLING_ORGANIZATION, COUNT(*) AS 'num' FROM Result r LEFT JOIN 
+                   STATION s on r.STATION = s.STATION_KEY LEFT JOIN
+                   STATION_AREA sa on r.STATION = sa.STATION LEFT JOIN 
+                   XLU_AREA a on sa.XLU_AREA = a.AREA_KEY LEFT JOIN
+                   XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
+                   XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm2 on p.PARAMETER_PREFIX_2 = pm2.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm3 on p.PARAMETER_SUFFIX_1 = pm3.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm4 on p.PARAMETER_SUFFIX_2 = pm4.MODIFIER_KEY LEFT JOIN
+                   UNIT u on p.UNIT = u.UNIT_KEY LEFT JOIN
+                   XLU_STATUS st on r.QA_QC_STATUS = st.XLU_STATUS_KEY LEFT JOIN
+                   XLU_QA_QC_TYPE qa on r.QA_QC_TYPE = qa.QA_QC_TYPE_KEY LEFT JOIN
+                   SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
+              ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY WHERE r.SAMPLING_ORGANIZATION is NULL GROUP BY r.SAMPLING_ORGANIZATION")
+check <- merge(check, sqlFetch(channel, 'ORGANIZATION'), by.x = 'SAMPLING_ORGANIZATION', by.y = 'ORGANIZATION_KEY', all.x = TRUE)
+
+check2 <- sqlQuery(channel, "SELECT r.QA_QC_STATUS, COUNT(*) AS 'num' FROM Result r LEFT JOIN 
+                   STATION s on r.STATION = s.STATION_KEY LEFT JOIN
+                   STATION_AREA sa on r.STATION = sa.STATION LEFT JOIN 
+                   XLU_AREA a on sa.XLU_AREA = a.AREA_KEY LEFT JOIN
+                   XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
+                   XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm2 on p.PARAMETER_PREFIX_2 = pm2.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm3 on p.PARAMETER_SUFFIX_1 = pm3.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm4 on p.PARAMETER_SUFFIX_2 = pm4.MODIFIER_KEY LEFT JOIN
+                   UNIT u on p.UNIT = u.UNIT_KEY LEFT JOIN
+                   XLU_STATUS st on r.QA_QC_STATUS = st.XLU_STATUS_KEY LEFT JOIN
+                   XLU_QA_QC_TYPE qa on r.QA_QC_TYPE = qa.QA_QC_TYPE_KEY LEFT JOIN
+                   SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
+              ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY WHERE r.SAMPLING_ORGANIZATION = 0 GROUP BY QA_QC_STATUS")
+check2 <- merge(check2, sqlFetch(channel, 'XLU_STATUS'), by.x = 'QA_QC_STATUS', by.y = 'XLU_STATUS_KEY', all.x = TRUE)
+
+qry <- paste("SELECT r.RESULT_KEY,
+                     r.STATION,
+                     s.LOCATION_DESCRIPTION,
+                     s.DECIMAL_LAT,
+                     s.DECIMAL_LONG,
+                     s.DATUM,
+                     a.AREA_ABBREVIATION,
+                     o.NAME,
+                     r.SAMPLE_DATE_TIME,
+                     d.DATA_DESCRIPTION,
+                     pm1.ABBREVIATION as PARAMETER_PREFIX_1,
+                     pm2.ABBREVIATION as PARAMETER_PREFIX_2,
+                     p.PARAMETER_NM,
+                     pm3.ABBREVIATION as PARAMETER_SUFFIX_1,
+                     pm4.ABBREVIATION as PARAMETER_SUFFIX_2,
+                     r.RESULT,
+                     u.UNIT,
+                     st.STATUS,
+                     qa.QA_QC_TYPE,
+                     sm.SAMPLE_MATRIX_NAME,
+                     pr.METHOD_DETECTION_LIMIT,
+                     pr.METHOD_REPORTING_LIMIT
+              FROM Result r LEFT JOIN 
+                   STATION s on r.STATION = s.STATION_KEY LEFT JOIN
+                   STATION_AREA sa on r.STATION = sa.STATION LEFT JOIN 
+                   XLU_AREA a on sa.XLU_AREA = a.AREA_KEY LEFT JOIN
+                   XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
+                   XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm2 on p.PARAMETER_PREFIX_2 = pm2.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm3 on p.PARAMETER_SUFFIX_1 = pm3.MODIFIER_KEY LEFT JOIN
+                   PARAMETER_MODIFIER pm4 on p.PARAMETER_SUFFIX_2 = pm4.MODIFIER_KEY LEFT JOIN
+                   UNIT u on p.UNIT = u.UNIT_KEY LEFT JOIN
+                   XLU_STATUS st on r.QA_QC_STATUS = st.XLU_STATUS_KEY LEFT JOIN
+                   XLU_QA_QC_TYPE qa on r.QA_QC_TYPE = qa.QA_QC_TYPE_KEY LEFT JOIN
+                   SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
+                   PARAMETER_RESULT pr on r.PARAMETER_RESULT = pr.PARAMETER_RESULT_KEY
+              ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY
+              WHERE a.AREA_ABBREVIATION in ('17090012') AND
+                    r.SAMPLE_DATE_TIME < '2010-12-31 00:00:00.000' AND
+                    r.SAMPLE_DATE_TIME > '2010-10-31 00:00:00.000' AND
+                    st.STATUS in ('A+','A','B') AND
+                    sm.SAMPLE_MATRIX_NAME in ('Surface water', 'Bay/Estuary/Ocean', 'Canal', 'Reservoir', 'Lake',
+                                              'Ditch/Pond/Culvert/Drain')
+              ")
+mydata <- sqlQuery(channel, qry)
+
+qry2 <- paste("SELECT DISTINCT
+             pm1.ABBREVIATION as PARAMETER_PREFIX_1,
+             pm2.ABBREVIATION as PARAMETER_PREFIX_2,
+             p.PARAMETER_NM,
+             pm3.ABBREVIATION as PARAMETER_SUFFIX_1,
+             pm4.ABBREVIATION as PARAMETER_SUFFIX_2
+             FROM Result r LEFT JOIN 
+             STATION s on r.STATION = s.STATION_KEY LEFT JOIN
+             STATION_AREA sa on r.STATION = sa.STATION LEFT JOIN 
+             XLU_AREA a on sa.XLU_AREA = a.AREA_KEY LEFT JOIN
+             XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
+             XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
+             PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
+             PARAMETER_MODIFIER pm2 on p.PARAMETER_PREFIX_2 = pm2.MODIFIER_KEY LEFT JOIN
+             PARAMETER_MODIFIER pm3 on p.PARAMETER_SUFFIX_1 = pm3.MODIFIER_KEY LEFT JOIN
+             PARAMETER_MODIFIER pm4 on p.PARAMETER_SUFFIX_2 = pm4.MODIFIER_KEY LEFT JOIN
+             UNIT u on p.UNIT = u.UNIT_KEY LEFT JOIN
+             XLU_STATUS st on r.QA_QC_STATUS = st.XLU_STATUS_KEY LEFT JOIN
+             XLU_QA_QC_TYPE qa on r.QA_QC_TYPE = qa.QA_QC_TYPE_KEY LEFT JOIN
+             SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
+             ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY
+             WHERE 
+             st.STATUS in ('A+','A','B') AND
+             sm.SAMPLE_MATRIX_NAME in ('Surface water', 'Bay/Estuary/Ocean', 'Canal', 'Reservoir', 'Lake',
+             'Ditch/Pond/Culvert/Drain')
+             ")
+mydata2 <- sqlQuery(channel, qry2)
 
 ## Write ouput to file
 #write.csv(mydata, paste(outpath,outfile,sep=""))

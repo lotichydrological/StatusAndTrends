@@ -16,17 +16,9 @@
 # [40] "Willow Creek"                                 "Yamhill"   
 myArea <- 'Inland Rogue' 
 
-
-
-#### Define sample media to query ####
-wqp.sampleMedia <- WQP.domain.get('Samplemedia')
-
-#Separate each value you want to query with the URL encoded semi-colon '%3B'.
-sampleMedia <- 'Water'
-
 #### Define characteristics to query ####
-#First get the list of Characteristic names from the WQP. These names are consistent with EPA's SRS. 
-wqp.characteristics <- WQP.domain.get('Characteristicname')
+# #First get the list of Characteristic names from the WQP. These names are consistent with EPA's SRS. 
+# wqp.characteristics <- WQP.domain.get('Characteristicname')
 
 #The entire list of parameters that match to a criteria
 parms <- read.csv('WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
@@ -39,3 +31,6 @@ characteristics <- paste(parms[parms$WQP.Name %in% c('Temperature, water','pH','
 #The expected format is mm-dd-yyyy
 startDate <- '01-01-1995'
 endDate <- '02-01-2015'
+
+#generate dfs
+source('./01_DataQuery.R')

@@ -176,7 +176,7 @@ parameters <- paste("'",paste(c(aroclors,
 #being excluded due to the nature of the inner join. Instead, the QA_QC_TYPE is consistently populated in the Sample table. This wasn't discovered
 #until we were in the review stages of the Assessment_Report_Summary. This one issue isn't such a big deal to fix but it really calls into question
 #if there are other issues that we are missing.
-query <- paste("SELECT pr.[PARAMETER_KEY],
+qry <- paste("SELECT pr.[PARAMETER_KEY],
                pr.[Result],
                p.[NAME],
                pm.[ABBREVIATION],
