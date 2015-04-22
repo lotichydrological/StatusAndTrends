@@ -1,5 +1,4 @@
 library(shiny)
-library(shiny)
 library(RCurl)
 library(XML)
 library(dataRetrieval)
@@ -8,6 +7,7 @@ library(sp)
 library(rgdal)
 library(raster)
 library(rgeos)
+#library(xlsx)
 #library(RODBC)
 
 options(stringsAsFactors = FALSE)
@@ -36,7 +36,9 @@ shinyUI(fluidPage(
     ),
   
   fluidRow(
-    column(3),
+    column(3,
+           checkboxGroupInput('db','Select Database(s) to Query:',
+                              c('Water Quality Portal','LASAR','Element'),select = c('Water Quality Portal','LASAR','Element'))),
     column(3,
            h3("Run Query"),
            actionButton(inputId = "action_button",label = 'Submit'))
@@ -55,10 +57,18 @@ shinyUI(fluidPage(
     column(3,
            h3(" "),
            verbatimTextOutput("text1")
+           ),
+    column(3,
+           verbatimTextOutput("isdf"),
+           conditionalPanel(
+             condition = "output.isdf=='Download the data in .csv format using the button below'",
+             #radioButtons("filetype","File type:",choices=c('csv','excel')),
+             downloadButton('downloadData','Download')
+           )
            )
            ),
   
-  dataTableOutput('view')
+ tableOutput('view')
 
     )
 
