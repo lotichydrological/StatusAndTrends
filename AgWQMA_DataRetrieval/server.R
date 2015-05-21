@@ -11,11 +11,11 @@ agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 #agwqma <- spTransform(agwqma, CRS("+init=epsg:2994"))
 
 #Bring in the WBD for 8 digit HUC
-HUC <- readOGR(dsn = './data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
-#path2 = '//deqhq1/gislibrary/base_data/hydrography/nhd/2008_Watershed_Boundary_Dataset/WBD_HUC_4th/hydrologic_units/huc250k_a_or.shp'
+HUC <- readOGR(dsn = './data/GIS', layer = 'WBD_HU8', verbose = FALSE)
+#path2 = '//deqhq1/gislibrary/base_data/hydrography/nhd/2008_Watershed_Boundary_Dataset/WBD_HUC_4th/hydrologic_units/WBD_HU8.shp'
 #HUC <- shapefile(x = path2, stringsAsFactors = FALSE)
 #For testing purposes
-#HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
+#HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
 #HUC <- spTransform(HUC, CRS("+init=epsg:2994"))
 #HUC_OR <- HUC[agwqma,]
@@ -28,12 +28,12 @@ HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanNa
 names(HUClist) <- agwqma$PlanName
 
 #For testing purposes set up input 
-input <- list(action_button = c(0))
-input$action_button <- 1
-input$parms <- c('Bacteria')
-input$select <- 'North Coast'
-input$dates <- c("2005-01-01", "2015-04-22")
-input$db <- c("Water Quality Portal", "Element", "LASAR")
+# input <- list(action_button = c(0))
+# input$action_button <- 1
+# input$parms <- c('Bacteria')
+# input$select <- 'North Coast'
+# input$dates <- c("2005-01-01", "2015-04-22")
+# input$db <- c("Water Quality Portal", "Element", "LASAR")
 
 shinyServer(function(input, output) { 
   observe({

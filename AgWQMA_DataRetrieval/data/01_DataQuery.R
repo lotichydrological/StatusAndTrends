@@ -238,8 +238,8 @@ lasarQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
                pr.METHOD_REPORTING_LIMIT
                FROM Result r LEFT JOIN 
                STATION s on r.STATION = s.STATION_KEY LEFT JOIN
-               STATION_AREA sa on r.STATION = sa.STATION LEFT JOIN 
-               XLU_AREA a on sa.XLU_AREA = a.AREA_KEY LEFT JOIN
+               (SELECT DISTINCT a.AREA_ABBREVIATION, sa.STATION FROM STATION_AREA sa LEFT JOIN 
+               XLU_AREA a on sa.XLU_AREA = a.AREA_KEY WHERE AREA_CLASS = 18) a on r.STATION = a.STATION  LEFT JOIN
                XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
                XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
                PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
