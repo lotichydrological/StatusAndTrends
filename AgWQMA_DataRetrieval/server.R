@@ -1,3 +1,6 @@
+#Use this to make it accessible for other people to access
+#runApp("app_name",host="0.0.0.0",port=3168)
+
 source('data/01_DataQuery.R')
 
 agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
@@ -30,10 +33,10 @@ names(HUClist) <- agwqma$PlanName
 #For testing purposes set up input 
 # input <- list(action_button = c(0))
 # input$action_button <- 1
-# input$parms <- c('Bacteria')
+# input$parms <- c('Bacteria', 'Temperature', 'pH')
 # input$select <- 'North Coast'
-# input$dates <- c("2005-01-01", "2015-04-22")
-# input$db <- c("Water Quality Portal", "Element", "LASAR")
+# input$dates <- c("1995-01-01", "2015-05-21")
+# input$db <- c("Water Quality Portal")
 
 shinyServer(function(input, output) { 
   observe({

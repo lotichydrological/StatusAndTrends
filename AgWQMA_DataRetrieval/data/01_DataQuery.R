@@ -2,6 +2,7 @@ combine <- function(E=NULL, L=NULL, W=NULL) {
 #   E <- elmData
 #   L <- lasarData
 #   W <- wqpData
+#   W <- wqp.data
   
   if (!is.null(W)) {
     wqp.map <- c('MonitoringLocationIdentifier' = 'Station_ID',
