@@ -41,7 +41,8 @@ shinyUI(fluidPage(
       fluidRow(
         column(3,
                checkboxGroupInput('db','Select Database(s) to Query:',
-                                  c('Water Quality Portal','LASAR','Element'),select = c('Water Quality Portal','LASAR','Element'))),
+                                  c('Water Quality Portal','LASAR','Element'),
+                                  select = c('Water Quality Portal', 'LASAR','Element'))),
         column(3,
                h3("Run Query"),
                actionButton(inputId = "action_button",label = 'Submit'))
@@ -54,7 +55,6 @@ shinyUI(fluidPage(
                  condition = "input.action_button == 1",
                  "Please be patient. This will take awhile."
                ))),
-      
       fluidRow(
         column(3),
         column(3,
@@ -75,7 +75,7 @@ shinyUI(fluidPage(
                ),
         column(3,
                conditionalPanel(
-                 condition = "output.isdf=='Results returned'",
+                 condition = "output.isdf == 'Results returned'",
                  'Click here to view map',
                  actionButton(inputId = 'action_button2',label = 'View map')
                )
@@ -88,33 +88,29 @@ shinyUI(fluidPage(
                        uiOutput("mymap"))
     ),
     tabPanel("Review Data", fluidRow(column(3,
-                                            conditionalPanel(condition = "output.isdf == 'Results returned"),
-                                            selectInput("ReviewDf",'Select Review table to view:',choices = list("Summary by organization" = 'df.summary',
-                                                                                                       "Result values modified" = "df.cleaned",
-                                                                                                       "Data removal information" = "df.removal",
-                                                                                                       "Unique comment values" = 'df.Comment',
-                                                                                                       "Data in tabular format" = 'df.sub'),selectize = TRUE
-                                                        )),
+                                            uiOutput('review_control')
+                                            ),
                                      column(9,
-                                            conditionalPanel(condition = "output.isdf == 'Results returned'",
-                                               dataTableOutput("display")
-                                             ))
-    )
-  ),
-  tabPanel("Plot Status and Trend", fluidRow(
-    column(3,
-           conditionalPanel(condition = "output.isdf = 'Results returned'"),
-           selectInput("selectStation","Select station to evaluate:",
-                       "",selectize = TRUE),
-    br(),
-#         selectInput("selectParameter",'Select parameter to evaluate:',
-#                     "",selectize=TRUE)    
-        uiOutput('selectParameter')
-        ),
-column(9,
-       plotOutput("datatable"))
-  ))
- )
-)
+                                            dataTableOutput("display")
+                                            )
+                                     )
+             ),
+    tabPanel("Plot Status and Trend", fluidRow(
+      column(3,
+             uiOutput('selectStation'),
+             br(),
+             uiOutput('selectParameter'),
+             br(),
+             uiOutput('selectSpawning'),
+             br(),
+             uiOutput('selectUse')
+            ),
+      column(9,
+             renderText("ts_plot_text"),
+             plotOutput("ts_plot"))
+             )
+      )
+   )
+  )
 )
 )
