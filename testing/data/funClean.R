@@ -69,9 +69,7 @@ clean <- function(result) {
 evaluate <- function(df, result, parm.name) {
   if (any(df[,parm.name] == 'pH')) {
     df[df[,parm.name] == 'pH','digress'] <- ifelse(df[df[,parm.name] == 'pH',result] < 6.5 | df[df[,parm.name] == 'pH',result] > 8.5, 1, 0)
-  } else if (any(df[,parm.name] == 'Temperature')) {
-    df[df[,parm.name] == 'Temperature','digress'] <- ifelse(df[df[,parm.name] == 'Temperature',result] > 18, 1, 0)
-  }
+  } 
   return(df[,'digress'])
 }
 
@@ -164,6 +162,8 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
   rm(spd,spd_list,spd_chron,spd_months,spd_days,
      spd_months_num,spd_days_num,SSTART_MONTH,
      SSTART_DAY,SEND_MONTH,SEND_DAY)
+  
+  
   tdata <- df.all[df.all$Station_ID == unique(strsplit(station,' - ')[[1]][1]) & #input$selectStation
                     df.all$Analyte == 'Temperature',c('Station_ID','Station_Description',
                                                       'Sampled','Unit','Result')]
@@ -189,13 +189,11 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
   # tdata COLUMN NAMES
   # tdata[1] <- "id"
   # tdata[2] <- "name"
-  # tdata[3] <- "lat"
-  # tdata[4] <- "long"
-  # tdata[5] <- "datetime"
-  # tdata[6] <- "unit"
-  # tdata[7] <- "t"
-  # tdata[8] <- "t_c"
-  # tdata[9] <- "date"
+  # tdata[3] <- "datetime"
+  # tdata[4] <- "unit"
+  # tdata[5] <- "t"
+  # tdata[6] <- "t_c"
+  # tdata[7] <- "date"
   #############################
   
   ####################################################################################################
@@ -206,7 +204,7 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
   
   datetime99<-as.character(seq(min(tdata$date),max(tdata$date),by=1))
   date99<- as.Date(seq(min(tdata$date),max(tdata$date),by=1))
-  id99<-seq(unique(tdata$id),by=0,length.out=length(datetime99))
+  id99<-rep(unique(tdata$id),by=0,length.out=length(datetime99))
   name99<-rep(NA,by=1,length.out=length(datetime99))
   unit99<-rep(NA,by=1,length.out=length(datetime99))
   t99<- rep(NA,by=0,length.out=length(datetime99))
@@ -225,6 +223,8 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
   colnames(dummy)[6] <- "datetime"
   colnames(dummy)[7] <- "date"
   
+  dummy$t_c <- as.numeric(dummy$t_c)
+  dummy$t <- as.numeric(dummy$t)
   
   inherits(dummy$date, "Date") # should be FALSE
   is.numeric(dummy$t_c) # should be TRUE
@@ -237,9 +237,13 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
   tmax<- tapply(tdata$t_c,list(tdata$date,tdata$id),function(x) {ifelse(all(is.na(x)),NA,max(x, na.rm = TRUE))})
   
   ## Calculate 7DADM
-  sdadm<- rollapply(tmax,7,mean, fill=NA, align="right")
-  sdadm<- round(sdadm,1)
-  
+  if (length(tmax) < 7) {
+    return("Insufficient data to calculate a single 7DADM")
+  } else {
+    sdadm<- rollapply(tmax,7,mean, fill=NA, align="right")
+    sdadm<- round(sdadm,1)
+  }
+
   if (all(is.na(sdadm))) {
     return("Insufficient data to calculate a single 7DADM")
   } else {
@@ -262,9 +266,10 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
     sdadm.melt$winter <- ifelse(sdadm.melt$send < sdadm.melt$sstr, TRUE, FALSE)
     
     ## looks up the summer bio criterion and spawning start end/date and returns TRUE/FALSE if current date is in summer or spawning period
-    sdadm.melt$bioc <- ifelse(sdadm.melt$winter == TRUE,
+    sdadm.melt$bioc <- ifelse(is.na(sdadm.melt$winter), sdadm.melt$bioc, ifelse(
+                              sdadm.melt$winter == TRUE,
                               ifelse(sdadm.melt$sstr <= sdadm.melt$cdate | sdadm.melt$send >= sdadm.melt$cdate, 13, sdadm.melt$bioc),
-                              ifelse(sdadm.melt$sstr <= sdadm.melt$cdate & sdadm.melt$send >= sdadm.melt$cdate, 13, sdadm.melt$bioc))
+                              ifelse(sdadm.melt$sstr <= sdadm.melt$cdate & sdadm.melt$send >= sdadm.melt$cdate, 13, sdadm.melt$bioc)))
     
     sdadm.melt$summer <- ifelse(sdadm.melt$bioc == 13, FALSE, TRUE)
     sdadm.melt$spawn <- ifelse(sdadm.melt$bioc == 13, TRUE, FALSE)

@@ -13,6 +13,8 @@ library(rgeos)
 library(plotGoogleMaps)
 library(DT)
 library(wq)
+library(chron)
+library(reshape)
 #library(xlsx)
 #library(RODBC)
 
@@ -34,6 +36,8 @@ agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 #Therefore, a manual identificiation of the desired HUCs for each Ag plan area was completed
 HUClist <- read.csv('data/PlanHUC_LU.csv')
 
+
+ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
 #For testing purposes set up input 
 # input <- list(action_button = c(0))
 # input$action_button <- 1
@@ -340,7 +344,7 @@ shinyServer(function(input, output, session) {
                                                 "df.sub" = (
                                                     df.all
                                                 )
-      )},server = TRUE)
+      )},filter = 'top',server = TRUE)
       
       output$selectStation = renderUI({
         validate(
@@ -413,12 +417,12 @@ shinyServer(function(input, output, session) {
                  x.min <- min(new_data$Sampled) #min of subset date
                  x.max <- max(new_data$Sampled) #max of subset date
                  x.lim <- c(x.min, x.max) ####define the data domain for graph
-                 y.min <- if(floor(min(df.all$Result))<=0 ){ #min of data for graph& log.scale=="y"
-                   1 #set minimum y value for log scale to one
-                 }else{
-                   floor(min(df.all$Result))
-                 }
-                 y.max <- ceiling(max(df.all$Result)) #max of data for graph
+                  y.min <- ifelse(floor(min(new_data$Result))< 4,floor(min(new_data$Result)),4) #{ #min of data for graph& log.scale=="y"
+#                    1 #set minimum y value for log scale to one
+#                   }else{
+#                     4 #floor(min(new_data$Result))
+#                   }
+                 y.max <- ifelse(ceiling(max(new_data$Result)) > 10,ceiling(max(new_data$Result)),10) #max of data for graph
                  y.lim <- c(y.min,y.max) ####define the data range
                  title <- paste0(min(new_data$Station_Description), ", ID = ", min(new_data$Station_ID)) #, " , river mile = ",river.mile
                  x.lab <- "month"
@@ -497,8 +501,8 @@ shinyServer(function(input, output, session) {
                  plot(new_data$Sampled, new_data$sdadm, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L") ####plot the points , log=log.scale  
                  title(main=title, cex.main=1.2, outer=TRUE)
                  mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-                 #exceeds.points <- new_data[new_data$digress == 1,]
-                 #points(exceeds.points$Sampled, exceeds.points$Result, col="red", pch=20) ####plot the exceedances
+                 exceeds.points <- new_data[new_data$exceedsummer | new_data$exceedspawn,]
+                 points(exceeds.points$Sampled, exceeds.points$sdadm, col="red", pch=20) ####plot the exceedances
                  if(p.value.label !="Not Significant"){
                    lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
                  }
@@ -507,13 +511,34 @@ shinyServer(function(input, output, session) {
                  spn_diff <- diff(spn_index)
                  
                  if (all(spn_diff == 1)) {
-                   spn_1 <- max(spn_index)
+                   if (length(spn_index) > 0) {
+                     spn_1 <- max(spn_index)
+                     
+                     if (spn_1 == nrow(new_data)) {
+                       #Plot non-spawn time-period
+                       lines(x = c(new_data[1, 'Sampled'],
+                                   new_data[spn_index[1] - 1, 'Sampled']),
+                             y = c(unique(new_data[1:(spn_index[1] - 1),'bioc']),
+                                   unique(new_data[1:(spn_index[1] - 1),'bioc'])), lty = 3)
+                     } else {
+                       #Plot non-spawn time-period
+                       lines(x = c(new_data[spn_1 + 1, 'Sampled'],
+                                   new_data[nrow(new_data), 'Sampled']),
+                             y = c(unique(new_data[(spn_1 + 1):nrow(new_data),'bioc']),
+                                   unique(new_data[(spn_1 + 1):nrow(new_data),'bioc'])), lty = 3)
+                     }
+                     #Plot spawn time period
+                     lines(x = c(new_data[spn_index[1],'Sampled'],
+                                 new_data[spn_1,'Sampled']),
+                           y = c(unique(new_data[spn_index[1]:spn_1,'bioc']),
+                                 unique(new_data[spn_index[1]:spn_1,'bioc'])), lty=2)
+                   } else {
+                     lines(x = c(new_data[1,'Sampled'],
+                                 new_data[nrow(new_data),'Sampled']),
+                           y = c(unique(new_data[1:nrow(new_data),'bioc']),
+                                 unique(new_data[1:nrow(new_data),'bioc'])), lty = 3)
+                   }
                    
-                   #Plot non-spawn time-period
-                   lines(x = c(new_data[spn_1 + 1, 'Sampled'],
-                               new_data[nrow(new_data), 'Sampled']),
-                         y = c(unique(new_data[(spn_1 + 1):nrow(new_data),'bioc']),
-                               unique(new_data[(spn_1 + 1):nrow(new_data),'bioc'])), lty = 3)
                  } else {
                    spn_stop <- spn_index[which(spn_diff > 1)]
                    spn_start <- spn_index[which(spn_diff > 1) + 1]
@@ -548,30 +573,36 @@ shinyServer(function(input, output, session) {
                                    unique(new_data[nspn_start[i]:nspn_stop[i],'bioc'])), lty = 3)
                        
                        #Plot last non-spawn time period
-                       lines(x = c(new_data[max(spn_index) + 1,'Sampled'],
-                                   new_data[nrow(new_data), 'Sampled']),
-                             y = c(unique(new_data[(max(spn_index) + 1):nrow(new_data),'bioc']),
-                                   unique(new_data[(max(spn_index) + 1):nrow(new_data),'bioc'])), lty = 3)
+                       if (new_data[nrow(new_data),'bioc'] != 13) {
+                         lines(x = c(new_data[max(spn_index) + 1,'Sampled'],
+                                     new_data[nrow(new_data), 'Sampled']),
+                               y = c(unique(new_data[(max(spn_index) + 1):nrow(new_data),'bioc']),
+                                     unique(new_data[(max(spn_index) + 1):nrow(new_data),'bioc'])), lty = 3)
+                       }
                      }
-                    
                    }
+                   
+                   #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
+                   if (spn_index[1] != 1) {
+                     lines(x = c(new_data[1,'Sampled'],
+                                 new_data[spn_index[1] - 1, 'Sampled']),
+                           y = c(unique(new_data[1:(spn_index[1] - 1), 'bioc']),
+                                 unique(new_data[1:(spn_index[1] - 1), 'bioc'])), lty = 3)
+                   }
+                   
+                   #Plot first spawn time period
+                   lines(x = c(new_data[spn_index[1],'Sampled'],
+                               new_data[spn_stop[1],'Sampled']),
+                         y = c(unique(new_data[spn_index[1]:spn_stop[1],'bioc']),
+                               unique(new_data[spn_index[1]:spn_stop[1],'bioc'])), lty=2)
                    
                  }
                  
-                 #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
-                 lines(x = c(new_data[1,'Sampled'],
-                             new_data[spn_index[1] - 1, 'Sampled']),
-                       y = c(unique(new_data[1:(spn_index[1] - 1), 'bioc']),
-                             unique(new_data[1:(spn_index[1] - 1), 'bioc'])), lty = 3)
                  
-                 #Plot first spawn time period
-                 lines(x = c(new_data[spn_index[1],'Sampled'],
-                             new_data[spn_stop[1],'Sampled']),
-                       y = c(unique(new_data[spn_index[1]:spn_stop[1],'bioc']),
-                             unique(new_data[spn_index[1]:spn_stop[1],'bioc'])), lty=2)
                  
-                 legend(x=par("usr")[1],y=par("usr")[3], legend=c("Maximum criterion", 
-                                                                  "Minimum criterion", 
+                 
+                 legend(x=par("usr")[1],y=par("usr")[3], legend=c("Spawning criterion", 
+                                                                  "Non-spawning criterion", 
                                                                   "Seasonal Kendall trend"), 
                         lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
                         xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
