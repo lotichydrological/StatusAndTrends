@@ -101,6 +101,7 @@ shinyUI(fluidPage(
              br(),
              uiOutput('selectParameter'),
              br(),
+             uiOutput('selectpHCrit'),
              uiOutput('selectSpawning'),
              br(),
              uiOutput('selectUse')

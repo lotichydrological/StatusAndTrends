@@ -1,5 +1,5 @@
 #Use this to make it accessible for other people to access
-#runApp("app_name",host="0.0.0.0",port=3168)
+runApp("testing",host="0.0.0.0",port=3168)
 
 library(shiny)
 library(RCurl)
@@ -211,8 +211,6 @@ shinyServer(function(input, output, session) {
           df.summary <- arrange(df.summary,desc(Observations))
         }
         
-        df.all$digress <- evaluate(df.all, "Result", "Analyte")
-        
         SeaKen <- data.frame(Station_ID=sort(unique(df.all$Station_ID)),analyte="none",slope="none",pvalue="none",median="none",N="none",stringsAsFactors=FALSE)
         for (p in 1:length(unique(df.all$Analyte))) {
           parm <- unique(df.all$Analyte)[p]
@@ -358,6 +356,19 @@ shinyServer(function(input, output, session) {
       #updateSelectInput(session, "selectStation", choices = unique(paste(df.all$Station_ID, df.all$Station_Description, sep = ' - ')))
       output$selectParameter = renderUI({mydata <- unique(df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]),'Analyte'])
                                          selectInput('selectParameter','Select parameter to evaluate:',mydata)})
+      
+      output$selectpHCrit = renderUI({
+        validate(
+          need(input$selectParameter == 'pH',message = FALSE)
+        )
+        ph_crit_choices <- paste(ph_crit[ph_crit$plan_name == input$select,c('OWRD_basin')],
+                                 ph_crit[ph_crit$plan_name == input$select,c('ph_standard')],
+                                 sep = " - ")
+        selectInput('selectpHCrit',"Select applicable OWRD Basin specific pH criteria:",
+                    choices = ph_crit_choices,
+                    selectize = TRUE)
+      })
+      
       output$selectSpawning = renderUI({
         validate(
           need(input$selectParameter == 'Temperature', message = FALSE)
@@ -442,13 +453,21 @@ shinyServer(function(input, output, session) {
                  plot(new_data$Sampled, new_data$Result, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L") ####plot the points , log=log.scale  
                  title(main=title, cex.main=1.2, outer=TRUE)
                  mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-                 exceeds.points <- new_data[new_data$digress == 1,]
+                 OWRD_basin <- strsplit(input$selectpHCrit, " - ")[[1]][1]
+                 crit_selected <- strsplit(input$selectpHCrit, " - ")[[1]][2]
+                 ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
+                                          ph_crit$OWRD_basin == OWRD_basin & 
+                                          ph_crit$plan_name == input$select, 'ph_low']
+                 ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+                                          ph_crit$OWRD_basin == OWRD_basin & 
+                                          ph_crit$plan_name == input$select, 'ph_high']
+                 exceeds.points <- new_data[new_data$Result < ph_crit_min | new_data$Result > ph_crit_max,]
                  points(exceeds.points$Sampled, exceeds.points$Result, col="red", pch=20) ####plot the exceedances
                  if(p.value.label !="Not Significant"){
                    lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
                  }
-                 lines(x=c(x.min, x.max), y=c(6.5, 6.5), lty=2)#draw WQS 
-                 lines(x=c(x.min, x.max), y=c(8.5, 8.5), lty=3)#draw WQS 
+                 lines(x=c(x.min, x.max), y=c(ph_crit_min, ph_crit_min), lty=2)#draw WQS 
+                 lines(x=c(x.min, x.max), y=c(ph_crit_max, ph_crit_max), lty=3)#draw WQS 
                  legend(x=par("usr")[1],y=par("usr")[3], legend=c("Maximum criterion", 
                                                                   "Minimum criterion", 
                                                                   "Seasonal Kendall trend"), 
