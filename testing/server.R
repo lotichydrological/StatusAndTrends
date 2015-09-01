@@ -1,5 +1,5 @@
 #Use this to make it accessible for other people to access
-runApp("testing",host="0.0.0.0",port=3168)
+#runApp("testing",host="0.0.0.0",port=3168)
 
 library(shiny)
 library(RCurl)
