@@ -131,7 +131,7 @@ plot.points <- function(station, parm, SeaKen.table){ ####create a function call
 }
 
 
-Calculate.sdadm <- function(spawning, station, use, df.all) {
+Calculate.sdadm <- function(spawning, station, use, df.all, dates) {
   #
   spd <- spawning #input$selectSpawning
   spd_list <- strsplit(spd, split = "-")
@@ -163,11 +163,13 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
      spd_months_num,spd_days_num,SSTART_MONTH,
      SSTART_DAY,SEND_MONTH,SEND_DAY)
   
-  
-  tdata <- df.all[df.all$Station_ID == unique(strsplit(station,' - ')[[1]][1]) & #input$selectStation
-                    df.all$Analyte == 'Temperature',c('Station_ID','Station_Description',
-                                                      'Sampled','Unit','Result')]
-  
+      tdata <- df.all[df.all$Station_ID == unique(strsplit(station,' - ')[[1]][1]) & #input$selectStation
+                        df.all$Analyte == 'Temperature' & 
+                        df.all$Sampled >= as.POSIXct(strptime(dates[1], format = "%Y-%m-%d")) &
+                        df.all$Sampled <= as.POSIXct(strptime(dates[2], format = "%Y-%m-%d"))
+                      ,c('Station_ID','Station_Description',
+                         'Sampled','Unit','Result')]
+
   ## RENAME
   colnames(tdata)[1] <- "id"
   colnames(tdata)[2] <- "name"
@@ -202,8 +204,8 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
   # The purpose for the dummy data is to create a continous daily timeseries so 7DADM are not calculated
   # between breaks in days for the same station.
   
-  datetime99<-as.character(seq(min(tdata$date),max(tdata$date),by=1))
-  date99<- as.Date(seq(min(tdata$date),max(tdata$date),by=1))
+  datetime99<-as.character(seq(dates[1],dates[2],by=1))
+  date99<- as.Date(seq(dates[1],dates[2],by=1))
   id99<-rep(unique(tdata$id),by=0,length.out=length(datetime99))
   name99<-rep(NA,by=1,length.out=length(datetime99))
   unit99<-rep(NA,by=1,length.out=length(datetime99))
@@ -255,6 +257,7 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
     colnames(sdadm.melt)[3] <- "sdadm"
     sdadm.melt$id <- gsub("X","",sdadm.melt$id,fixed=TRUE)
     sdadm.melt$id <- gsub(".","-",sdadm.melt$id,fixed=TRUE)
+    #names(sdadm.melt)[names(sdadm.melt) == 'date'] <- 'Sampled'
     attr(sdadm.melt, "sdata") <- sdata
     ## finds the current date, and spawning start/end date and formats as a numeric in the form mm.dd
     sdadm.melt$cdate <- as.numeric(months(sdadm.melt$date)) + (as.numeric(days(sdadm.melt$date)) * .01)
@@ -278,7 +281,7 @@ Calculate.sdadm <- function(spawning, station, use, df.all) {
     ## number of 7DADM observations that exceed 16 and 18 over the whole time period (not just in the stated periods)
     sdadm.melt$exceedsummer <- ifelse(sdadm.melt$sdadm >=sdadm.melt$bioc & sdadm.melt$summer == TRUE, TRUE, FALSE)
     sdadm.melt$exceedspawn <- ifelse(sdadm.melt$sdadm >=sdadm.melt$bioc & sdadm.melt$spawn == TRUE, TRUE, FALSE)
-    sdadm.melt$daystot <-ifelse(sdadm.melt$sdadm !="NA", TRUE, FALSE)
+    #sdadm.melt$daystot <-ifelse(sdadm.melt$sdadm !="NA", TRUE, FALSE)
     return(sdadm.melt)
   }
 }

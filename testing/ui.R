@@ -101,10 +101,13 @@ shinyUI(fluidPage(
              br(),
              uiOutput('selectParameter'),
              br(),
+             uiOutput('selectLogScale'),
              uiOutput('selectpHCrit'),
              uiOutput('selectSpawning'),
              br(),
-             uiOutput('selectUse')
+             uiOutput('selectUse'),
+             br(),
+             uiOutput('selectRange')
             ),
       column(9,
              renderText("ts_plot_text"),

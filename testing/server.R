@@ -18,10 +18,11 @@ library(reshape)
 #library(xlsx)
 #library(RODBC)
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = FALSE, warn = -1)
 
 source('data/01_DataQuery.R')
 source('data/funClean.R')
+source('data/funEvaluateBacteria.R')
 
 agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 #For testing purposes
@@ -57,6 +58,8 @@ shinyServer(function(input, output, session) {
     isolate({
       if (is.null(input$parms)) {
         output$text1 <- renderText("Please refresh the page and remember to select a parmaeter to query")
+      } else if (input$dates[1] == input$dates[2]) {
+        output$text1 <- renderText("Please refresh the page and select non-identical dates")
       } else {
         withProgress(message = "Processing:", value = 0, {
         
@@ -162,7 +165,7 @@ shinyServer(function(input, output, session) {
           df.ex$Reason <- "Sample Status equivalent to D, E or F"
         }
         
-        df.all$MRL <- as.numeric(df.all$MRL)
+        df.all$MRL <- suppressWarnings(as.numeric(df.all$MRL))
         
         df.all[is.na(df.all$MRL),'MRL'] <- 0
         
@@ -192,7 +195,7 @@ shinyServer(function(input, output, session) {
           df.ex <- rbind(df.ex, df.ex2)
           rm(df.ex2)
         }
-        df.all$Result <- as.numeric(df.all$Result)
+        df.all$Result <- suppressWarnings(as.numeric(df.all$Result))
         
         for (i in 1:length(unique(df.all$Client))) {
           org.rows <- nrow(df.all[which(df.all$Client == unique(df.all$Client)[i]),])
@@ -211,16 +214,16 @@ shinyServer(function(input, output, session) {
           df.summary <- arrange(df.summary,desc(Observations))
         }
         
-        SeaKen <- data.frame(Station_ID=sort(unique(df.all$Station_ID)),analyte="none",slope="none",pvalue="none",median="none",N="none",stringsAsFactors=FALSE)
+        sea_ken_int <- data.frame(Station_ID=sort(unique(df.all$Station_ID)),analyte="none",slope="none",pvalue="none",median="none",N="none",stringsAsFactors=FALSE)
         for (p in 1:length(unique(df.all$Analyte))) {
           parm <- unique(df.all$Analyte)[p]
           
-          for(ii in 1:length(SeaKen$Station_ID)) { 
+          for(ii in 1:length(sea_ken_int$Station_ID)) { 
             # specifiy current Station_ID
-            tmp.one.station <- SeaKen$Station_ID[ii]
+            tmp.one.station <- sea_ken_int$Station_ID[ii]
             tmp.data.raw <- df.all[df.all$Station_ID == tmp.one.station & df.all$Analyte == parm,]
-            SeaKen$analyte[ii] <- parm
-            SeaKen$N[ii] <- length(tmp.data.raw$Result)
+            sea_ken_int$analyte[ii] <- parm
+            sea_ken_int$N[ii] <- length(tmp.data.raw$Result)
             if (!nrow(tmp.data.raw) > 1) next
             # Reshape and manipulate data to convert to wqData-class
             tmp.data <- data.frame(date=tmp.data.raw$Sampled,
@@ -228,28 +231,36 @@ shinyServer(function(input, output, session) {
                                    stn=as.character(tmp.one.station),
                                    depth=1,
                                    variable=parm,
-                                   value=as.numeric(tmp.data.raw$Result), 
+                                   value=suppressWarnings(as.numeric(tmp.data.raw$Result)), 
                                    stringsAsFactors=FALSE)
             
             # Construct an object of class "WqData"
             tmp.wq <- wqData(tmp.data, c(1,3,4), c(5,6), site.order = TRUE, type = "long",time.format = "%Y-%m-%d %H:%M:%S")
             # Create time series from water quality data
-            tmp.ts <- tsMake(tmp.wq, focus = parm, layer = c(0, 5)) 
-            if (!length(tmp.ts) > 2) next
-            if (start(tmp.ts)[1] == end(tmp.ts)[1]) next
+            tmp.ts <- suppressWarnings(tsMake(tmp.wq, focus = parm, layer = c(0, 5)) )
+            if (!length(tmp.ts) > 2 |
+                start(tmp.ts)[1] == end(tmp.ts)[1] | 
+                !any(1:frequency(tmp.ts) %in% cycle(tmp.ts)) |
+                !all(1:12 %in% cycle(tmp.ts))) next
             tmp.result <- seaKen(tmp.ts)
-            SeaKen$pvalue[ii] <- tmp.result$p.value
-            SeaKen$slope[ii] <- tmp.result$sen.slope
-            SeaKen$median[ii] <- median(as.numeric(tmp.data.raw$Result),na.rm = FALSE)
+            sea_ken_int$pvalue[ii] <- tmp.result$p.value
+            sea_ken_int$slope[ii] <- tmp.result$sen.slope
+            sea_ken_int$median[ii] <- suppressWarnings(median(as.numeric(tmp.data.raw$Result),na.rm = FALSE))
             
             rm(list=ls(pattern="tmp.*"))
           }
+          
+          ifelse(p == 1, SeaKen <- sea_ken_int, SeaKen <- rbind(SeaKen, sea_ken_int))
         }
         
         SeaKen$signif <- ifelse(SeaKen$pvalue<=0.01, "99% Significance Level",
                                 ifelse(SeaKen$pvalue<=0.05, "95% Significance Level",
                                        ifelse(SeaKen$pvalue<=0.1, "90% Significance Level",
                                               ifelse(SeaKen$pvalue<=0.2, "80% Significance Level","Not Significant"))))
+        
+        df.date <- data.frame('Sampled' = seq(as.POSIXct(strptime(input$dates[1], format = '%Y-%m-%d')),
+                                              as.POSIXct(strptime(input$dates[2], format = '%Y-%m-%d')),
+                                              by = 60*60*24))
         }
         )
         
@@ -316,6 +327,7 @@ shinyServer(function(input, output, session) {
                                    "Result values modified" = "df.cleaned",
                                    "Data removal information" = "df.removal",
                                    "Unique comment values" = 'df.Comment',
+                                   "Parameter results by station" = 'df.station.results',
                                    "Data in tabular format" = 'df.sub'),
                     selectize = TRUE
         )
@@ -339,6 +351,9 @@ shinyServer(function(input, output, session) {
                                                   else {
                                                     out <- data.frame("Message" = "All data met QC requirments")
                                                   }),
+                                                "df.station.results" = (
+                                                  as.data.frame.matrix(table(df.all$Station_ID, df.all$Analyte))
+                                                ),
                                                 "df.sub" = (
                                                     df.all
                                                 )
@@ -356,6 +371,13 @@ shinyServer(function(input, output, session) {
       #updateSelectInput(session, "selectStation", choices = unique(paste(df.all$Station_ID, df.all$Station_Description, sep = ' - ')))
       output$selectParameter = renderUI({mydata <- unique(df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]),'Analyte'])
                                          selectInput('selectParameter','Select parameter to evaluate:',mydata)})
+      
+      output$selectLogScale = renderUI({
+        validate(
+          need(input$selectParameter == 'E. Coli',message = FALSE)
+        )
+        checkboxInput("selectLogScale", "Plot data with log scale")
+      })
       
       output$selectpHCrit = renderUI({
         validate(
@@ -394,6 +416,7 @@ shinyServer(function(input, output, session) {
                                 'November 1-May 15'),
                     selectize = TRUE)
       })
+      
       output$selectUse = renderUI({
         validate(
           need(input$selectParameter == 'Temperature', message = FALSE)
@@ -409,6 +432,15 @@ shinyServer(function(input, output, session) {
                     selectize = TRUE)
       })
       
+      output$selectRange <- renderUI({
+        sliderInput("selectRange", "Select Date Range for Plot",
+                    min = as.Date(strptime(input$dates[1], format = "%Y-%m-%d")),
+                    max = as.Date(strptime(input$dates[2], format = "%Y-%m-%d")),
+                    value = c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")), 
+                              as.Date(strptime(input$dates[2], format = "%Y-%m-%d")))
+        )
+      })
+      
       #Update the data to be used for plotting
       DataUse <- reactive({switch(input$selectParameter,
                                   "pH" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
@@ -416,8 +448,9 @@ shinyServer(function(input, output, session) {
                                   "Temperature" = Calculate.sdadm(spawning = input$selectSpawning,
                                                                   station = input$selectStation,
                                                                   use = input$selectUse,
-                                                                  df.all = df.all),
-                                  "Bacteria" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
+                                                                  df.all = df.all,
+                                                                  dates = input$selectRange),
+                                  "E. Coli" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
                                                         df.all$Analyte == input$selectParameter,])
         })
       
@@ -425,8 +458,8 @@ shinyServer(function(input, output, session) {
           switch(input$selectParameter,
                "pH" = ({      new_data <- DataUse()
                  new_data$Sampled <- as.POSIXct(strptime(new_data$Sampled, format = '%Y-%m-%d'))  
-                 x.min <- min(new_data$Sampled) #min of subset date
-                 x.max <- max(new_data$Sampled) #max of subset date
+                 x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
+                 x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
                  x.lim <- c(x.min, x.max) ####define the data domain for graph
                   y.min <- ifelse(floor(min(new_data$Result))< 4,floor(min(new_data$Result)),4) #{ #min of data for graph& log.scale=="y"
 #                    1 #set minimum y value for log scale to one
@@ -440,8 +473,8 @@ shinyServer(function(input, output, session) {
                  y.lab <- unique(new_data$Analyte)[1]
                  ####definitions for drawing Seasonal Kendall slope line
                  y.median <- median(new_data$Result)
-                 slope <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'slope'] )
-                 p.value <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'pvalue'] )
+                 slope <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'slope'] ))
+                 p.value <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'pvalue'] ))
                  p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'signif'] 
                  x.delta <- as.numeric((x.max-x.min)/2)####average date
                  SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
@@ -625,8 +658,57 @@ shinyServer(function(input, output, session) {
                                                                   "Seasonal Kendall trend"), 
                         lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
                         xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
-                 })
+                 }),
+              "E. Coli" = ({ new_data <- DataUse()
+                ecoli_gm_eval <- Evaluate30dayEcoli(new_data, input$selectParameter, input$selectStation)
+                x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
+                x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
+                x.lim <- c(x.min, x.max) ####define the data domain for graph
+                y.min <- if(floor(min(new_data$Result))<=0 & input$selectLogScale){ #min of data for graph TODO: Add check box for log scale  & log.scale=="y"
+                  1 #set minimum y value for log scale to one
+                }else{
+                  floor(min(new_data$Result))
+                }
+                y.max <- max(ceiling(max(new_data$Result)),415) #max of data for graph
+                y.lim <- c(y.min,y.max) ####define the data range
+                title <- paste0(min(new_data$Station_Description), ", ID = ", min(new_data$Station_ID))
+                x.lab <- "month"
+                y.lab <- "E. Coli"
+                ####definitions for drawing Seasonal Kendall slope line
+                y.median <- median(new_data$Result)
+                slope <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'slope'])
+                p.value <- as.numeric(SeaKen[SeaKen$Station_ID== unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'pvalue'] )
+                p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'signif'] 
+                x.delta <- as.numeric((x.max-x.min)/2)####average date
+                SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
+                SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
+                sub.text <- paste0("p value = " ,round(p.value, digits=3),", ",  p.value.label, ", slope = ", round(slope, digits=2), ", n = ", nrow(new_data))
+                ####plot the timeseries
+                par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
+                plot(new_data$Sampled, new_data$Result, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L", log = ifelse(input$selectLogScale,"y","")) ####plot the points , log=log.scale  
+                points(as.POSIXct(strptime(ecoli_gm_eval$day, format = "%Y-%m-%d")), ecoli_gm_eval$gm, pch = 2)
+                title(main=title, cex.main=1.2, outer=TRUE)
+                mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
+                exceeds.points.sampled <- new_data[new_data$Result > 406,]
+                points(exceeds.points.sampled$Sampled, exceeds.points.sampled$Result, col="red", pch=20) ####plot the exceedances
+                if (nrow(ecoli_gm_eval > 0)) {
+                  ecoli_gm_eval$Sampled <- as.POSIXct(ecoli_gm_eval$day)
+                  exceeds.points.gm <- ecoli_gm_eval[ecoli_gm_eval$gm > 126,]
+                  points(exceeds.points.gm$Sampled, exceeds.points.gm$gm, col = "maroon", pch = 17)
+                  }
+                if(p.value.label !="Not Significant"){
+                  lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
+                }
+                lines(x=c(x.min, x.max), y=c(406, 406), lty=2)#draw WQS 
+                lines(x=c(x.min, x.max), y=c(126, 126), lty=3)#draw WQS 
+                legend(x=x.min,y=y.min, legend=c("Maximum criterion", "Geomean criterion", "Seasonal Kendall trend"), 
+                       lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), xjust=-0.01, yjust=-8.3, box.lty=0, cex=1.0, horiz=TRUE)
+                legend(x=x.min,y=y.min, legend=c("Single Sample", "Geomean Values"), 
+                       pch=c(1,2), col=c("black","black"), xjust=-0.5, yjust=-8.4, box.lty=0, cex=0.9, horiz=TRUE)            
+                })
         )
         })
   })
 })
+
+options(warn = 0)
