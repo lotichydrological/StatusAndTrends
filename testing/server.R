@@ -197,6 +197,14 @@ shinyServer(function(input, output, session) {
         }
         df.all$Result <- suppressWarnings(as.numeric(df.all$Result))
         
+        df.all[df.all$Analyte == 'Fecal Coliform','Result'] <- round(fc2ec(df.all[df.all$Analyte == 'Fecal Coliform','Result']))
+        df.all[df.all$Analyte == 'Fecal Coliform','Comment'] <- ifelse(is.na(df.all[df.all$Analyte == 'Fecal Coliform','Comment']),
+                                                                       "Fecal Coliform value converted to E. Coli",
+                                                                       paste(df.all[df.all$Analyte == 'Fecal Coliform','Comment'],
+                                                                             "Fecal Coliform value converted to E. Coli",
+                                                                             sep = ", "))
+        df.all[df.all$Analyte == 'Fecal Coliform','Analyte'] <- 'E. Coli'
+        
         for (i in 1:length(unique(df.all$Client))) {
           org.rows <- nrow(df.all[which(df.all$Client == unique(df.all$Client)[i]),])
           org.na.rows <- length(df.all[which(df.all$Client == unique(df.all$Client)[i]),
@@ -261,6 +269,18 @@ shinyServer(function(input, output, session) {
         df.date <- data.frame('Sampled' = seq(as.POSIXct(strptime(input$dates[1], format = '%Y-%m-%d')),
                                               as.POSIXct(strptime(input$dates[2], format = '%Y-%m-%d')),
                                               by = 60*60*24))
+        
+        df.totals <- as.data.frame.matrix(table(df.all$Station_ID, df.all$Analyte))
+        df.totals <- cbind(rownames(df.totals), df.totals)
+        df.totals <- rename(df.totals, c("rownames(df.totals)" = 'Station_ID'))
+        rownames(df.totals) <- 1:nrow(df.totals)
+
+        
+        all.sp <- merge(df.all[,c('Station_ID','Station_Description','DECIMAL_LAT','DECIMAL_LONG')], df.totals, by = 'Station_ID', all.x = TRUE)
+        all.sp <- all.sp[!duplicated(all.sp$Station_ID),]
+        coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT
+        proj4string(all.sp) <- CRS("+init=epsg:4269")
+        
         }
         )
         
@@ -301,11 +321,26 @@ shinyServer(function(input, output, session) {
             withProgress(message = "Processing:", value = 0, {
               incProgress(1/3, detail = 'Plotting stations')
               prog <- 1/3
-            m <- plotGoogleMaps(all.sp, add = TRUE, filename = 'myMap1.html', openMap = FALSE, legend = FALSE, layerName = "Sampling stations", mapTypeId = "ROADMAP")
+              
+            m <- plotGoogleMaps(all.sp, 
+                              add = TRUE, 
+                              filename = 'myMap1.html', 
+                              openMap = FALSE, 
+                              legend = FALSE, 
+                              layerName = "Sampling stations", 
+                              mapTypeId = "ROADMAP")
+            
               incProgress(1/3, detail = "Plotting Ag Area")
               prog <- 2/3
-            m <- plotGoogleMaps(ag_sub, previousMap = m, filename = "myMap2.html", 
-                                openMap = FALSE, layerName = "Ag Plan Areas", legend = FALSE)
+              
+            m <- plotGoogleMaps(ag_sub, 
+                              previousMap = m, 
+                              filename = "myMap2.html", 
+                              openMap = FALSE, 
+                              layerName = "Ag Plan Areas", 
+                              legend = FALSE, 
+                              colPalette = "light green")
+            
               incProgress(1 - prog, detail = "Rendering plot")
             tags$iframe(
               srcdoc = paste(readLines('myMap2.html'), collapse = '\n'),
@@ -346,17 +381,29 @@ shinyServer(function(input, output, session) {
                                                 "df.removal" = (
                                                   if(nrow(df.ex) > 0) {
                                                       out <- rename(as.data.frame(table(df.ex[,'Reason'])), 
-                                                                    c('Var1' = "'Reason for removal'", 'Freq' = "'Number of observations removed'"))
+                                                                    c('Var1' = "'Reason for removal'", 
+                                                                      'Freq' = "'Number of observations removed'"))
                                                   }
                                                   else {
                                                     out <- data.frame("Message" = "All data met QC requirments")
                                                   }),
                                                 "df.station.results" = (
-                                                  as.data.frame.matrix(table(df.all$Station_ID, df.all$Analyte))
+                                                  df.totals
                                                 ),
-                                                "df.sub" = (
-                                                    df.all
-                                                )
+                                                "df.sub" = ({
+                                                  out <- data.frame(lapply(df.all, 
+                                                                    FUN = function(x) {
+                                                                      if (all(class(x) == 'character')) {
+                                                                         x <- factor(x)
+                                                                        } else {
+                                                                          x
+                                                                        }
+                                                                      }
+                                                                    )
+                                                             )
+                                                  out$Station_ID <- factor(out$Station_ID)
+                                                  out
+                                                })
       )},filter = 'top',server = TRUE)
       
       output$selectStation = renderUI({
@@ -364,8 +411,8 @@ shinyServer(function(input, output, session) {
           need(is.data.frame(df.all), message = FALSE)
         )
         selectInput("selectStation","Select station to evaluate:",
-                    choices = unique(paste(df.all$Station_ID, 
-                                           df.all$Station_Description, sep = ' - ')),
+                    choices = sort(unique(paste(df.all$Station_ID, 
+                                           df.all$Station_Description, sep = ' - '))),
                     selectize = TRUE)
       })
       #updateSelectInput(session, "selectStation", choices = unique(paste(df.all$Station_ID, df.all$Station_Description, sep = ' - ')))
@@ -374,7 +421,7 @@ shinyServer(function(input, output, session) {
       
       output$selectLogScale = renderUI({
         validate(
-          need(input$selectParameter == 'E. Coli',message = FALSE)
+          need(input$selectParameter %in% c('E. Coli','Enterococcus'),message = FALSE)
         )
         checkboxInput("selectLogScale", "Plot data with log scale")
       })
@@ -441,6 +488,15 @@ shinyServer(function(input, output, session) {
         )
       })
       
+      output$fish_use_link <- renderUI({
+        validate(
+          need(input$selectParameter == 'Temperature', message = FALSE)
+        )
+        h5(a("Refer to Fish Use and Spawning Use Maps by Basin", 
+             href = "http://www.deq.state.or.us/wq/rules/div041tblsfigs.htm#f1",
+             target = "_blank"))
+      })
+      
       #Update the data to be used for plotting
       DataUse <- reactive({switch(input$selectParameter,
                                   "pH" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
@@ -451,7 +507,9 @@ shinyServer(function(input, output, session) {
                                                                   df.all = df.all,
                                                                   dates = input$selectRange),
                                   "E. Coli" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
-                                                        df.all$Analyte == input$selectParameter,])
+                                                        df.all$Analyte == input$selectParameter,],
+                                  "Enterococcus" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
+                                                            df.all$Analyte == input$selectParameter,])
         })
       
         output$ts_plot <- renderPlot({
@@ -473,9 +531,12 @@ shinyServer(function(input, output, session) {
                  y.lab <- unique(new_data$Analyte)[1]
                  ####definitions for drawing Seasonal Kendall slope line
                  y.median <- median(new_data$Result)
-                 slope <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'slope'] ))
-                 p.value <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'pvalue'] ))
-                 p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID),'signif'] 
+                 slope <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) &
+                                                               SeaKen$analyte == unique(new_data$Analyte),'slope']))
+                 p.value <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) &
+                                                                 SeaKen$analyte == unique(new_data$Analyte),'pvalue']))
+                 p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) &
+                                           SeaKen$analyte == unique(new_data$Analyte),'signif']
                  x.delta <- as.numeric((x.max-x.min)/2)####average date
                  SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
                  SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
@@ -505,7 +566,8 @@ shinyServer(function(input, output, session) {
                                                                   "Minimum criterion", 
                                                                   "Seasonal Kendall trend"), 
                         lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
-                        xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)}),
+                        xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
+                 }),
                "Temperature" = ({ new_data <- DataUse()
                validate(
                  need(is.data.frame(new_data), "Insufficient data to calculate a single 7DADM")
@@ -514,8 +576,8 @@ shinyServer(function(input, output, session) {
                  x.min <- min(new_data$Sampled) #min of subset date
                  x.max <- max(new_data$Sampled) #max of subset date
                  x.lim <- c(x.min, x.max) ####define the data domain for graph
-                 y.min <- if(floor(min(new_data$sdadm, na.rm = TRUE))<=0 ){ #min of data for graph& log.scale=="y"
-                   1 #set minimum y value for log scale to one
+                 y.min <- if(floor(min(new_data$sdadm, na.rm = TRUE))<=10 ){ #min of data for graph& log.scale=="y"
+                   floor(min(new_data$sdadm, na.rm = TRUE)) #set minimum y value for log scale to one
                  }else{
                    10
                    #floor(min(new_data$sdadm, na.rm = TRUE))
@@ -660,7 +722,7 @@ shinyServer(function(input, output, session) {
                         xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
                  }),
               "E. Coli" = ({ new_data <- DataUse()
-                ecoli_gm_eval <- Evaluate30dayEcoli(new_data, input$selectParameter, input$selectStation)
+                ecoli_gm_eval <- gm_mean_30_day(new_data, unique(new_data$Analyte), unique(new_data$Station_ID))
                 x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
                 x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
                 x.lim <- c(x.min, x.max) ####define the data domain for graph
@@ -691,7 +753,7 @@ shinyServer(function(input, output, session) {
                 mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
                 exceeds.points.sampled <- new_data[new_data$Result > 406,]
                 points(exceeds.points.sampled$Sampled, exceeds.points.sampled$Result, col="red", pch=20) ####plot the exceedances
-                if (nrow(ecoli_gm_eval > 0)) {
+                if (nrow(ecoli_gm_eval) > 0) {
                   ecoli_gm_eval$Sampled <- as.POSIXct(ecoli_gm_eval$day)
                   exceeds.points.gm <- ecoli_gm_eval[ecoli_gm_eval$gm > 126,]
                   points(exceeds.points.gm$Sampled, exceeds.points.gm$gm, col = "maroon", pch = 17)
@@ -701,12 +763,77 @@ shinyServer(function(input, output, session) {
                 }
                 lines(x=c(x.min, x.max), y=c(406, 406), lty=2)#draw WQS 
                 lines(x=c(x.min, x.max), y=c(126, 126), lty=3)#draw WQS 
-                legend(x=x.min,y=y.min, legend=c("Maximum criterion", "Geomean criterion", "Seasonal Kendall trend"), 
-                       lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), xjust=-0.01, yjust=-8.3, box.lty=0, cex=1.0, horiz=TRUE)
-                legend(x=x.min,y=y.min, legend=c("Single Sample", "Geomean Values"), 
-                       pch=c(1,2), col=c("black","black"), xjust=-0.5, yjust=-8.4, box.lty=0, cex=0.9, horiz=TRUE)            
+                legend(x=x.min,y=y.min, 
+                       legend=c("Maximum criterion", "Geomean criterion", 
+                                "Seasonal Kendall trend", "Single Sample", 
+                                "Geomean Values"), 
+                       lty=c(2,3,1,NA,NA), 
+                       pch=c(NA,NA,NA,1,2), 
+                       col=c("black","black", "red","black", "black"), 
+                       lwd=c(1,1,2), 
+                       xjust=-0.01, 
+                       yjust=-8, 
+                       box.lty=0, 
+                       cex=1.0, 
+                       horiz=TRUE)
+                }),
+                "Enterococcus" = ({ new_data <- DataUse()
+                  entero_gm_eval <- gm_mean_30_day(new_data, unique(new_data$Analyte), unique(new_data$Station_ID))
+                  x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
+                  x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
+                  x.lim <- c(x.min, x.max) ####define the data domain for graph
+                  y.min <- if(floor(min(new_data$Result))<=0 & input$selectLogScale){ #min of data for graph TODO: Add check box for log scale  & log.scale=="y"
+                              1 #set minimum y value for log scale to one
+                           } else{
+                              floor(min(new_data$Result))
+                           }
+                  y.max <- max(ceiling(max(new_data$Result)),415) #max of data for graph
+                  y.lim <- c(y.min,y.max) ####define the data range
+                  title <- paste0(min(new_data$Station_Description), ", ID = ", min(new_data$Station_ID))
+                  x.lab <- "month"
+                  y.lab <- "E. Coli"
+                  ####definitions for drawing Seasonal Kendall slope line
+                  y.median <- median(new_data$Result)
+                  slope <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'slope'])
+                  p.value <- as.numeric(SeaKen[SeaKen$Station_ID== unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'pvalue'] )
+                  p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'signif'] 
+                  x.delta <- as.numeric((x.max-x.min)/2)####average date
+                  SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
+                  SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
+                  sub.text <- paste0("p value = " ,round(p.value, digits=3),", ",  p.value.label, ", slope = ", round(slope, digits=2), ", n = ", nrow(new_data))
+                  ####plot the timeseries
+                  par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
+                  plot(new_data$Sampled, new_data$Result, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L", log = ifelse(input$selectLogScale,"y","")) ####plot the points , log=log.scale  
+                  points(as.POSIXct(strptime(entero_gm_eval$day, format = "%Y-%m-%d")), entero_gm_eval$gm, pch = 2)
+                  title(main=title, cex.main=1.2, outer=TRUE)
+                  mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
+                  exceeds.points.sampled <- new_data[new_data$Result > 158,]
+                  points(exceeds.points.sampled$Sampled, exceeds.points.sampled$Result, col="red", pch=20) ####plot the exceedances
+                  if (nrow(entero_gm_eval) > 0) {
+                    entero_gm_eval$Sampled <- as.POSIXct(entero_gm_eval$day)
+                    exceeds.points.gm <- entero_gm_eval[entero_gm_eval$gm > 35,]
+                    points(exceeds.points.gm$Sampled, exceeds.points.gm$gm, col = "maroon", pch = 17)
+                  }
+                  if(p.value.label !="Not Significant"){
+                    lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
+                  }
+                  lines(x=c(x.min, x.max), y=c(158, 158), lty=2)#draw WQS 
+                  lines(x=c(x.min, x.max), y=c(35, 35), lty=3)#draw WQS 
+                  legend(x=x.min,y=y.min, 
+                         legend=c("Maximum criterion", "Geomean criterion", 
+                                  "Seasonal Kendall trend", "Single Sample", 
+                                  "Geomean Values"), 
+                         lty=c(2,3,1,NA,NA), 
+                         pch=c(NA,NA,NA,1,2), 
+                         col=c("black","black", "red","black", "black"), 
+                         lwd=c(1,1,2), 
+                         xjust=-0.01, 
+                         yjust=-8, 
+                         box.lty=0, 
+                         cex=1.0, 
+                         horiz=TRUE)
                 })
-        )
+          )
         })
   })
 })

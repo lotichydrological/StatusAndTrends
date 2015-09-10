@@ -13,11 +13,16 @@ gm_mean = function(x, na.rm=TRUE, zero.propagate = TRUE){
   }
 }
 
-Evaluate30dayEcoli <- function(df.all, parameter, station) {
-  sub <- df.all[df.all$Analyte == parameter &
-                  df.all$Station_ID == strsplit(station," - ")[[1]][1],]
+fc2ec <- function(fc) {
+  ec <- 0.531*fc^1.06
+  return(ec)
+}
+
+gm_mean_30_day <- function(df, parameter, station) {
+  sub <- df[df$Analyte == parameter &
+                  df$Station_ID == station,]
   
-  sub_start <- df.all[df.all$Analyte == input$selectParameter,]
+  sub_start <- df[df$Analyte == parameter,]
   
   gm_df <- data.frame()
   for (i in 1:length(unique(sub_start$Station_ID))) {
@@ -27,7 +32,11 @@ Evaluate30dayEcoli <- function(df.all, parameter, station) {
     
     sub$day <- as.Date(sub$Sampled, format = "%Y-%m-%d")
     
-    day <- as.Date((seq(min(sub$Sampled),max(sub$Sampled),by=86400)), format = "%Y-%m-%d")
+    if ((as.Date(max(sub$Sampled)) - as.Date(min(sub$Sampled)) < 30)) {
+      day <- as.Date((seq(min(sub$Sampled),min(sub$Sampled) + 29*24*60*60,by=86400)), format = "%Y-%m-%d")
+    } else {
+      day <- as.Date((seq(min(sub$Sampled),max(sub$Sampled),by=86400)), format = "%Y-%m-%d")
+    }
     Result <- rep(NA, length(day))
     sub_long <- rbind(sub[,c('day','Result')], data.frame(day, Result))
     

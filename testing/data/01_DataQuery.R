@@ -71,16 +71,14 @@ combine <- function(E=NULL, L=NULL, W=NULL) {
     E <- cbind(E, data.frame(Detect = rep(NA, nrow(E))))
   }
     
-  all <- rbind(E,L,W)
+  df.all <- rbind(E,L,W)
   
-  all$Analyte <- mapvalues(all$Analyte, 
-                           from = c('Temperature, water','Escherichia coli','Fecal coliform','Enterococci','E. coli'),
-                           to = c('Temperature','E. Coli','Fecal Coliform','Enterococcus','E. Coli'),
-                           warn_missing = FALSE)
+  df.all$Analyte <- mapvalues(df.all$Analyte, 
+                              from = c('Temperature, water','Escherichia coli','Fecal coliform','Enterococci','E. coli'),
+                              to = c('Temperature','E. Coli','Fecal Coliform','Enterococcus','E. Coli'),
+                              warn_missing = FALSE)
   
-
-    
-  return(all)
+   return(df.all)
 }
 
 elementQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
@@ -133,7 +131,7 @@ elementQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
     qryParms <- c(qryParms, 'pH')
   }
   if (any(inParms == 'Bacteria')) {
-    qryParms <- c(qryParms, c('E. Coli','Fecal Coliform','Total Coliform','Enterococcus'))
+    qryParms <- c(qryParms, c('E. Coli','Fecal Coliform','Enterococcus'))
   }
   qryParms <- paste(qryParms,collapse="','")
   #### Restrict Matrix to surface water ####

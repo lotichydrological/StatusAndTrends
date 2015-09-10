@@ -107,7 +107,9 @@ shinyUI(fluidPage(
              br(),
              uiOutput('selectUse'),
              br(),
-             uiOutput('selectRange')
+             uiOutput('selectRange'),
+             br(),
+             uiOutput('fish_use_link')
             ),
       column(9,
              renderText("ts_plot_text"),

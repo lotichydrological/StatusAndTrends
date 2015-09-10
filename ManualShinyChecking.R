@@ -39,6 +39,7 @@ options(stringsAsFactors = FALSE)
 
 source('testing/data/01_DataQuery.R')
 source('testing/data/funClean.R')
+source('testing/data/funEvaluateBacteria.R')
 
 agwqma <- readOGR(dsn = 'testing/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
@@ -49,15 +50,15 @@ ph_crit <- read.csv('testing/data/PlanOWRDBasinpH_LU.csv')
 input <- list(action_button = c(0))
 input$action_button <- 1
 input$parms <- c('Bacteria')
-input$select <- 'Burnt River'
+input$select <- 'Coos-Coquille'
 input$dates <- c("2010-01-01", "2015-05-21")
-input$db <- c("LASAR")
-input$selectStation <-  "11494 - "
+input$db <- c("LASAR", "Element")
+input$selectStation <-  "11573 - "
 input$selectParameter <- 'E. Coli'
 input$selectLogScale <- TRUE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
-input$selectpHCrit <- 'Powder - All other basin waters'
+input$selectpHCrit <- 'Willamette - All other basin waters'
 input$selectRange <- (c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")), 
                                                        as.Date(strptime(input$dates[2], format = "%Y-%m-%d"))))
 # 
