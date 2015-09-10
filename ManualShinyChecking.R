@@ -45,6 +45,7 @@ agwqma <- readOGR(dsn = 'testing/data/GIS', layer = 'ODA_AgWQMA', verbose = FALS
 agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 HUClist <- read.csv('testing/data/PlanHUC_LU.csv')
 ph_crit <- read.csv('testing/data/PlanOWRDBasinpH_LU.csv')
+wq_limited <- readOGR(dsn = 'testing/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For testing purposes set up input 
 input <- list(action_button = c(0))

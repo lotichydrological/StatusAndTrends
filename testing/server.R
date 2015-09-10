@@ -39,6 +39,8 @@ HUClist <- read.csv('data/PlanHUC_LU.csv')
 
 
 ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
+
+wq_limited <- readOGR(dsn = './data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 #For testing purposes set up input 
 # input <- list(action_button = c(0))
 # input$action_button <- 1
@@ -144,6 +146,11 @@ shinyServer(function(input, output, session) {
         all.sp <- all.sp[ag_sub,]
         
         df.all <- df.all[df.all$Station_ID %in% all.sp@data$Station_ID,]
+        
+        wq_limited <- wq_limited[wq_limited$Pollutant %in% unique(df.all$Analyte),]
+        wq_limited <- spTransform(wq_limited, CRS("+init=epsg:4269"))
+        wq_limited <- wq_limited[ag_sub,]
+        wq_limited <- data.frame(lapply(wq_limited@data, factor))
         
         all.totals <- ddply(df.all, .(Database), summarize, n_stations = length(unique(Station_ID)))
         n_samp <- as.data.frame.matrix(table(df.all$Database, df.all$Analyte))
@@ -324,25 +331,26 @@ shinyServer(function(input, output, session) {
               
             m <- plotGoogleMaps(all.sp, 
                               add = TRUE, 
-                              filename = 'myMap1.html', 
+                              filename = 'myMap2.html', 
                               openMap = FALSE, 
                               legend = FALSE, 
                               layerName = "Sampling stations", 
                               mapTypeId = "ROADMAP")
             
-              incProgress(1/3, detail = "Plotting Ag Area")
+              incProgress(prog, detail = "Plotting Ag Area")
               prog <- 2/3
               
             m <- plotGoogleMaps(ag_sub, 
-                              previousMap = m, 
-                              filename = "myMap2.html", 
-                              openMap = FALSE, 
-                              layerName = "Ag Plan Areas", 
-                              legend = FALSE, 
-                              colPalette = "light green")
+                                previousMap = m, 
+                                filename = "myMap2.html", 
+                                openMap = FALSE, 
+                                layerName = "Ag Plan Areas", 
+                                legend = FALSE, 
+                                colPalette = "light green")
             
-              incProgress(1 - prog, detail = "Rendering plot")
-            tags$iframe(
+            incProgress(1 - prog, detail = "Rendering plot")
+              
+              tags$iframe(
               srcdoc = paste(readLines('myMap2.html'), collapse = '\n'),
               width = "100%",
               height = "600px"
@@ -363,7 +371,8 @@ shinyServer(function(input, output, session) {
                                    "Data removal information" = "df.removal",
                                    "Unique comment values" = 'df.Comment',
                                    "Parameter results by station" = 'df.station.results',
-                                   "Data in tabular format" = 'df.sub'),
+                                   "Data in tabular format" = 'df.sub',
+                                   "WQ Limited Waters within Ag Area" = 'wq_limited'),
                     selectize = TRUE
         )
       })
@@ -403,7 +412,10 @@ shinyServer(function(input, output, session) {
                                                              )
                                                   out$Station_ID <- factor(out$Station_ID)
                                                   out
-                                                })
+                                                }),
+                                                "wq_limited" = (
+                                                  wq_limited
+                                                )
       )},filter = 'top',server = TRUE)
       
       output$selectStation = renderUI({
