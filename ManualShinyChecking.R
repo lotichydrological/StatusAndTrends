@@ -40,6 +40,7 @@ options(stringsAsFactors = FALSE)
 source('testing/data/01_DataQuery.R')
 source('testing/data/funClean.R')
 source('testing/data/funEvaluateBacteria.R')
+source('testing/data/funPlots.R')
 
 agwqma <- readOGR(dsn = 'testing/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
@@ -51,17 +52,18 @@ wq_limited <- readOGR(dsn = 'testing/data/GIS', layer = 'ORStreamsWaterQuality_2
 input <- list(action_button = c(0))
 input$action_button <- 1
 input$parms <- c('Bacteria')
-input$select <- 'Coos-Coquille'
+input$select <- 'Burnt River'
 input$dates <- c("2010-01-01", "2015-05-21")
 input$db <- c("LASAR", "Element")
-input$selectStation <-  "11573 - "
+input$selectStation <-  "11494 - "
 input$selectParameter <- 'E. Coli'
 input$selectLogScale <- TRUE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
-input$selectpHCrit <- 'Willamette - All other basin waters'
+input$selectpHCrit <- 'South Coast - Estuarine and fresh waters'
 input$selectRange <- (c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")), 
                                                        as.Date(strptime(input$dates[2], format = "%Y-%m-%d"))))
+input$plotTrend <- TRUE
 # 
 # spn_index <- which(test$standard == 1)
 # spn_diff <- diff(spn_index)
@@ -100,3 +102,7 @@ input$selectRange <- (c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")),
 # 
 # 
 # 
+
+# new_data$year <- years(new_data$Sampled)
+# plot(as.Date(new_data$plotSampled), new_data$Result, col = c(3:(2 + length(levels(new_data$year)) - 1),1), pch = 19, xlim = c(as.Date('2000-01-01'),as.Date('2000-12-31')))
+# legend('topright',legend = levels(new_data$year), col = c(3:(2 + length(levels(new_data$year)) - 1),1), pch = 19)

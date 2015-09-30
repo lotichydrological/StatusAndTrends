@@ -23,6 +23,7 @@ options(stringsAsFactors = FALSE, warn = -1)
 source('data/01_DataQuery.R')
 source('data/funClean.R')
 source('data/funEvaluateBacteria.R')
+source('data/funPlots.R')
 
 agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 #For testing purposes
@@ -509,6 +510,10 @@ shinyServer(function(input, output, session) {
              target = "_blank"))
       })
       
+      output$plotTrend <- renderUI({
+        checkboxInput("plotTrend", "Plot Seasonal Kendall trend line (Note: May not be significant)")
+      })
+      
       #Update the data to be used for plotting
       DataUse <- reactive({switch(input$selectParameter,
                                   "pH" = df.all[df.all$Station_ID == unique(strsplit(input$selectStation,' - ')[[1]][1]) &
@@ -527,323 +532,42 @@ shinyServer(function(input, output, session) {
         output$ts_plot <- renderPlot({
           switch(input$selectParameter,
                "pH" = ({      new_data <- DataUse()
-                 new_data$Sampled <- as.POSIXct(strptime(new_data$Sampled, format = '%Y-%m-%d'))  
-                 x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
-                 x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
-                 x.lim <- c(x.min, x.max) ####define the data domain for graph
-                  y.min <- ifelse(floor(min(new_data$Result))< 4,floor(min(new_data$Result)),4) #{ #min of data for graph& log.scale=="y"
-#                    1 #set minimum y value for log scale to one
-#                   }else{
-#                     4 #floor(min(new_data$Result))
-#                   }
-                 y.max <- ifelse(ceiling(max(new_data$Result)) > 10,ceiling(max(new_data$Result)),10) #max of data for graph
-                 y.lim <- c(y.min,y.max) ####define the data range
-                 title <- paste0(min(new_data$Station_Description), ", ID = ", min(new_data$Station_ID)) #, " , river mile = ",river.mile
-                 x.lab <- "month"
-                 y.lab <- unique(new_data$Analyte)[1]
-                 ####definitions for drawing Seasonal Kendall slope line
-                 y.median <- median(new_data$Result)
-                 slope <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) &
-                                                               SeaKen$analyte == unique(new_data$Analyte),'slope']))
-                 p.value <- suppressWarnings(as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) &
-                                                                 SeaKen$analyte == unique(new_data$Analyte),'pvalue']))
-                 p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) &
-                                           SeaKen$analyte == unique(new_data$Analyte),'signif']
-                 x.delta <- as.numeric((x.max-x.min)/2)####average date
-                 SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
-                 SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
-                 sub.text <- paste0("p value = " ,round(p.value, digits=3),", ",  
-                                    p.value.label, ", slope = ", round(slope, digits=2), 
-                                    ", n = ", nrow(new_data))
-                 par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-                 plot(new_data$Sampled, new_data$Result, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L") ####plot the points , log=log.scale  
-                 title(main=title, cex.main=1.2, outer=TRUE)
-                 mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-                 OWRD_basin <- strsplit(input$selectpHCrit, " - ")[[1]][1]
-                 crit_selected <- strsplit(input$selectpHCrit, " - ")[[1]][2]
-                 ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
-                                          ph_crit$OWRD_basin == OWRD_basin & 
-                                          ph_crit$plan_name == input$select, 'ph_low']
-                 ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
-                                          ph_crit$OWRD_basin == OWRD_basin & 
-                                          ph_crit$plan_name == input$select, 'ph_high']
-                 exceeds.points <- new_data[new_data$Result < ph_crit_min | new_data$Result > ph_crit_max,]
-                 points(exceeds.points$Sampled, exceeds.points$Result, col="red", pch=20) ####plot the exceedances
-                 if(p.value.label !="Not Significant"){
-                   lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-                 }
-                 lines(x=c(x.min, x.max), y=c(ph_crit_min, ph_crit_min), lty=2)#draw WQS 
-                 lines(x=c(x.min, x.max), y=c(ph_crit_max, ph_crit_max), lty=3)#draw WQS 
-                 legend(x=par("usr")[1],y=par("usr")[3], legend=c("Maximum criterion", 
-                                                                  "Minimum criterion", 
-                                                                  "Seasonal Kendall trend"), 
-                        lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
-                        xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
+                  plot.ph(new_data, 
+                          SeaKen, 
+                          ph_crit, 
+                          x_min = input$selectRange[1],
+                          x_max = input$selectRange[2],
+                          plot_trend = input$plotTrend,
+                          plot_criteria = input$selectpHCrit)
                  }),
                "Temperature" = ({ new_data <- DataUse()
                validate(
                  need(is.data.frame(new_data), "Insufficient data to calculate a single 7DADM")
                )
-                 new_data$Sampled <- as.POSIXct(strptime(new_data$date, format = '%m/%d/%y'))  
-                 x.min <- min(new_data$Sampled) #min of subset date
-                 x.max <- max(new_data$Sampled) #max of subset date
-                 x.lim <- c(x.min, x.max) ####define the data domain for graph
-                 y.min <- if(floor(min(new_data$sdadm, na.rm = TRUE))<=10 ){ #min of data for graph& log.scale=="y"
-                   floor(min(new_data$sdadm, na.rm = TRUE)) #set minimum y value for log scale to one
-                 }else{
-                   10
-                   #floor(min(new_data$sdadm, na.rm = TRUE))
-                 }
-                 y.max <- ceiling(max(new_data$sdadm, na.rm = TRUE)) #max of data for graph
-                 y.lim <- c(y.min,y.max) ####define the data range
-                 #river.mile <- spawning.period.table[spawning.period.table$STATION == station,'RM']
-                 title <- paste0(unique(df.all$Station_Description)[unique(df.all$Station_ID) == new_data[1,"id"]], 
-                                 ", ID = ", 
-                                 new_data[1,"id"]) #, " , river mile = ",river.mile
-                 x.lab <- "month"
-                 y.lab <- "Temperature (7DADM)"
-                 ####definitions for drawing Seasonal Kendall slope line
-                 y.median <- median(new_data$sdadm)
-                 slope <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$id),'slope'] )
-                 p.value <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$id),'pvalue'] )
-                 p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$id),'signif'] 
-                 x.delta <- as.numeric((x.max-x.min)/2)####average date
-                 SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
-                 SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
-                 sub.text <- paste0("p value = " ,round(p.value, digits=3),", ",  
-                                    p.value.label, ", slope = ", round(slope, digits=2), 
-                                    ", n = ", nrow(new_data))
-                 ####definitions for plotting numeric criteria by date from spawning.period.table.
-                 #date.spawn.Start <- spawning.period.table[spawning.period.table$STATION == station,'spwnStart']
-                 #date.spawn.End <- spawning.period.table[spawning.period.table$STATION == station,'spwnEnd']
-                 
-                 #numeric.spawn <- spawning.period.table[spawning.period.table$STATION == station,'DO.criterion.spawn']
-                 #numeric.nonspawn <- spawning.period.table[spawning.period.table$STATION == station,'DO.criterion.nonspawn']
-                 
-                 ####plot the timeseries
-                 #file.name.ts <- paste0(station,"_timeseries",parameter.graph.name,".png")
-                 #png(filename=file.name.ts ,width = 700, height = 400) ####create a .png with the station name in the filepath specified above
-                 par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-                 plot(new_data$Sampled, new_data$sdadm, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L") ####plot the points , log=log.scale  
-                 title(main=title, cex.main=1.2, outer=TRUE)
-                 mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-                 exceeds.points <- new_data[new_data$exceedsummer | new_data$exceedspawn,]
-                 points(exceeds.points$Sampled, exceeds.points$sdadm, col="red", pch=20) ####plot the exceedances
-                 if(p.value.label !="Not Significant"){
-                   lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-                 }
-                 ####Draw WQS
-                 spn_index <- which(new_data$bioc == 13)
-                 spn_diff <- diff(spn_index)
-                 
-                 if (all(spn_diff == 1)) {
-                   if (length(spn_index) > 0) {
-                     spn_1 <- max(spn_index)
-                     
-                     if (spn_1 == nrow(new_data)) {
-                       #Plot non-spawn time-period
-                       lines(x = c(new_data[1, 'Sampled'],
-                                   new_data[spn_index[1] - 1, 'Sampled']),
-                             y = c(unique(new_data[1:(spn_index[1] - 1),'bioc']),
-                                   unique(new_data[1:(spn_index[1] - 1),'bioc'])), lty = 3)
-                     } else {
-                       #Plot non-spawn time-period
-                       lines(x = c(new_data[spn_1 + 1, 'Sampled'],
-                                   new_data[nrow(new_data), 'Sampled']),
-                             y = c(unique(new_data[(spn_1 + 1):nrow(new_data),'bioc']),
-                                   unique(new_data[(spn_1 + 1):nrow(new_data),'bioc'])), lty = 3)
-                     }
-                     #Plot spawn time period
-                     lines(x = c(new_data[spn_index[1],'Sampled'],
-                                 new_data[spn_1,'Sampled']),
-                           y = c(unique(new_data[spn_index[1]:spn_1,'bioc']),
-                                 unique(new_data[spn_index[1]:spn_1,'bioc'])), lty=2)
-                   } else {
-                     lines(x = c(new_data[1,'Sampled'],
-                                 new_data[nrow(new_data),'Sampled']),
-                           y = c(unique(new_data[1:nrow(new_data),'bioc']),
-                                 unique(new_data[1:nrow(new_data),'bioc'])), lty = 3)
-                   }
-                   
-                 } else {
-                   spn_stop <- spn_index[which(spn_diff > 1)]
-                   spn_start <- spn_index[which(spn_diff > 1) + 1]
-                   nspn_start <- spn_stop + 1
-                   nspn_stop <- spn_start - 1
-                   
-                   
-                   for (i in 1:length(spn_start)) {
-                     if (i < length(spn_start)) {
-                       #Plot next spawn time period
-                       lines(x = c(new_data[spn_start[i],'Sampled'],
-                                   new_data[spn_stop[i + 1],'Sampled']),
-                             y = c(unique(new_data[spn_start[i]:spn_stop[i + 1],'bioc']),
-                                   unique(new_data[spn_start[i]:spn_stop[i + 1],'bioc'])), lty = 2)
-                       
-                       #Plot non-spawn time period
-                       lines(x = c(new_data[nspn_start[i],'Sampled'],
-                                   new_data[nspn_stop[i], 'Sampled']),
-                             y = c(unique(new_data[nspn_start[i]:nspn_stop[i],'bioc']),
-                                   unique(new_data[nspn_start[i]:nspn_stop[i],'bioc'])), lty = 3)
-                     } else {
-                       #Plot last spawn-time period
-                       lines(x = c(new_data[spn_start[i],'Sampled'],
-                                   new_data[max(spn_index),'Sampled']),
-                             y = c(unique(new_data[spn_start[i]:max(spn_index),'bioc']),
-                                   unique(new_data[spn_start[i]:max(spn_index),'bioc'])), lty = 2)
-                       
-                       #Plot non-spawn time period
-                       lines(x = c(new_data[nspn_start[i],'Sampled'],
-                                   new_data[nspn_stop[i], 'Sampled']),
-                             y = c(unique(new_data[nspn_start[i]:nspn_stop[i],'bioc']),
-                                   unique(new_data[nspn_start[i]:nspn_stop[i],'bioc'])), lty = 3)
-                       
-                       #Plot last non-spawn time period
-                       if (new_data[nrow(new_data),'bioc'] != 13) {
-                         lines(x = c(new_data[max(spn_index) + 1,'Sampled'],
-                                     new_data[nrow(new_data), 'Sampled']),
-                               y = c(unique(new_data[(max(spn_index) + 1):nrow(new_data),'bioc']),
-                                     unique(new_data[(max(spn_index) + 1):nrow(new_data),'bioc'])), lty = 3)
-                       }
-                     }
-                   }
-                   
-                   #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
-                   if (spn_index[1] != 1) {
-                     lines(x = c(new_data[1,'Sampled'],
-                                 new_data[spn_index[1] - 1, 'Sampled']),
-                           y = c(unique(new_data[1:(spn_index[1] - 1), 'bioc']),
-                                 unique(new_data[1:(spn_index[1] - 1), 'bioc'])), lty = 3)
-                   }
-                   
-                   #Plot first spawn time period
-                   lines(x = c(new_data[spn_index[1],'Sampled'],
-                               new_data[spn_stop[1],'Sampled']),
-                         y = c(unique(new_data[spn_index[1]:spn_stop[1],'bioc']),
-                               unique(new_data[spn_index[1]:spn_stop[1],'bioc'])), lty=2)
-                   
-                 }
-                 
-                 
-                 
-                 
-                 legend(x=par("usr")[1],y=par("usr")[3], legend=c("Spawning criterion", 
-                                                                  "Non-spawning criterion", 
-                                                                  "Seasonal Kendall trend"), 
-                        lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
-                        xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
+                plot.Temperature(new_data, 
+                                 df.all, 
+                                 SeaKen, 
+                                 plot_trend = input$plotTrend)
                  }),
               "E. Coli" = ({ new_data <- DataUse()
                 ecoli_gm_eval <- gm_mean_30_day(new_data, unique(new_data$Analyte), unique(new_data$Station_ID))
-                x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
-                x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
-                x.lim <- c(x.min, x.max) ####define the data domain for graph
-                y.min <- if(floor(min(new_data$Result))<=0 & input$selectLogScale){ #min of data for graph TODO: Add check box for log scale  & log.scale=="y"
-                  1 #set minimum y value for log scale to one
-                }else{
-                  floor(min(new_data$Result))
-                }
-                y.max <- max(ceiling(max(new_data$Result)),415) #max of data for graph
-                y.lim <- c(y.min,y.max) ####define the data range
-                title <- paste0(min(new_data$Station_Description), ", ID = ", min(new_data$Station_ID))
-                x.lab <- "month"
-                y.lab <- "E. Coli"
-                ####definitions for drawing Seasonal Kendall slope line
-                y.median <- median(new_data$Result)
-                slope <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'slope'])
-                p.value <- as.numeric(SeaKen[SeaKen$Station_ID== unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'pvalue'] )
-                p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'signif'] 
-                x.delta <- as.numeric((x.max-x.min)/2)####average date
-                SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
-                SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
-                sub.text <- paste0("p value = " ,round(p.value, digits=3),", ",  p.value.label, ", slope = ", round(slope, digits=2), ", n = ", nrow(new_data))
-                ####plot the timeseries
-                par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-                plot(new_data$Sampled, new_data$Result, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L", log = ifelse(input$selectLogScale,"y","")) ####plot the points , log=log.scale  
-                points(as.POSIXct(strptime(ecoli_gm_eval$day, format = "%Y-%m-%d")), ecoli_gm_eval$gm, pch = 2)
-                title(main=title, cex.main=1.2, outer=TRUE)
-                mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-                exceeds.points.sampled <- new_data[new_data$Result > 406,]
-                points(exceeds.points.sampled$Sampled, exceeds.points.sampled$Result, col="red", pch=20) ####plot the exceedances
-                if (nrow(ecoli_gm_eval) > 0) {
-                  ecoli_gm_eval$Sampled <- as.POSIXct(ecoli_gm_eval$day)
-                  exceeds.points.gm <- ecoli_gm_eval[ecoli_gm_eval$gm > 126,]
-                  points(exceeds.points.gm$Sampled, exceeds.points.gm$gm, col = "maroon", pch = 17)
-                  }
-                if(p.value.label !="Not Significant"){
-                  lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-                }
-                lines(x=c(x.min, x.max), y=c(406, 406), lty=2)#draw WQS 
-                lines(x=c(x.min, x.max), y=c(126, 126), lty=3)#draw WQS 
-                legend(x=x.min,y=y.min, 
-                       legend=c("Maximum criterion", "Geomean criterion", 
-                                "Seasonal Kendall trend", "Single Sample", 
-                                "Geomean Values"), 
-                       lty=c(2,3,1,NA,NA), 
-                       pch=c(NA,NA,NA,1,2), 
-                       col=c("black","black", "red","black", "black"), 
-                       lwd=c(1,1,2), 
-                       xjust=-0.01, 
-                       yjust=-8, 
-                       box.lty=0, 
-                       cex=1.0, 
-                       horiz=TRUE)
+                plot.ecoli(new_data, 
+                           SeaKen, 
+                           ecoli_gm_eval,
+                           plot_trend = input$plotTrend,
+                           plot_log = input$selectLogScale,
+                           x_min = input$selectRange[1],
+                           x_max = input$selectRange[2])
                 }),
                 "Enterococcus" = ({ new_data <- DataUse()
                   entero_gm_eval <- gm_mean_30_day(new_data, unique(new_data$Analyte), unique(new_data$Station_ID))
-                  x.min <- as.POSIXct(strptime(input$selectRange[1], format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
-                  x.max <- as.POSIXct(strptime(input$selectRange[2], format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
-                  x.lim <- c(x.min, x.max) ####define the data domain for graph
-                  y.min <- if(floor(min(new_data$Result))<=0 & input$selectLogScale){ #min of data for graph TODO: Add check box for log scale  & log.scale=="y"
-                              1 #set minimum y value for log scale to one
-                           } else{
-                              floor(min(new_data$Result))
-                           }
-                  y.max <- max(ceiling(max(new_data$Result)),415) #max of data for graph
-                  y.lim <- c(y.min,y.max) ####define the data range
-                  title <- paste0(min(new_data$Station_Description), ", ID = ", min(new_data$Station_ID))
-                  x.lab <- "month"
-                  y.lab <- "E. Coli"
-                  ####definitions for drawing Seasonal Kendall slope line
-                  y.median <- median(new_data$Result)
-                  slope <- as.numeric(SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'slope'])
-                  p.value <- as.numeric(SeaKen[SeaKen$Station_ID== unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'pvalue'] )
-                  p.value.label <- SeaKen[SeaKen$Station_ID == unique(new_data$Station_ID) & SeaKen$analyte == unique(new_data$Analyte),'signif'] 
-                  x.delta <- as.numeric((x.max-x.min)/2)####average date
-                  SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
-                  SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
-                  sub.text <- paste0("p value = " ,round(p.value, digits=3),", ",  p.value.label, ", slope = ", round(slope, digits=2), ", n = ", nrow(new_data))
-                  ####plot the timeseries
-                  par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-                  plot(new_data$Sampled, new_data$Result, xlim=x.lim, ylim=y.lim, xlab="", ylab=y.lab, bty="L", log = ifelse(input$selectLogScale,"y","")) ####plot the points , log=log.scale  
-                  points(as.POSIXct(strptime(entero_gm_eval$day, format = "%Y-%m-%d")), entero_gm_eval$gm, pch = 2)
-                  title(main=title, cex.main=1.2, outer=TRUE)
-                  mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-                  exceeds.points.sampled <- new_data[new_data$Result > 158,]
-                  points(exceeds.points.sampled$Sampled, exceeds.points.sampled$Result, col="red", pch=20) ####plot the exceedances
-                  if (nrow(entero_gm_eval) > 0) {
-                    entero_gm_eval$Sampled <- as.POSIXct(entero_gm_eval$day)
-                    exceeds.points.gm <- entero_gm_eval[entero_gm_eval$gm > 35,]
-                    points(exceeds.points.gm$Sampled, exceeds.points.gm$gm, col = "maroon", pch = 17)
-                  }
-                  if(p.value.label !="Not Significant"){
-                    lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-                  }
-                  lines(x=c(x.min, x.max), y=c(158, 158), lty=2)#draw WQS 
-                  lines(x=c(x.min, x.max), y=c(35, 35), lty=3)#draw WQS 
-                  legend(x=x.min,y=y.min, 
-                         legend=c("Maximum criterion", "Geomean criterion", 
-                                  "Seasonal Kendall trend", "Single Sample", 
-                                  "Geomean Values"), 
-                         lty=c(2,3,1,NA,NA), 
-                         pch=c(NA,NA,NA,1,2), 
-                         col=c("black","black", "red","black", "black"), 
-                         lwd=c(1,1,2), 
-                         xjust=-0.01, 
-                         yjust=-8, 
-                         box.lty=0, 
-                         cex=1.0, 
-                         horiz=TRUE)
+                  plot.entero(new_data, 
+                             SeaKen, 
+                             entero_gm_eval,
+                             plot_trend = input$plotTrend,
+                             plot_log = input$selectLogScale,
+                             x_min = input$selectRange[1],
+                             x_max = input$selectRange[2])
                 })
           )
         })

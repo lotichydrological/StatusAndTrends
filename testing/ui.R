@@ -102,6 +102,7 @@ shinyUI(fluidPage(
              uiOutput('selectParameter'),
              br(),
              uiOutput('selectLogScale'),
+             uiOutput('plotTrend'),
              uiOutput('selectpHCrit'),
              uiOutput('selectSpawning'),
              br(),
