@@ -37,10 +37,11 @@ library(reshape)
 
 options(stringsAsFactors = FALSE)
 
-source('app/data/01_DataQuery.R')
-source('app/data/funClean.R')
-source('app/data/funEvaluateBacteria.R')
-source('app/data/funPlots.R')
+source('app/functions/01_DataQuery.R')
+source('app/functions/funClean.R')
+source('app/functions/funEvaluateBacteria.R')
+source('app/functions/funPlots.R')
+source('app/functions/funSeaKen.R')
 
 agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
@@ -51,12 +52,12 @@ wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Bacteria')
+input$parms <- c('Temperature')
 input$select <- 'Burnt River'
 input$dates <- c("2010-01-01", "2015-05-21")
 input$db <- c("LASAR", "Element")
-input$selectStation <-  "11494 - "
-input$selectParameter <- 'E. Coli'
+input$selectStation <-  "27760 - "
+input$selectParameter <- 'Temperature'
 input$selectLogScale <- TRUE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'

@@ -37,6 +37,7 @@ gm_mean_30_day <- function(df, parameter, station) {
     } else {
       day <- as.Date((seq(min(sub$Sampled),max(sub$Sampled),by=86400)), format = "%Y-%m-%d")
     }
+    
     Result <- rep(NA, length(day))
     sub_long <- rbind(sub[,c('day','Result')], data.frame(day, Result))
     
@@ -78,14 +79,12 @@ gm_mean_30_day <- function(df, parameter, station) {
         
         gm_df <-  rbind(gm_df, gm_df_5_first)
       }
-      
-    } else {
-      #print(paste("FALSE",unique(sub[,'Station_ID'])))
-    }
-    
+    } 
   }
   
-  gm_df <- within(gm_df, rm(ind))
+  if ("ind" %in% names(gm_df)) {
+    gm_df <- within(gm_df, rm(ind))
+  }
   
   return(gm_df)
 }
