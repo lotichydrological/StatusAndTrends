@@ -37,18 +37,18 @@ library(reshape)
 
 options(stringsAsFactors = FALSE)
 
-source('testing/data/01_DataQuery.R')
-source('testing/data/funClean.R')
-source('testing/data/funEvaluateBacteria.R')
-source('testing/data/funPlots.R')
+source('app/data/01_DataQuery.R')
+source('app/data/funClean.R')
+source('app/data/funEvaluateBacteria.R')
+source('app/data/funPlots.R')
 
-agwqma <- readOGR(dsn = 'testing/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
-HUClist <- read.csv('testing/data/PlanHUC_LU.csv')
-ph_crit <- read.csv('testing/data/PlanOWRDBasinpH_LU.csv')
-wq_limited <- readOGR(dsn = 'testing/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
+HUClist <- read.csv('app/data/PlanHUC_LU.csv')
+ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
+wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
-#For testing purposes set up input 
+#For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
 input$parms <- c('Bacteria')
