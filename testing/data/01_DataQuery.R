@@ -186,7 +186,7 @@ lasarQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
   siteType <- "'Surface water', 'Bay/Estuary/Ocean', 'Canal', 'Reservoir', 'Lake', 'Ditch/Pond/Culvert/Drain'"
   
   #### Define data quality level ####
-  myDQL <- "'A+', 'A', 'B'"
+  myDQL <- "'A+', 'A', 'B', 'C', 'E'"
   
   ##### Set parameters ####
   #Get paramters
