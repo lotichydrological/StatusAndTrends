@@ -52,16 +52,16 @@ wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature')
+input$parms <- c('Temperature', 'pH', 'Bacteria')
 input$select <- 'Burnt River'
 input$dates <- c("2010-01-01", "2015-05-21")
 input$db <- c("LASAR", "Element")
 input$selectStation <-  "27760 - "
 input$selectParameter <- 'Temperature'
 input$selectLogScale <- TRUE
-input$selectSpawning <- 'No spawning'
-input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
-input$selectpHCrit <- 'South Coast - Estuarine and fresh waters'
+input$selectSpawning <- 'January 1-June 15'
+input$selectUse <- 'Salmon and Steelhead Migration Corridors'
+input$selectpHCrit <- 'Powder - All other basin waters'
 input$selectRange <- (c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")), 
                                                        as.Date(strptime(input$dates[2], format = "%Y-%m-%d"))))
 input$plotTrend <- TRUE

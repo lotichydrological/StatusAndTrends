@@ -39,22 +39,13 @@ agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 #Therefore, a manual identificiation of the desired HUCs for each Ag plan area was completed
 HUClist <- read.csv('data/PlanHUC_LU.csv')
 
-
+#Table of ph criteria for lookup
 ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
 
+#Bring in the shpaefile of the wq limited waters from the IR
 wq_limited <- readOGR(dsn = './data/GIS', 
                       layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', 
                       verbose = FALSE)
-#For testing purposes set up input 
-# input <- list(action_button = c(0))
-# input$action_button <- 1
-# input$parms <- c('pH')
-# input$select <- 'North Coast'
-# input$dates <- c("1990-01-01", "2015-05-21")
-# input$db <- c("LASAR")
-# input$selectStation <-  "10339 - Willamette River at Canby Ferry"
-# input$selectParameter <- 'Temperature'
-
 
 shinyServer(function(input, output, session) { 
   autoInvalidate <- reactiveTimer(1000, session)
@@ -288,7 +279,6 @@ shinyServer(function(input, output, session) {
         df.totals <- rename(df.totals, c("rownames(df.totals)" = 'Station_ID'))
         rownames(df.totals) <- 1:nrow(df.totals)
 
-        
         all.sp <- merge(df.all[,c('Station_ID',
                                   'Station_Description',
                                   'DECIMAL_LAT',
@@ -583,10 +573,7 @@ shinyServer(function(input, output, session) {
                                              input$selectParameter,])
         })
       
-        output$ts_plot <- renderPlot({
-          validate(
-            need(!is.null(input$selectParameter), message = FALSE)
-          )
+        plotInput <- function() {
           switch(input$selectParameter,
                "pH" = ({
                  new_data <- DataUse()
@@ -639,8 +626,127 @@ shinyServer(function(input, output, session) {
                               x_max = input$selectRange[2])
                 })
           )
+        }
+        
+        output$ts_plot <- renderPlot({
+          validate(
+            need(!is.null(input$selectParameter), message = FALSE),
+            need(plotInput() != "Insufficient data to calculate a single 7DADM",
+                 "Insufficient data to calculate a single 7DADM")
+          )
+          print(plotInput())
+        })
+        
+        output$downloadPlot <- downloadHandler(filename = function () {
+          paste(
+          strsplit(input$selectStation, split = " - ")[[1]][1], "-", 
+          input$selectParameter, "-", 
+          input$selectRange[1], "-",
+          input$selectRange[2],
+          "-timeseries.png", sep = "")}, 
+          content = function(file) {
+            png(file, width = 700, height = 400)
+            plotInput()
+            dev.off()
+          })
+        
+        output$exceed_df <- DT::renderDataTable({
+          exceed_df <- switch(
+            input$selectParameter,
+            "pH" = ({
+              new_data <- DataUse()
+              OWRD_basin <- strsplit(input$selectpHCrit, " - ")[[1]][1]
+              crit_selected <- strsplit(input$selectpHCrit, " - ")[[1]][2]
+              ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
+                                       ph_crit$OWRD_basin == OWRD_basin & 
+                                       ph_crit$plan_name == input$select, 
+                                     'ph_low']
+              ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+                                       ph_crit$OWRD_basin == OWRD_basin & 
+                                       ph_crit$plan_name == input$select, 
+                                     'ph_high']
+              new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
+                                          new_data[, 'Result'] > ph_crit_max, 
+                                        1, 0)
+              data.frame("Station_ID" = unique(new_data$Station_ID), 
+                         "Station_Description" = unique(
+                           new_data$Station_Description),
+                         "Obs" = nrow(new_data),
+                         "Exceedances" = sum(new_data$exceed)
+                         )
+              }),
+            "Temperature" = ({
+              new_data <- DataUse()
+              if (is.data.frame(new_data)) {
+              ex_df <- data.frame("Station_ID" = rep(unique(new_data$id), 3),
+                                  "Station_Description" = rep(unique(strsplit(
+                                    input$selectStation, ' - ')[[1]][2]), 3),
+                                  "Time Period" = c('Total', 
+                                                    'Summer', 
+                                                    'Spawning'),
+                                  "Obs" = c(nrow(new_data[!is.na(
+                                    new_data$sdadm),]), 
+                                            nrow(new_data[!is.na(
+                                              new_data$sdadm) & 
+                                                new_data$summer,]),
+                                            nrow(new_data[!is.na(
+                                              new_data$sdadm) & 
+                                                new_data$spawn,])),
+                                  "Exceedances" = if(
+                                    all(is.na(new_data$summer)) & 
+                                          all(is.na(new_data$spawn))) 
+                                    rep(0,3) else
+                                    c(nrow(new_data[
+                                      which(new_data$exceedsummer | 
+                                        new_data$exceedspawn),]),
+                                      nrow(new_data[which(new_data$exceedsummer),]),
+                                      nrow(new_data[which(new_data$exceedspawn),]))
+                                  )
+              } else {
+                ex_df <- data.frame()
+              }
+              
+              }),
+            "E. Coli" = ({
+              new_data <- DataUse()
+              new_data$exceed <- ifelse(new_data[, 'Result'] > 406, 1, 0)
+              ecoli_gm_eval <- gm_mean_30_day(new_data, 
+                                              unique(new_data$Analyte), 
+                                              unique(new_data$Station_ID))
+              ecoli_gm_eval$exceed <- ifelse(ecoli_gm_eval$gm > 126, 1, 0)
+              ex_df <- data.frame("Station_ID" = rep(unique(
+                                    new_data$Station_ID),2),
+                                  "Station_Description" = rep(unique(
+                                    new_data$Station_Description), 2),
+                                  "Sample" = c('Single sample', 'Geomean'),
+                                  "Obs" = c(nrow(new_data),
+                                            nrow(ecoli_gm_eval)),
+                                  "Exceedances" = c(sum(new_data$exceed),
+                                                    sum(ecoli_gm_eval$exceed))
+                                  )
+              }),
+            "Enterococcus" = ({
+              new_data <- DataUse()
+              new_data$exceed <- ifelse(new_data[, 'Result'] > 158, 1, 0)
+              entero_gm_eval <- gm_mean_30_day(new_data, 
+                                              unique(new_data$Analyte), 
+                                              unique(new_data$Station_ID))
+              entero_gm_eval$exceed <- ifelse(entero_gm_eval$gm > 35, 1, 0)
+              ex_df <- data.frame("Station_ID" = rep(unique(new_data$id),2),
+                                  "Station_Description" = rep(unique(strsplit(
+                                    input$selectStation, ' - ')[[1]][2]), 2),
+                                  "Sample" = c('Single sample', 'Geomean'),
+                                  "Obs" = c(nrow(new_data),
+                                            nrow(ecoli_gm_eval)),
+                                  "Exceedances" = c(sum(new_data$exceed),
+                                                    sum(entero_gm_eval$exceed))
+              )
+            })
+            )
+          exceed_df$Percent_Exceed <- exceed_df$Exceedances/exceed_df$Obs * 100
+          exceed_df
+          })
         })
   })
-})
 
 options(warn = 0)

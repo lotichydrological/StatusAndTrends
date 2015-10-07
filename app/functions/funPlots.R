@@ -357,11 +357,12 @@ plot.ecoli <- function(new_data,
          pch=c(NA,NA,NA,1,2), 
          col=c("black","black", "red","black", "black"), 
          lwd=c(1,1,2), 
-         xjust=-0.01, 
+         xjust=0.1, 
          yjust=-8, 
          box.lty=0, 
          cex=1.0, 
-         horiz=TRUE)
+         horiz=TRUE
+         )
 }
 
 plot.entero <- function (new_data, 
@@ -432,12 +433,12 @@ plot.entero <- function (new_data,
          gm_table$gm, pch = 2)
   title(main=title, cex.main=1.2, outer=TRUE)
   mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-  exceeds.points.sampled <- new_data[new_data[,result_column] > 406,]
+  exceeds.points.sampled <- new_data[new_data[,result_column] > 158,]
   points(exceeds.points.sampled$Sampled, exceeds.points.sampled[,result_column], 
          col="red", pch=20) ####plot the exceedances
   if (nrow(gm_table) > 0) {
     gm_table$Sampled <- as.POSIXct(gm_table$day)
-    exceeds.points.gm <- gm_table[gm_table$gm > 126,]
+    exceeds.points.gm <- gm_table[gm_table$gm > 35,]
     points(exceeds.points.gm$Sampled, exceeds.points.gm$gm, col = "maroon", 
            pch = 17)
   }
