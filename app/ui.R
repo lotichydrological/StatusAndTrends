@@ -114,8 +114,15 @@ shinyUI(fluidPage(
             ),
       column(9,
              renderText("ts_plot_text"),
-             plotOutput("ts_plot"))
+             plotOutput("ts_plot"),
+             conditionalPanel(
+               condition = "output.isdf == 'Results returned'",
+               downloadButton(outputId = "downloadPlot", label = "Save plot")
+               ),
+             br(),
+             dataTableOutput("exceed_df")
              )
+      )
       )
    )
   )
