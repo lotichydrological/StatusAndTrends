@@ -19,20 +19,21 @@ agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 
 shinyUI(fluidPage(
   
-  titlePanel("Oregon Ag Water Quality Biennial Review"),
+  titlePanel("Oregon Ag Water Quality Biennial Review Beta"),
   
   mainPanel(
+    HTML("<script> if (!window.chrome) { alert('For full functionality you will need to load this link in Google Chrome');} </script>"),
     tabsetPanel(
       tabPanel("Data Query", fluidRow(
         column(3, 
                selectInput("select",label = h3('Select Plan Area'),
                            #choices = list())                  
-                           choices = sort(agwqma$PlanName))
+                           choices = c("Choose one" = "",sort(agwqma$PlanName)))
         ),
         column(3,
                checkboxGroupInput("parms",label = h3("Select Paramters to Query"),
                                   choices = c('Temperature','pH','Bacteria'),
-                                  selected=1)
+                                  selected = 1)
         ),
         column(3,
                dateRangeInput("dates",label = h3("Select the Start and End Dates")))
@@ -42,7 +43,8 @@ shinyUI(fluidPage(
         column(3,
                checkboxGroupInput('db','Select Database(s) to Query:',
                                   c('Water Quality Portal','LASAR','Element'),
-                                  select = c('Water Quality Portal', 'LASAR','Element'))),
+                                  selected = 1)
+               ),
         column(3,
                h3("Run Query"),
                actionButton(inputId = "action_button",label = 'Submit'))
@@ -71,7 +73,9 @@ shinyUI(fluidPage(
                conditionalPanel(condition = "output.isdf=='Results returned'",
                                 "Click here to download the data",
                                 downloadButton('downloadData','Download')
-               )
+               ),
+               conditionalPanel(condition = "output.isdf == 'Results returned'",
+                                verbatimTextOutput("wqp_out"))
                ),
         column(3,
                conditionalPanel(
@@ -91,7 +95,8 @@ shinyUI(fluidPage(
                                             uiOutput('review_control')
                                             ),
                                      column(9,
-                                            dataTableOutput("display")
+                                            conditionalPanel(condition = "input.ReviewDf",
+                                            dataTableOutput("display"))
                                             )
                                      )
              ),
@@ -113,18 +118,21 @@ shinyUI(fluidPage(
              uiOutput('fish_use_link')
             ),
       column(9,
-             renderText("ts_plot_text"),
-             plotOutput("ts_plot"),
+             conditionalPanel(condition = "inpute.selectParameter",
+                              renderText("ts_plot_text")),
+             conditionalPanel(condition = "input.selectParameter",
+                              plotOutput("ts_plot")),
              conditionalPanel(
-               condition = "output.isdf == 'Results returned'",
+               condition = "input.selectParameter",
                downloadButton(outputId = "downloadPlot", label = "Save plot")
                ),
              br(),
-             dataTableOutput("exceed_df")
+             conditionalPanel(condition = "input.selectParameter",
+                              dataTableOutput("exceed_df"))
+             )
              )
       )
       )
    )
   )
-)
 )

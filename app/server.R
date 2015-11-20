@@ -18,6 +18,8 @@ library(reshape)
 #library(xlsx)
 #library(RODBC)
 
+suppressWarnings(rm(list = ls()))
+
 options(stringsAsFactors = FALSE, warn = -1)
 
 source('functions/01_DataQuery.R')
@@ -42,6 +44,9 @@ HUClist <- read.csv('data/PlanHUC_LU.csv')
 #Table of ph criteria for lookup
 ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
 
+#The entire list of WQP parameters that match to a criteria
+parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+
 #Bring in the shpaefile of the wq limited waters from the IR
 wq_limited <- readOGR(dsn = './data/GIS', 
                       layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', 
@@ -54,11 +59,9 @@ shinyServer(function(input, output, session) {
       return()
     isolate({
       if (is.null(input$parms)) {
-        output$text1 <- renderText("Please refresh the page and remember 
-                                   to select a parmaeter to query")
+        output$text1 <- renderText("Please refresh the page and remember to select a parmaeter to query")
       } else if (input$dates[1] == input$dates[2]) {
-        output$text1 <- renderText("Please refresh the page and 
-                                   select non-identical dates")
+        output$text1 <- renderText("Please refresh the page and select non-identical dates")
       } else {
         withProgress(message = "Processing:", value = 0, {
         
@@ -69,6 +72,7 @@ shinyServer(function(input, output, session) {
         lasarData <- ""
         elmData <- ""      
         prog <- 0
+        wqp_message <- ""
         
         if ('Water Quality Portal' %in% input$db) {
           incProgress(1/10, detail = 'Querying the Water Quality Portal')
@@ -76,6 +80,7 @@ shinyServer(function(input, output, session) {
           wqpData <- tryCatch(wqpQuery(planArea = input$select,
                                        HUClist = HUClist,
                                        inParms = input$parms,
+                                       luParms = parms,
                                        startDate = input$dates[1],
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
@@ -83,9 +88,15 @@ shinyServer(function(input, output, session) {
                        ifelse(nrow(wqpData) > 0,TRUE,FALSE),
                        FALSE)
           if (!is.data.frame(wqpData)) {
-            df.all <- 'Water Quality Portal is busy. 
-                       Please try again in a few minutes.'
-          } 
+            if (wqpData == "No data") {
+              df.all <- 'Your query returned no results from the Water Quality Portal.'
+              wqp_message <- df.all
+            } else {
+              df.all <- 'Water Quality Portal is busy. Please try again in a few minutes.'
+              wqp_message <- df.all 
+            }
+          }
+          
         }
         if ('LASAR' %in% input$db) {
           incProgress(1/10, detail = 'Querying the LASAR database')
@@ -114,6 +125,7 @@ shinyServer(function(input, output, session) {
           odbcCloseAll()
         }
         
+        if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minutes.') {
         incProgress(1/10, detail = 'Combining query results')
         prog <- prog + 1/10
         if(wL) {
@@ -154,141 +166,156 @@ shinyServer(function(input, output, session) {
           df.all <- 'Your query returned no data'
         }
         
-        incProgress(1/10, "Tabulating results")
-        prog <- prog + 1/10
-        all.sp <- df.all[!duplicated(df.all$SD),c(3,1:2,4:17)]
-        coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT
-        proj4string(all.sp) <- CRS("+init=epsg:4269")
-        ag_sub <- agwqma[agwqma$PlanName == input$select,]
-        #HUC_sub <- HUC[ag_sub,]
-        ag_sub <- spTransform(ag_sub, CRS("+init=epsg:4269"))
-        all.sp <- all.sp[ag_sub,]
-        
-        df.all <- df.all[df.all$Station_ID %in% all.sp@data$Station_ID,]
-        
-        wq_limited <- wq_limited[wq_limited$Pollutant %in% 
-                                   unique(df.all$Analyte),]
-        wq_limited <- spTransform(wq_limited, CRS("+init=epsg:4269"))
-        wq_limited <- wq_limited[ag_sub,]
-        wq_limited <- data.frame(lapply(wq_limited@data, factor))
-        
-        all.totals <- ddply(df.all, 
-                            .(Database), 
-                            summarize, 
-                            n_stations = length(unique(Station_ID)))
-        n_samp <- as.data.frame.matrix(table(df.all$Database, df.all$Analyte))
-        n_samp$Database <- row.names(n_samp)
-        all.totals <- merge(all.totals, n_samp, by = 'Database')
-        
-        attr(df.all, "totals") <- all.totals
-        
-        incProgress(1 - prog, "Cleaning result field")
-        df.all$Result <- clean(df.all$Result)
-        df.report <- attr(df.all$Result, 'report')
-        df.all[which(df.all$Result == 'ND'),'Detect'] <- 0 
-        df.all[which(df.all$Result == 'ND'),'Result'] <- 
-          df.all[which(df.all$Result == 'ND'),'MRL']
-        
-        
-        df.ex <- df.all[df.all$Status %in% c('D','E','F'),]
-        df.all <- df.all[!df.all$Status %in% c('D','E','F'),]
-        if (nrow(df.ex) > 0) {
-          df.ex$Reason <- "Sample Status equivalent to D, E or F"
+        if(!is.data.frame(df.all)) {
+          output$text1 <- renderText({df.all})
         }
-        
-        df.all$MRL <- suppressWarnings(as.numeric(df.all$MRL))
-        
-        df.all[is.na(df.all$MRL),'MRL'] <- 0
-        
-        df.all$Detect <- ifelse(df.all$Result < df.all$MRL,0,1)
-        df.all[which(df.all$Result < df.all$MRL),'Result'] <- 
-          df.all[which(df.all$Result < df.all$MRL),'MRL']
-        
-        df.ex2 <- df.all[grep('Qualifier=C',df.all$Comment),]
-        df.all <- df.all[!grepl('Qualifier=C | [Cc]ontamination | QCS FAILED',
-                                df.all$Comment),]
-        if (nrow(df.ex2) > 0) {
-          df.ex2$Reason <- "Comment indicates sample contamination"
-          df.ex <- rbind(df.ex, df.ex2)
-          rm(df.ex2)
+        else {
+          incProgress(1/10, "Tabulating results")
+          prog <- prog + 1/10
+          all.sp <- df.all[!duplicated(df.all$SD),c(3,1:2,4:17)]
+          coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT
+          proj4string(all.sp) <- CRS("+init=epsg:4269")
+          ag_sub <- agwqma[agwqma$PlanName == input$select,]
+          #HUC_sub <- HUC[ag_sub,]
+          ag_sub <- spTransform(ag_sub, CRS("+init=epsg:4269"))
+          all.sp <- all.sp[ag_sub,]
+          
+          df.all <- df.all[df.all$Station_ID %in% all.sp@data$Station_ID,]
+          
+          wq_limited <- wq_limited[wq_limited$Pollutant %in% 
+                                     unique(df.all$Analyte),]
+          wq_limited <- spTransform(wq_limited, CRS("+init=epsg:4269"))
+          wq_limited <- wq_limited[ag_sub,]
+          wq_limited <- data.frame(lapply(wq_limited@data, factor))
+          
+          all.totals <- ddply(df.all, 
+                              .(Database), 
+                              summarize, 
+                              n_stations = length(unique(Station_ID)))
+          n_samp <- as.data.frame.matrix(table(df.all$Database, df.all$Analyte))
+          n_samp$Database <- row.names(n_samp)
+          all.totals <- merge(all.totals, n_samp, by = 'Database')
+          attr(df.all, "totals") <- all.totals
+          
+          incProgress(1 - prog, "Cleaning result field")
+          df.all$Result <- clean(df.all$Result)
+          df.report <- attr(df.all$Result, 'report')
+          df.all[which(df.all$Result == 'ND'),'Detect'] <- 0 
+          df.all[which(df.all$Result == 'ND'),'Result'] <- 
+            df.all[which(df.all$Result == 'ND'),'MRL']
+          
+          
+          df.ex <- df.all[df.all$Status %in% c('D','E','F'),]
+          df.all <- df.all[!df.all$Status %in% c('D','E','F'),]
+          if (nrow(df.ex) > 0) {
+            df.ex$Reason <- "Sample Status equivalent to D, E or F"
+          }
+          
+          df.all$MRL <- suppressWarnings(as.numeric(df.all$MRL))
+          
+          df.all[is.na(df.all$MRL),'MRL'] <- 0
+          
+          df.all$Detect <- ifelse(df.all$Result < df.all$MRL,0,1)
+          df.all[which(df.all$Result < df.all$MRL),'Result'] <- 
+            df.all[which(df.all$Result < df.all$MRL),'MRL']
+          
+          df.ex2 <- df.all[grep('Qualifier=C',df.all$Comment),]
+          df.all <- df.all[!grepl('Qualifier=C | [Cc]ontamination | QCS FAILED',
+                                  df.all$Comment),]
+          if (nrow(df.ex2) > 0) {
+            df.ex2$Reason <- "Comment indicates sample contamination"
+            df.ex <- rbind(df.ex, df.ex2)
+            rm(df.ex2)
+          }
+          
+          df.ex2 <- df.all[grep('Qualifier=Q',df.all$Comment),]
+          df.all <- df.all[!grepl('Qualifier=Q',df.all$Comment),]
+          if (nrow(df.ex2) > 0) {
+            df.ex2$Reason <- "Comment indicates major QC issue"
+            df.ex <- rbind(df.ex, df.ex2)
+            rm(df.ex2)
+          }
+          
+          df.ex2 <- df.all[is.na(df.all$Result),]
+          df.all <- df.all[!is.na(df.all$Result),]
+          if (nrow(df.ex2) > 0) {
+            df.ex2$Reason <- "Result is Void, Cancelled or other NA"
+            df.ex <- rbind(df.ex, df.ex2)
+            rm(df.ex2)
+          }
+          df.all$Result <- suppressWarnings(as.numeric(df.all$Result))
+          
+          df.all[df.all$Analyte == 'Fecal Coliform','Result'] <- 
+            round(fc2ec(df.all[df.all$Analyte == 'Fecal Coliform','Result']))
+          df.all[df.all$Analyte == 'Fecal Coliform','Comment'] <- 
+            ifelse(is.na(df.all[df.all$Analyte == 'Fecal Coliform','Comment']),
+                   "Fecal Coliform value converted to E. Coli",
+                   paste(df.all[df.all$Analyte == 'Fecal Coliform','Comment'],
+                         "Fecal Coliform value converted to E. Coli",
+                         sep = ", "))
+          df.all[df.all$Analyte == 'Fecal Coliform','Analyte'] <- 'E. Coli'
+          
+          for (i in 1:length(unique(df.all$Client))) {
+            org.rows <- nrow(df.all[which(df.all$Client == 
+                                            unique(df.all$Client)[i]),])
+            org.na.rows <- length(df.all[which(df.all$Client == 
+                                                 unique(df.all$Client)[i]),
+                                         'Result'][is.na(df.all[which(
+                                           df.all$Client == 
+                                             unique(df.all$Client)[i]),
+                                           'Result'])])
+            org.stations <- length(unique(df.all[df.all$Client == 
+                                                   unique(df.all$Client)[i],
+                                                 'Station_ID']))
+            org.comments <- ifelse(all(c("" ,NA) %in% unique(
+              df.all[df.all$Client == unique(df.all$Client)[i],'Comment'])),0,
+              length(unique(df.all[df.all$Client == unique(df.all$Client)[i],
+                                   'Comment'])))
+            new.row <- data.frame("Organization" = unique(df.all$Client)[i],
+                                  "Observations" = org.rows,
+                                  "'Unique Stations'" = org.stations,
+                                  "'NA obs'" = org.na.rows,
+                                  "'Unique Comments'" = org.comments,
+                                  check.names = FALSE)
+            ifelse(i == 1, df.summary <- new.row, df.summary <- rbind(df.summary, 
+                                                                      new.row))
+            df.summary <- arrange(df.summary,desc(Observations))
+          }
+          
+#           df.date <- data.frame('Sampled' = seq(
+#             as.POSIXct(strptime(input$dates[1], format = '%Y-%m-%d')),
+#             as.POSIXct(strptime(input$dates[2], format = '%Y-%m-%d')),
+#             by = 60*60*24)
+#           )
+          
+          df.totals <- as.data.frame.matrix(table(df.all$Station_ID, 
+                                                  df.all$Analyte))
+          df.totals <- cbind(rownames(df.totals), df.totals)
+          df.totals <- rename(df.totals, c("rownames(df.totals)" = 'Station_ID'))
+          rownames(df.totals) <- 1:nrow(df.totals)
+          
+          all.sp <- merge(df.all[,c('Station_ID',
+                                    'Station_Description',
+                                    'DECIMAL_LAT',
+                                    'DECIMAL_LONG')], 
+                          df.totals, 
+                          by = 'Station_ID', all.x = TRUE)
+          all.sp <- all.sp[!duplicated(all.sp$Station_ID),]
+          coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT
+          proj4string(all.sp) <- CRS("+init=epsg:4269")
+          
+          output$text1 <- renderText({
+            paste("You just submitted", 
+                  input$select, 
+                  "Plan Area Query for", 
+                  paste(input$parms,collapse=", "), 
+                  "from",
+                  input$dates[1], 
+                  "to", 
+                  input$dates[2])
+          })
         }
-        
-        df.ex2 <- df.all[grep('Qualifier=Q',df.all$Comment),]
-        df.all <- df.all[!grepl('Qualifier=Q',df.all$Comment),]
-        if (nrow(df.ex2) > 0) {
-          df.ex2$Reason <- "Comment indicates major QC issue"
-          df.ex <- rbind(df.ex, df.ex2)
-          rm(df.ex2)
         }
-        
-        df.ex2 <- df.all[is.na(df.all$Result),]
-        df.all <- df.all[!is.na(df.all$Result),]
-        if (nrow(df.ex2) > 0) {
-          df.ex2$Reason <- "Result is Void, Cancelled or other NA"
-          df.ex <- rbind(df.ex, df.ex2)
-          rm(df.ex2)
-        }
-        df.all$Result <- suppressWarnings(as.numeric(df.all$Result))
-        
-        df.all[df.all$Analyte == 'Fecal Coliform','Result'] <- 
-          round(fc2ec(df.all[df.all$Analyte == 'Fecal Coliform','Result']))
-        df.all[df.all$Analyte == 'Fecal Coliform','Comment'] <- 
-          ifelse(is.na(df.all[df.all$Analyte == 'Fecal Coliform','Comment']),
-                 "Fecal Coliform value converted to E. Coli",
-                 paste(df.all[df.all$Analyte == 'Fecal Coliform','Comment'],
-                       "Fecal Coliform value converted to E. Coli",
-                       sep = ", "))
-        df.all[df.all$Analyte == 'Fecal Coliform','Analyte'] <- 'E. Coli'
-        
-        for (i in 1:length(unique(df.all$Client))) {
-          org.rows <- nrow(df.all[which(df.all$Client == 
-                                          unique(df.all$Client)[i]),])
-          org.na.rows <- length(df.all[which(df.all$Client == 
-                                               unique(df.all$Client)[i]),
-                                       'Result'][is.na(df.all[which(
-                                         df.all$Client == 
-                                           unique(df.all$Client)[i]),
-                                         'Result'])])
-          org.stations <- length(unique(df.all[df.all$Client == 
-                                                 unique(df.all$Client)[i],
-                                               'Station_ID']))
-          org.comments <- ifelse(all(c("" ,NA) %in% unique(
-            df.all[df.all$Client == unique(df.all$Client)[i],'Comment'])),0,
-            length(unique(df.all[df.all$Client == unique(df.all$Client)[i],
-                                 'Comment'])))
-          new.row <- data.frame("Organization" = unique(df.all$Client)[i],
-                                "Observations" = org.rows,
-                                "'Unique Stations'" = org.stations,
-                                "'NA obs'" = org.na.rows,
-                                "'Unique Comments'" = org.comments,
-                                check.names = FALSE)
-          ifelse(i == 1, df.summary <- new.row, df.summary <- rbind(df.summary, 
-                                                                    new.row))
-          df.summary <- arrange(df.summary,desc(Observations))
-        }
-        
-        df.date <- data.frame('Sampled' = seq(
-          as.POSIXct(strptime(input$dates[1], format = '%Y-%m-%d')),
-          as.POSIXct(strptime(input$dates[2], format = '%Y-%m-%d')),
-          by = 60*60*24)
-          )
-        
-        df.totals <- as.data.frame.matrix(table(df.all$Station_ID, 
-                                                df.all$Analyte))
-        df.totals <- cbind(rownames(df.totals), df.totals)
-        df.totals <- rename(df.totals, c("rownames(df.totals)" = 'Station_ID'))
-        rownames(df.totals) <- 1:nrow(df.totals)
-
-        all.sp <- merge(df.all[,c('Station_ID',
-                                  'Station_Description',
-                                  'DECIMAL_LAT',
-                                  'DECIMAL_LONG')], 
-                        df.totals, 
-                        by = 'Station_ID', all.x = TRUE)
-        all.sp <- all.sp[!duplicated(all.sp$Station_ID),]
-        coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT
-        proj4string(all.sp) <- CRS("+init=epsg:4269")
-        
         }
         )
         
@@ -314,6 +341,10 @@ shinyServer(function(input, output, session) {
           
           output$view <- renderTable({
             attr(df.all, 'totals')
+          })
+          
+          output$wqp_out <- renderText({
+            wqp_message
           })
           
           output$downloadData <- downloadHandler(
@@ -359,89 +390,91 @@ shinyServer(function(input, output, session) {
             )
             })
           })
+          
+          output$review_control <- renderUI({
+            validate(
+              need(is.data.frame(df.all), message = FALSE)
+            )
+            selectInput(inputId =  "ReviewDf", 
+                        label = 'Select Review table to view:',
+                        choices = list("Summary by organization" = 'df.summary',
+                                       "Result values modified" = "df.cleaned",
+                                       "Data removal information" = "df.removal",
+                                       "Unique comment values" = 'df.Comment',
+                                       "Parameter results by station" = 
+                                         'df.station.results',
+                                       "Data in tabular format" = 'df.sub',
+                                       "WQ Limited Waters within Ag Area" = 
+                                         'wq_limited'),
+                        selectize = TRUE
+            )
+          })
+          
+          output$display <- DT::renderDataTable({
+            switch(input$ReviewDf,
+                   "df.summary" = (
+                     df.summary
+                   ),
+                   "df.cleaned" = (
+                     df.report
+                   ),
+                   "df.Comment" = (
+                     out <- as.data.frame(table(df.all[,'Comment'],useNA='always'))
+                   ),
+                   "df.removal" = (
+                     if(nrow(df.ex) > 0) {
+                       out <- rename(as.data.frame(table(df.ex[,'Reason'])), 
+                                     c('Var1' = "'Reason for removal'", 
+                                       'Freq' = "'Number of observations removed'"))
+                     }
+                     else {
+                       out <- data.frame("Message" = "All data met QC requirments")
+                     }),
+                   "df.station.results" = (
+                     df.totals
+                   ),
+                   "df.sub" = ({
+                     out <- data.frame(lapply(df.all, 
+                                              FUN = function(x) {
+                                                if (all(class(x) == 'character')) {
+                                                  x <- factor(x)
+                                                } else {
+                                                  x
+                                                }
+                                              }
+                     )
+                     )
+                     out$Station_ID <- factor(out$Station_ID)
+                     out
+                   }),
+                   "wq_limited" = (
+                     wq_limited                                                
+                   )      
+            )},filter = 'top',server = TRUE)
         }
         }
       })
       
-      output$review_control <- renderUI({
+      output$selectStation = renderUI({
         validate(
           need(is.data.frame(df.all), message = FALSE)
         )
-        selectInput(inputId =  "ReviewDf", 
-                    label = 'Select Review table to view:',
-                    choices = list("Summary by organization" = 'df.summary',
-                                   "Result values modified" = "df.cleaned",
-                                   "Data removal information" = "df.removal",
-                                   "Unique comment values" = 'df.Comment',
-                                   "Parameter results by station" = 
-                                     'df.station.results',
-                                   "Data in tabular format" = 'df.sub',
-                                   "WQ Limited Waters within Ag Area" = 
-                                     'wq_limited'),
-                    selectize = TRUE
-        )
-      })
-      
-      output$display <- DT::renderDataTable({
-        switch(input$ReviewDf,
-               "df.summary" = (
-                 df.summary
-                 ),
-               "df.cleaned" = (
-                 df.report
-                 ),
-               "df.Comment" = (
-                 out <- as.data.frame(table(df.all[,'Comment'],useNA='always'))
-                 ),
-               "df.removal" = (
-                 if(nrow(df.ex) > 0) {
-                   out <- rename(as.data.frame(table(df.ex[,'Reason'])), 
-                                 c('Var1' = "'Reason for removal'", 
-                                   'Freq' = "'Number of observations removed'"))
-                 }
-                 else {
-                   out <- data.frame("Message" = "All data met QC requirments")
-                   }),
-               "df.station.results" = (
-                 df.totals
-                 ),
-               "df.sub" = ({
-                 out <- data.frame(lapply(df.all, 
-                                          FUN = function(x) {
-                                            if (all(class(x) == 'character')) {
-                                              x <- factor(x)
-                                              } else {
-                                                x
-                                              }
-                                            }
-                                          )
-                                   )
-                 out$Station_ID <- factor(out$Station_ID)
-                 out
-                 }),
-               "wq_limited" = (
-                 wq_limited                                                
-                 )      
-               )},filter = 'top',server = TRUE)
-      
-      output$selectStation = renderUI({
-#         validate(
-#           need(is.data.frame(df.all), message = FALSE)
-#         )
         selectInput("selectStation","Select station to evaluate:",
-                    choices = sort(unique(paste(df.all$Station_ID, 
+                    choices = c("Choose one"="",sort(unique(paste(df.all$Station_ID, 
                                            df.all$Station_Description, 
-                                           sep = ' - '))),
-                    selectize = TRUE)
+                                           sep = ' - ')))),
+                    selectize = TRUE,
+                    selected = NULL)
       })
-      #updateSelectInput(session, "selectStation", choices = unique(paste(df.all$Station_ID, df.all$Station_Description, sep = ' - ')))
+
       output$selectParameter = renderUI({
-#         validate(
-#           need(!is.null(input$selectStation), message = FALSE)
-#         )
+        validate(
+          need(input$selectStation != "", message = FALSE)
+        )
         mydata <- unique(df.all[df.all$Station_ID == unique(
           strsplit(input$selectStation,' - ')[[1]][1]),'Analyte'])
-        selectInput('selectParameter','Select parameter to evaluate:',mydata)
+        selectInput('selectParameter','Select parameter to evaluate:',
+                    c("Choose one"="",mydata))
       })
       
       output$selectLogScale = renderUI({
@@ -454,7 +487,7 @@ shinyServer(function(input, output, session) {
       
       output$selectpHCrit = renderUI({
         validate(
-          need(input$selectParameter %in% 'pH',message = FALSE)
+          need(input$selectParameter == 'pH',message = FALSE)
         )
         ph_crit_choices <- paste(ph_crit[ph_crit$plan_name == 
                                            input$select,c('OWRD_basin')],
@@ -509,6 +542,9 @@ shinyServer(function(input, output, session) {
       })
       
       output$selectRange <- renderUI({
+        validate(
+          need(input$selectStation != "", message = FALSE)
+        )
         sliderInput("selectRange", "Select Date Range for Plot",
                     min = as.Date(strptime(input$dates[1], 
                                            format = "%Y-%m-%d")),
@@ -541,7 +577,8 @@ shinyServer(function(input, output, session) {
       })
       
       #Update the data to be used for plotting
-      DataUse <- reactive({switch(input$selectParameter,
+      DataUse <- reactive({
+        switch(EXPR = input$selectParameter,
                                   "pH" = df.all[df.all$Station_ID == 
                                                   unique(
                                                     strsplit(
@@ -572,11 +609,12 @@ shinyServer(function(input, output, session) {
                                              df.all$Analyte == 
                                              input$selectParameter,])
         })
-      
-        plotInput <- function() {
-          switch(input$selectParameter,
+  
+        plotInput <- reactive({
+          switch(EXPR = input$selectParameter, 
                "pH" = ({
                  new_data <- DataUse()
+                 validate(need(is.data.frame(new_data), message = ""))
                  SeaKen <- run_seaKen(new_data)
                  plot.ph(new_data, 
                          SeaKen, 
@@ -626,15 +664,20 @@ shinyServer(function(input, output, session) {
                               x_max = input$selectRange[2])
                 })
           )
-        }
+        })
         
         output$ts_plot <- renderPlot({
           validate(
-            need(!is.null(input$selectParameter), message = FALSE),
-            need(plotInput() != "Insufficient data to calculate a single 7DADM",
-                 "Insufficient data to calculate a single 7DADM")
+                  need(input$selectParameter != "", message = FALSE)
+            #,
+#             need(plotInput() != "Insufficient data to calculate a single 7DADM",
+#                  "Insufficient data to calculate a single 7DADM")
           )
-          print(plotInput())
+          if (plotInput()[1] == "Insufficient data to calculate a single 7DADM") {
+            "Insufficient data to calculate a single 7DADM"
+          } else {
+            print(plotInput())
+          }
         })
         
         output$downloadPlot <- downloadHandler(filename = function () {
@@ -646,11 +689,14 @@ shinyServer(function(input, output, session) {
           "-timeseries.png", sep = "")}, 
           content = function(file) {
             png(file, width = 700, height = 400)
-            plotInput()
+            print(plotInput())
             dev.off()
           })
         
         output$exceed_df <- DT::renderDataTable({
+          validate(
+            need(input$selectParameter != "", message = FALSE)
+            )
           exceed_df <- switch(
             input$selectParameter,
             "pH" = ({
@@ -668,12 +714,16 @@ shinyServer(function(input, output, session) {
               new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
                                           new_data[, 'Result'] > ph_crit_max, 
                                         1, 0)
-              data.frame("Station_ID" = unique(new_data$Station_ID), 
-                         "Station_Description" = unique(
-                           new_data$Station_Description),
-                         "Obs" = nrow(new_data),
-                         "Exceedances" = sum(new_data$exceed)
-                         )
+              new_data$Year <- as.character(years(new_data$Sampled))
+              #new_data$Month <- as.character(months(new_data$Sampled))
+              ddply(new_data, .(Station_ID, Station_Description, Year), #, Month), 
+                    summarize, Obs = length(exceed), Exceedances = sum(exceed))
+#               data.frame("Station_ID" = unique(new_data$Station_ID), 
+#                          "Station_Description" = unique(
+#                            new_data$Station_Description),
+#                          "Obs" = nrow(new_data),
+#                          "Exceedances" = sum(new_data$exceed)
+#                          )
               }),
             "Temperature" = ({
               new_data <- DataUse()
