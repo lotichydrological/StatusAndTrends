@@ -31,7 +31,7 @@ combine <- function(E=NULL, L=NULL, W=NULL) {
                         'LatitudeMeasure',
                         'LongitudeMeasure',
                         'HorizontalCoordinateReferenceSystemDatumName','HUCEightDigitCode')], by = 'MonitoringLocationIdentifier', all.x = TRUE)
-    W$Sampled <- paste(W$ActivityStartDate, W$ActivityStartTimeTime)
+    W$Sampled <- paste(W$ActivityStartDate, W$ActivityStartTime.Time)
     W <- W[,c(names(wqp.map),'Sampled')]
     W <- rename(W,wqp.map)
     W$Database <- 'Water Quality Portal'
@@ -260,7 +260,7 @@ lasarQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
   return(myData)
 }
 
-wqpQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
+wqpQuery <- function(planArea, HUClist, inParms, luParms, startDate, endDate) {
 library(RCurl)
 library(XML)
 library(dataRetrieval)
@@ -286,7 +286,7 @@ siteType = URLencode.PTB('Estuary;Ocean;Stream;Lake, Reservoir, Impoundment')
 
 #### Get characteristics ####
 #The entire list of parameters that match to a criteria
-parms <- read.csv('./data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+parms <- luParms
 #parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #Expand bacteria to include fecal and enterococcus

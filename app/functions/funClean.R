@@ -54,9 +54,9 @@ clean <- function(result) {
   for (i in 1:length(lst.split)){
     lst.split[[i]][1] <- str_trim(gsub('[Ee]st|>','',lst.split[[i]][1]))
     lst.split[[i]][1] <- ifelse(substr(lst.split[[i]][1],1,1) == '<',substr(lst.split[[i]][1],2,nchar(lst.split[[i]][1])),lst.split[[i]][1])
-    report$Sub[i] <- ifelse(is.na(as.numeric(str_trim(lst.split[[i]][1]))), 
+    report$Sub[i] <- suppressWarnings(ifelse(is.na(as.numeric(str_trim(lst.split[[i]][1]))), 
                             ifelse(substr(str_trim(lst.split[[i]][1]),1,1) == '<' | str_trim(lst.split[[i]][1]) == 'ND','ND',NA),
-                            as.numeric(lst.split[[i]][1]))
+                            as.numeric(lst.split[[i]][1])))
   }
   
   Result_clean <- sub.cases(result, report) #just use the report object created in step 02_LASAR_clean.R
@@ -133,17 +133,27 @@ plot.points <- function(station, parm, SeaKen.table){ ####create a function call
 
 Calculate.sdadm <- function(spawning, station, use, df.all, dates) {
   #
-  spd <- spawning #input$selectSpawning
-  spd_list <- strsplit(spd, split = "-")
-  spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
-  spd_months <- lapply(spd_chron, months)
-  spd_days <- lapply(spd_chron, days)
-  spd_months_num <- as.numeric(spd_months[[1]])
-  spd_days_num <- as.numeric(spd_days[[1]])
-  SSTART_MONTH <- spd_months_num[1]
-  SEND_MONTH <- spd_months_num[2]
-  SSTART_DAY <- spd_days_num[1]
-  SEND_DAY <- spd_days_num[2]
+  if (!is.character(spawning)) {
+    return("Select a spawning date")
+  }
+  spd <- as.character(spawning) #input$selectSpawning
+  if (spd == 'No spawning') {
+    SSTART_MONTH <- NA
+    SSTART_DAY <- NA
+    SEND_MONTH <- NA
+    SEND_DAY <- NA
+  } else {
+    spd_list <- strsplit(spd, split = "-")
+    spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
+    spd_months <- lapply(spd_chron, months)
+    spd_days <- lapply(spd_chron, days)
+    spd_months_num <- as.numeric(spd_months[[1]])
+    spd_days_num <- as.numeric(spd_days[[1]])
+    SSTART_MONTH <- spd_months_num[1]
+    SEND_MONTH <- spd_months_num[2]
+    SSTART_DAY <- spd_days_num[1]
+    SEND_DAY <- spd_days_num[2]
+  }
   sdata <- data.frame('id' = unique(strsplit(station,' - ')[[1]][1]), #input$selectStation
                       'spawndates' = spd,
                       'SSTART_MONTH' = SSTART_MONTH, 
@@ -157,16 +167,20 @@ Calculate.sdadm <- function(spawning, station, use, df.all, dates) {
                         'Salmon and Steelhead Migration Corridors' = 20,
                         'Redband and Lanhontan Cutthroat Trout' = 20,
                         'Cool water species' = NA,
-                        'No Salmonid Use/Out of State' = NA
-  )
-  rm(spd,spd_list,spd_chron,spd_months,spd_days,
-     spd_months_num,spd_days_num,SSTART_MONTH,
-     SSTART_DAY,SEND_MONTH,SEND_DAY)
+                        'No Salmonid Use/Out of State' = NA)
+  if (spd == "No spawning") {
+    rm(spd,SSTART_MONTH,
+       SSTART_DAY,SEND_MONTH,SEND_DAY)
+  } else {
+    rm(spd,spd_list,spd_chron,spd_months,spd_days,
+       spd_months_num,spd_days_num,SSTART_MONTH,
+       SSTART_DAY,SEND_MONTH,SEND_DAY)
+  }
   
       tdata <- df.all[df.all$Station_ID == unique(strsplit(station,' - ')[[1]][1]) & #input$selectStation
                         df.all$Analyte == 'Temperature' & 
-                        df.all$Sampled >= as.POSIXct(strptime(dates[1], format = "%Y-%m-%d")) &
-                        df.all$Sampled <= as.POSIXct(strptime(dates[2], format = "%Y-%m-%d"))
+                        as.POSIXct(df.all$Sampled) >= as.POSIXct(strptime(dates[1], format = "%Y-%m-%d")) &
+                        as.POSIXct(df.all$Sampled) <= as.POSIXct(strptime(dates[2], format = "%Y-%m-%d"))
                       ,c('Station_ID','Station_Description',
                          'Sampled','Unit','Result')]
 
@@ -183,7 +197,8 @@ Calculate.sdadm <- function(spawning, station, use, df.all, dates) {
   is.numeric(tdata$t_c)
   
   ## Create a vector of daily dates for grouping
-  tdata$date <- as.Date(tdata$datetime, format="%m/%d/%Y")
+  #tdata$date <- as.Date(tdata$datetime, format="%m/%d/%Y")
+  tdata$date <- as.POSIXct(strptime(tdata$datetime, format = "%Y-%m-%d"))
   
   #inherits(tdata$date, "Date") # checks to see if it is class Date
   
@@ -205,7 +220,7 @@ Calculate.sdadm <- function(spawning, station, use, df.all, dates) {
   # between breaks in days for the same station.
   
   datetime99<-as.character(seq(dates[1],dates[2],by=1))
-  date99<- as.Date(seq(dates[1],dates[2],by=1))
+  date99<- as.POSIXct(strptime(seq(dates[1],dates[2],by=1), format = "%Y-%m-%d"))
   id99<-rep(unique(tdata$id),by=0,length.out=length(datetime99))
   name99<-rep(NA,by=1,length.out=length(datetime99))
   unit99<-rep(NA,by=1,length.out=length(datetime99))
