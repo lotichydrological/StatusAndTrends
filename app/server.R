@@ -185,8 +185,13 @@ shinyServer(function(input, output, session) {
           wq_limited <- wq_limited[wq_limited$Pollutant %in% 
                                      unique(df.all$Analyte),]
           wq_limited <- spTransform(wq_limited, CRS("+init=epsg:4269"))
-          wq_limited <- wq_limited[ag_sub,]
-          wq_limited <- data.frame(lapply(wq_limited@data, factor))
+          wq_limited <- tryCatch(wq_limited[ag_sub,],
+                                 error = function(err) {
+                                   data.frame("Message" =
+                                                "No 303(d) listed segments for this parameter")})
+          if(!is.data.frame(wq_limited)){
+            wq_limited <- data.frame(lapply(wq_limited@data, factor)) 
+          }
           
           all.totals <- ddply(df.all, 
                               .(Database), 
