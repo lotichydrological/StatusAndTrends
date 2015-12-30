@@ -53,9 +53,9 @@ wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('pH')
-input$select <- 'Clackamas'
-input$dates <- c("2010-01-01", "2015-11-16")
+input$parms <- c('Temperature')
+input$select <- 'Lower Willamette'
+input$dates <- c("2014-01-01", "2015-11-16")
 input$db <- c("Water Quality Portal")
 input$selectStation <-  "OREGONDEQ-33074 - North Fork Trask River downstream of Bark Shanty Creek"#"13430 - Hoquarten Slough at Hwy 101 (Tillamook)"
 input$selectParameter <- 'Temperature'
@@ -67,31 +67,23 @@ input$selectRange <- (c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")),
                                                        as.Date(strptime(input$dates[2], format = "%Y-%m-%d"))))
 input$plotTrend <- TRUE
 
-wL <- FALSE
-lL <- FALSE
-eL <- FALSE
-wqpData <- ""
-lasarData <- ""
-elmData <- ""  
+wqpData <- NULL
+lasarData <- NULL
+elmData <- NULL
+nwisData <- NULL
 
-lasarData <- lasarQuery(planArea = input$select,
-                        HUClist = HUClist,
-                        inParms = input$parms,
-                        startDate = input$dates[1],
-                        endDate = input$dates[2])
-lL <- ifelse(is.data.frame(lasarData),
-             ifelse(nrow(lasarData) > 0,TRUE,FALSE),
-             FALSE) 
-odbcCloseAll()
+# lasarData <- lasarQuery(planArea = input$select,
+#                         HUClist = HUClist,
+#                         inParms = input$parms,
+#                         startDate = input$dates[1],
+#                         endDate = input$dates[2])
+# odbcCloseAll()
 # 
 # elmData <- elementQuery(planArea = input$select,
 #                         HUClist = HUClist,
 #                         inParms = input$parms,
 #                         startDate = input$dates[1],
 #                         endDate = input$dates[2])
-# eL <- ifelse(is.data.frame(elmData),
-#              ifelse(nrow(elmData) > 0,TRUE,FALSE),
-#              FALSE)
 # odbcCloseAll()
 
 wqpData <- tryCatch(wqpQuery(planArea = input$select,
@@ -101,48 +93,16 @@ wqpData <- tryCatch(wqpQuery(planArea = input$select,
                              startDate = input$dates[1],
                              endDate = input$dates[2]),
                     error = function(err) {err <- geterrmessage()})
-wL <- ifelse(is.data.frame(wqpData),
-             ifelse(nrow(wqpData) > 0,TRUE,FALSE),
-             FALSE)
+
+nwisData <- tryCatch(nwisQuery(planArea = input$select,
+                               HUClist = HUClist,
+                               inParms = input$parms,
+                               startDate = input$dates[1],
+                               endDate = input$dates[2]),
+                     error = function(err) {err <- geterrmessage()})
 
 
-if(wL) {
-  if (lL) {
-    if (eL) {
-      df.all <- tryCatch(combine(E=elmData,L=lasarData,W=wqpData),
-                         error = function(err) 
-                         {err <- geterrmessage()})
-    } else {
-      df.all <- tryCatch(combine(L=lasarData,W=wqpData),
-                         error = function(err) 
-                         {err <- geterrmessage()})
-    } 
-  } else if (eL) {
-    df.all <- tryCatch(combine(E=elmData,W=wqpData),
-                       error = function(err) 
-                       {err <- geterrmessage()})
-  } else {
-    df.all <- tryCatch(combine(W=wqpData),
-                       error = function(err) 
-                       {err <- geterrmessage()})
-  }
-} else if (lL) {
-  if (eL) {
-    df.all <- tryCatch(combine(E=elmData,L=lasarData),
-                       error = function(err) 
-                       {err <- geterrmessage()})
-  } else {
-    df.all <- tryCatch(combine(L=lasarData),
-                       error = function(err) 
-                       {err <- geterrmessage()})
-  }
-} else if (eL) {
-  df.all <- tryCatch(combine(E=elmData),
-                     error = function(err) 
-                     {err <- geterrmessage()})
-} else {
-  df.all <- 'Your query returned no data'
-}
+
 
 all.sp <- df.all[!duplicated(df.all$SD),c(3,1:2,4:17)]
 coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT

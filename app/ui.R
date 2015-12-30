@@ -42,7 +42,7 @@ shinyUI(fluidPage(
       fluidRow(
         column(3,
                checkboxGroupInput('db','Select Database(s) to Query:',
-                                  c('Water Quality Portal','LASAR','Element'),
+                                  c('Water Quality Portal','DEQ'),
                                   selected = 1)
                ),
         column(3,
