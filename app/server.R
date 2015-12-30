@@ -1,5 +1,5 @@
 #Use this to make it accessible for other people to access
-#runApp("app",host="0.0.0.0",port=3168)
+#runApp("app",host="0.0.0.0",port=5525)
 
 library(shiny)
 library(RCurl)
@@ -65,12 +65,10 @@ shinyServer(function(input, output, session) {
       } else {
         withProgress(message = "Processing:", value = 0, {
         
-        wL <- FALSE
-        lL <- FALSE
-        eL <- FALSE
-        wqpData <- ""
-        lasarData <- ""
-        elmData <- ""      
+        wqpData <- NULL
+        lasarData <- NULL
+        elmData <- NULL
+        nwisData <- NULL
         prog <- 0
         wqp_message <- ""
         
@@ -84,9 +82,7 @@ shinyServer(function(input, output, session) {
                                        startDate = input$dates[1],
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
-          wL <- ifelse(is.data.frame(wqpData),
-                       ifelse(nrow(wqpData) > 0,TRUE,FALSE),
-                       FALSE)
+          
           if (!is.data.frame(wqpData)) {
             if (wqpData == "No data") {
               df.all <- 'Your query returned no results from the Water Quality Portal.'
@@ -97,8 +93,17 @@ shinyServer(function(input, output, session) {
             }
           }
           
+          incProgress(1/10, detail = 'Querying NWIS continuous data')
+          prog <- prog + 1/10
+          nwisData <- tryCatch(nwisQuery(planArea = input$select,
+                                       HUClist = HUClist,
+                                       inParms = input$parms,
+                                       startDate = input$dates[1],
+                                       endDate = input$dates[2]),
+                              error = function(err) {err <- geterrmessage()})
         }
-        if ('LASAR' %in% input$db) {
+        
+        if ('DEQ' %in% input$db) {
           incProgress(1/10, detail = 'Querying the LASAR database')
           prog <- prog + 1/10
           lasarData <- lasarQuery(planArea = input$select,
@@ -106,12 +111,7 @@ shinyServer(function(input, output, session) {
                                   inParms = input$parms,
                                   startDate = input$dates[1],
                                   endDate = input$dates[2])
-          lL <- ifelse(is.data.frame(lasarData),
-                       ifelse(nrow(lasarData) > 0,TRUE,FALSE),
-                       FALSE) 
           odbcCloseAll()
-        }
-        if ('Element' %in% input$db) {
           incProgress(1/10, detail = 'Querying the Element database')
           prog <- prog + 1/10
           elmData <- elementQuery(planArea = input$select,
@@ -119,50 +119,18 @@ shinyServer(function(input, output, session) {
                                   inParms = input$parms,
                                   startDate = input$dates[1],
                                   endDate = input$dates[2])
-          eL <- ifelse(is.data.frame(elmData),
-                       ifelse(nrow(elmData) > 0,TRUE,FALSE),
-                       FALSE)
           odbcCloseAll()
         }
+
         
         if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minutes.') {
         incProgress(1/10, detail = 'Combining query results')
         prog <- prog + 1/10
-        if(wL) {
-          if (lL) {
-            if (eL) {
-              df.all <- tryCatch(combine(E=elmData,L=lasarData,W=wqpData),
-                                 error = function(err) 
-                                   {err <- geterrmessage()})
-            } else {
-              df.all <- tryCatch(combine(L=lasarData,W=wqpData),
-                                 error = function(err) 
-                                   {err <- geterrmessage()})
-            } 
-          } else if (eL) {
-            df.all <- tryCatch(combine(E=elmData,W=wqpData),
-                               error = function(err) 
-                                 {err <- geterrmessage()})
-          } else {
-            df.all <- tryCatch(combine(W=wqpData),
-                               error = function(err) 
-                                 {err <- geterrmessage()})
-          }
-        } else if (lL) {
-          if (eL) {
-            df.all <- tryCatch(combine(E=elmData,L=lasarData),
-                               error = function(err) 
-                                 {err <- geterrmessage()})
-          } else {
-            df.all <- tryCatch(combine(L=lasarData),
-                               error = function(err) 
-                                 {err <- geterrmessage()})
-          }
-        } else if (eL) {
-          df.all <- tryCatch(combine(E=elmData),
-                             error = function(err) 
-                               {err <- geterrmessage()})
-        } else {
+        df.all <- tryCatch(combine(E=elmData,L=lasarData,W=wqpData,N=nwisData),
+                           error = function(err) 
+                           {err <- geterrmessage()})
+        
+        if (is.null(df.all)) {
           df.all <- 'Your query returned no data'
         }
         

@@ -1,10 +1,10 @@
-combine <- function(E=NULL, L=NULL, W=NULL) {
+combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
 #   E <- elmData
 #   L <- lasarData
 #   W <- wqpData
 #   W <- wqp.data
   
-  if (!is.null(W)) {
+  if (is.data.frame(W)) {
     wqp.map <- c('MonitoringLocationIdentifier' = 'Station_ID',
                  'OrganizationFormalName' = 'Client',
                  'CharacteristicName' = 'Analyte',
@@ -30,12 +30,45 @@ combine <- function(E=NULL, L=NULL, W=NULL) {
                         "MonitoringLocationName",
                         'LatitudeMeasure',
                         'LongitudeMeasure',
-                        'HorizontalCoordinateReferenceSystemDatumName','HUCEightDigitCode')], by = 'MonitoringLocationIdentifier', all.x = TRUE)
+                        'HorizontalCoordinateReferenceSystemDatumName',
+                        'HUCEightDigitCode')], 
+               by = 'MonitoringLocationIdentifier', 
+               all.x = TRUE)
     W$Sampled <- paste(W$ActivityStartDate, W$ActivityStartTime.Time)
     W <- W[,c(names(wqp.map),'Sampled')]
     W <- rename(W,wqp.map)
     W$Database <- 'Water Quality Portal'
     W$SD <- paste(W$Database, W$Station_ID)
+  } else {
+    W <- NULL
+  }
+  
+  if (!is.null(N)) {
+    siteInfo <- attr(N, 'siteInfo')
+    siteInfo <- siteInfo[!duplicated(siteInfo$site_no),]
+    N <- merge(N, siteInfo[,c('site_no', 'station_nm', 'dec_lat_va', 
+                              'dec_lon_va', 'hucCd', 'srs')],
+                       by = 'site_no',
+                       all.x = TRUE)
+    name_map <- c('agency_cd' = 'Client',
+                  'site_no' = 'Station_ID',
+                  'dateTime' = 'Sampled',
+                  'station_nm' = 'Station_Description',
+                  'dec_lat_va' = 'DECIMAL_LAT',
+                  'dec_lon_va' = 'DECIMAL_LONG',
+                  'hucCd' = 'HUC',
+                  'srs' = 'DATUM')
+    N <- N[,c(names(name_map),'Analyte','Result','Unit','Status')]
+    N <- rename(N, name_map)
+    N <- cbind(N, data.frame(SampleType = rep("Continuous", nrow(N)),
+                             MRL = rep(NA, nrow(N)),
+                             Database = rep("NWIS", nrow(N)),
+                             Detect = rep(NA, nrow(N)), 
+                             Comment = rep(NA, nrow(N)), 
+                             StatusIdentifier = rep(NA, nrow(N))))
+    N$SD <- paste(N$Database, N$Station_ID)
+    N$Sampled <- strftime(N$Sampled, format = '%Y-%m-%d %H:%M:%S')
+    N$Station_ID <- paste0(N$Client, "-", N$Station_ID)
   }
   
   if (!is.null(L)) {
@@ -55,7 +88,9 @@ combine <- function(E=NULL, L=NULL, W=NULL) {
     L <- rename(L,lasar.map)
     L$Database <- 'LASAR'
     L$SD <- paste(L$Database, L$Station_ID)
-    L <- cbind(L, data.frame(Detect = rep(NA, nrow(L)), Comment = rep(NA, nrow(L)), StatusIdentifier = rep(NA, nrow(L))))
+    L <- cbind(L, data.frame(Detect = rep(NA, nrow(L)), 
+                             Comment = rep(NA, nrow(L)), 
+                             StatusIdentifier = rep(NA, nrow(L))))
   }
   
   if (!is.null(E)) {
@@ -64,24 +99,27 @@ combine <- function(E=NULL, L=NULL, W=NULL) {
                      'SampleQualifiers' = 'StatusIdentifier', 
                      'AnalyteQualifiers' = 'Comment',
                      'AREA_ABBREVIATION' = 'HUC'))
-    E <- E[,c('Client','Analyte','Station_ID','Station_Description','SampleType','Result','MRL','Unit','Status','Sampled','DATUM',
+    E <- E[,c('Client','Analyte','Station_ID','Station_Description',
+              'SampleType','Result','MRL','Unit','Status','Sampled','DATUM',
               'DECIMAL_LAT','DECIMAL_LONG','StatusIdentifier','Comment','HUC')]
     E$Database <- 'Element'
     E$SD <- paste(E$Database, E$Station_ID)
     E <- cbind(E, data.frame(Detect = rep(NA, nrow(E))))
   }
     
-  df.all <- rbind(E,L,W)
+  df.all <- rbind(E,L,W,N)
   
   df.all$Analyte <- mapvalues(df.all$Analyte, 
-                              from = c('Temperature, water','Escherichia coli','Fecal coliform','Enterococci','E. coli'),
-                              to = c('Temperature','E. Coli','Fecal Coliform','Enterococcus','E. Coli'),
+                              from = c('Temperature, water','Escherichia coli',
+                                       'Fecal coliform','Enterococci','E. coli'),
+                              to = c('Temperature','E. Coli','Fecal Coliform',
+                                     'Enterococcus','E. Coli'),
                               warn_missing = FALSE)
   
    return(df.all)
 }
 
-elementQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
+elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   library(RODBC)
   
   options(stringsAsFactors = FALSE)
@@ -105,8 +143,12 @@ elementQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
 #     parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
   
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
-  myHUCs <- HUClist[HUClist$PlanName == planArea,'HUC8']
-  
+  if (is.null(planArea)) {
+    myHUCs <- HUClist
+  } else {
+    myHUCs <- HUClist[HUClist$PlanName == planArea,'HUC8']
+  }
+
   las <- odbcConnect('LASAR2_GIS')
   elm <- odbcConnect('ELEMENT')
   
@@ -148,14 +190,15 @@ elementQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
   #### Pass the query ####
   myData <- sqlQuery(elm, qry)
   
-  myData <- merge(myData, st[,c('STATION_KEY','DATUM','AREA_ABBREVIATION')], by.x = 'Station_ID', by.y = 'STATION_KEY', all.x = TRUE)
+  myData <- merge(myData, st[,c('STATION_KEY','DATUM','AREA_ABBREVIATION')], 
+                  by.x = 'Station_ID', by.y = 'STATION_KEY', all.x = TRUE)
   
   odbcCloseAll()
 
   return(myData)
 }
 
-lasarQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
+lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   library(RODBC)
   
   options(stringsAsFactors = FALSE)
@@ -180,7 +223,11 @@ lasarQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
   channel <- odbcConnect('LASAR2_GIS')
   
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
-  myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse="','")
+  if (is.null(planArea)) {
+    myHUCs <- paste(HUClist, collapse = "','")
+  } else {
+    myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse="','")
+  }
   
   #### Define site types to query ####
   siteType <- "'Surface water', 'Bay/Estuary/Ocean', 'Canal', 'Reservoir', 'Lake', 'Ditch/Pond/Culvert/Drain'"
@@ -251,16 +298,17 @@ lasarQuery <- function(planArea, HUClist, inParms, startDate, endDate) {
                r.SAMPLE_DATE_TIME <= '", endDate, "' AND
                st.STATUS in (", myDQL, ") AND
                sm.SAMPLE_MATRIX_NAME in (", siteType, ") AND
-               p.PARAMETER_NM in ('", qryParms, "')")
+               p.PARAMETER_NM in ('", qryParms, "') AND
+                r.DATA_TYPE = 2")
   qry <- gsub('\n','',qry)
   
   #### Pass the query ####
-  myData <- sqlQuery(channel, qry)
+  myData <- sqlQuery(channel, qry, as.is = c(rep(FALSE,8),TRUE,rep(FALSE,13)))
   
   return(myData)
 }
 
-wqpQuery <- function(planArea, HUClist, inParms, luParms, startDate, endDate) {
+wqpQuery <- function(planArea = NULL, HUClist, inParms, luParms, startDate, endDate) {
 library(RCurl)
 library(XML)
 library(dataRetrieval)
@@ -274,7 +322,11 @@ library(rgeos)
 options(stringsAsFactors = FALSE)
 
 #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
-myHUCs <- URLencode.PTB(paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';'))
+if (is.null(planArea)) {
+  myHUCs <- URLencode.PTB(paste(HUClist, collapse = ";"))
+} else {
+  myHUCs <- URLencode.PTB(paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';'))
+}
 
 #### Define site types to query ####
 #Returns list of available domain values for site type
@@ -354,4 +406,98 @@ URLencode.PTB <- function (URL, reserved = FALSE)
     x[z] <- y
   }
   paste(x, collapse = "")
+}
+
+nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
+  library(RCurl)
+  library(XML)
+  library(dataRetrieval)
+  library(plyr)
+  library(sp)
+  library(rgdal)
+  library(raster)
+  library(rgeos)
+  library(data.table)
+  #library(RODBC)
+  
+  options(stringsAsFactors = FALSE)
+  
+  #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
+  if (is.null(planArea)) {
+    myHUCs <- paste(HUClist, collapse = ",")
+  } else {
+    myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=',')
+  }
+  
+  #### Define site types ####
+  siteTypeCd <- "LK,ST,ST-CA,ST-DCH,ST-TS,ES"
+  
+  temp_data_c <- NULL
+  temp_data_f <- NULL
+  ph_data <- NULL
+  #### Define parameters to query ####
+  if ('Temperature' %in% inParms) {
+    temp_data_c <- readNWISdata(service = "iv",
+                                huc=myHUCs,
+                                siteTypeCd=siteTypeCd,
+                                startDate=startDate,
+                                endDate=endDate,
+                                parameterCd='00010')
+    if (nrow(temp_data_c) > 0) {
+      temp_data_c$Analyte <- 'Temperature'
+      temp_data_c$Unit <- 'C'
+    }
+    
+    
+    temp_data_f <- readNWISdata(service = "iv",
+                                huc=myHUCs,
+                                siteTypeCd=siteTypeCd,
+                                startDate=startDate,
+                                endDate=endDate,
+                                parameterCd='00011')
+    if (nrow(temp_data_f) > 0) {
+      temp_data_f$Analyte <- 'Temperature'
+      temp_data_f$Unit <- 'F'
+    }
+  }
+  
+  if('pH' %in% inParms) {
+    ph_data <- readNWISdata(service = "iv",
+                            huc=myHUCs,
+                            siteTypeCd=siteTypeCd,
+                            startDate=startDate,
+                            endDate=endDate,
+                            parameterCd='00400')
+    if (nrow(ph_data) > 0) {
+      ph_data$Analyte <- 'pH'
+      ph_data$Unit <- 'ph Units'
+    }
+  }
+  
+  
+  df_list <- list(temp_data_c, temp_data_f, ph_data)
+  df_list_rows <- lapply(df_list, nrow)
+  
+  if (any(unlist(df_list_rows) > 0)) {
+    df_list <- df_list[unlist(sapply(df_list, function(x) dim(x)[1])) > 0]
+    df_list <- lapply(df_list, function(x) {
+      comment_field <- grep('^X_',grep('_cd$',names(x), 
+                                       value = TRUE), 
+                            value = TRUE)
+      comment_rename <- setNames("Status", comment_field)
+      x <- rename(x, comment_rename)
+      result_field <- grep('^X', names(x), value = TRUE)
+      result_rename <- setNames("Result", result_field)
+      x <- rename(x, result_rename)
+    })
+    site_list <- lapply(df_list, function (x) {
+      x_siteInfo <- attr(x, "siteInfo")
+    })
+    nwis_data <- as.data.frame(data.table::rbindlist(df_list))
+    siteInfo <- as.data.frame(data.table::rbindlist(site_list))
+    attr(nwis_data, "siteInfo") <- siteInfo
+  } else {
+    nwis_data <- 'No data'
+  }
+  return(nwis_data)
 }
