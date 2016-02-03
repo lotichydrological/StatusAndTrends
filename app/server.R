@@ -1,5 +1,5 @@
 #Use this to make it accessible for other people to access
-#runApp("app",host="0.0.0.0",port=5525)
+#runApp("app",host="0.0.0.0",port=3168)
 
 library(shiny)
 library(RCurl)
@@ -106,26 +106,33 @@ shinyServer(function(input, output, session) {
         if ('DEQ' %in% input$db) {
           incProgress(1/10, detail = 'Querying the LASAR database')
           prog <- prog + 1/10
+          
           lasarData <- lasarQuery(planArea = input$select,
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
                                   endDate = input$dates[2])
           odbcCloseAll()
+          if (nrow(lasarData) == 0) lasarData <- NULL
+          
+          
           incProgress(1/10, detail = 'Querying the Element database')
           prog <- prog + 1/10
+          
           elmData <- elementQuery(planArea = input$select,
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
                                   endDate = input$dates[2])
           odbcCloseAll()
+          if (nrow(elmData) == 0) elmData <- NULL
         }
 
         
         if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minutes.') {
         incProgress(1/10, detail = 'Combining query results')
         prog <- prog + 1/10
+        
         df.all <- tryCatch(combine(E=elmData,L=lasarData,W=wqpData,N=nwisData),
                            error = function(err) 
                            {err <- geterrmessage()})

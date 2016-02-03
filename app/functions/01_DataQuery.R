@@ -298,8 +298,7 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
                r.SAMPLE_DATE_TIME <= '", endDate, "' AND
                st.STATUS in (", myDQL, ") AND
                sm.SAMPLE_MATRIX_NAME in (", siteType, ") AND
-               p.PARAMETER_NM in ('", qryParms, "') AND
-                r.DATA_TYPE = 2")
+               p.PARAMETER_NM in ('", qryParms, "')")
   qry <- gsub('\n','',qry)
   
   #### Pass the query ####
