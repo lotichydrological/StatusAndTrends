@@ -110,8 +110,8 @@ plot.Temperature <- function(new_data,
   y.max <- ceiling(max(new_data$sdadm, na.rm = TRUE)) #max of data for graph
   y.lim <- c(y.min,y.max) ####define the data range
   #river.mile <- spawning.period.table[spawning.period.table$STATION == station,'RM']
-  title <- paste0(unique(all_data[,station_desc_column])
-                  [unique(all_data[,station_id_column]) == new_data[1,"id"]], 
+  title <- paste0(unique(all_data[all_data[,station_id_column] == 
+                                    new_data[1,"id"],station_desc_column]), 
                   ", ID = ", 
                   new_data[1,"id"]) #, " , river mile = ",river.mile
   x.lab <- "month"
