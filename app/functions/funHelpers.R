@@ -258,11 +258,17 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
   return(reviewDf)
 }
 
-generate_new_data <- function(df.all, sdadm, selectStation, selectParameter) {
+generate_new_data <- function(df.all, sdadm, selectStation, selectParameter,
+                              selectUse, selectSpawning) {
   if (selectParameter == 'Temperature') {
     tmp_sdadm <- sdadm[sdadm$Station_ID == unique(strsplit(
       selectStation, ' - ')[[1]][1]),]
-    df.sub <- EvaluateTempWQS(tmp_sdadm)
+    
+    if (any(!is.na(tmp_sdadm$sdadm))) {
+      df.sub <- EvaluateTempWQS(tmp_sdadm, selectUse, selectSpawning, "Station_ID") 
+    } else {
+      df.sub <- "Insufficient data to calculate a single 7DADM"
+    }
   } else {
     df.sub <- df.all[df.all$Station_ID == unique(strsplit(
       selectStation, ' - ')[[1]][1]) & df.all$Analyte == selectParameter,]
@@ -482,9 +488,7 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   sdadm_df$summer <- ifelse(sdadm_df$bioc == 13, FALSE, TRUE)
   sdadm_df$spawn <- ifelse(sdadm_df$bioc == 13, TRUE, FALSE)
   
-  sdadm_df <- sdadm_df[!is.na(sdadm$sdadm),]
-  
-  ## Calculate total 7DADM obersvations and # of 7DADM observations that exceed the summer spawning critera in those time periods; and 
+    ## Calculate total 7DADM obersvations and # of 7DADM observations that exceed the summer spawning critera in those time periods; and 
   ## number of 7DADM observations that exceed 16 and 18 over the whole time period (not just in the stated periods)
   sdadm_df$exceedsummer <- ifelse(sdadm_df$sdadm >= sdadm_df$bioc & 
                                     sdadm_df$summer == TRUE, 1, 0)
@@ -492,30 +496,46 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
                                    sdadm_df$spawn == TRUE, 1, 0)
   sdadm_df$daystot <-ifelse(!is.na(sdadm_df$sdadm), 1, 0)
   
-  ## Calculate begin/end date by station
-  datemax <- tapply(as.character(sdadm_df[!is.na(sdadm_df$sdadm), 'date']), 
-                    sdadm_df[!is.na(sdadm_df$sdadm), station_column_name],max)
-  datemin <- tapply(as.character(sdadm_df[!is.na(sdadm_df$sdadm), 'date']), 
-                    sdadm_df[!is.na(sdadm_df$sdadm), station_column_name],min)
-  
   ## TABULUAR RESULTS
-  daystot <- tapply(sdadm_df$daystot,list(sdadm_df[, station_column_name],
-                                          sdadm_df$daystot), length)
-  exceedsummer <- tapply(sdadm_df$exceedsummer,
-                         list(sdadm_df[, station_column_name],
-                              sdadm_df$exceedsummer), length)
-  exceedspawn <- tapply(sdadm_df$exceedspawn,
-                        list(sdadm_df[, station_column_name],
-                             sdadm_df$exceedspawn), length)
+  # daystot <- tapply(sdadm_df$daystot,list(sdadm_df[, station_column_name],
+  #                                         sdadm_df$daystot), length)
+  # exceedsummer <- tapply(sdadm_df$exceedsummer,
+  #                        list(sdadm_df[, station_column_name],
+  #                             sdadm_df$exceedsummer), length)
+  # exceedspawn <- tapply(sdadm_df$exceedspawn,
+  #                       list(sdadm_df[, station_column_name],
+  #                            sdadm_df$exceedspawn), length)
+  sdadm_df <- sdadm_df[!is.na(sdadm_df$sdadm),]
   
-  attr(sdadm_df, "result_summary") <- ddply(sdadm_df, .(station_column_name), 
+  sdadm_df$Time_Period <- ifelse(sdadm_df$summer, "Summer", "Spawning")
+  sdadm_df$Time_Period <- factor(sdadm_df$Time_Period, levels = c('Summer', 'Spawning', 'Total'))
+  sdadm_df$exceed <- sdadm_df$exceedspawn | sdadm_df$exceedsummer
+  result_summary <- ddply(sdadm_df, .(sdadm_df[, station_column_name], Time_Period), 
                                             summarise, 
-                                            exceedspawn = sum(exceedspawn),
-                                            exceedsummer = sum(exceedsummer),
-                                            daystot = sum(daystot))
+                                            Exceedances = sum(exceed),                  
+                          #exceedspawn = sum(exceedspawn),
+                                            #exceedsummer = sum(exceedsummer),
+                                            Obs = sum(daystot), .drop = FALSE)
+  result_summary <- plyr::rename(result_summary, 
+                                 c('sdadm_df[, station_column_name]' = 
+                                     station_column_name))
   
-  sdadm_df <- within(sdadm_df, rm(cdate, sstr, send, winter, 
-                                  summer, spawn, daystot))
+  if (any(is.na(result_summary$Time_Period))) {
+    result_summary[which(result_summary$Time_Period == 'Total'), 
+                   'Obs'] <- result_summary[is.na(result_summary$Time_Period),
+                                            'Obs']
+    result_summary <- result_summary[!is.na(result_summary$Time_Period),]
+  } else {
+    result_summary[result_summary$Time_Period == 'Total', 
+                   'Exceedances'] <- sum(result_summary$Exceedances)
+    
+    result_summary[result_summary$Time_Period == 'Total', 
+                   'Obs'] <- sum(result_summary$Obs)
+  }
+  
+  attr(sdadm_df, "result_summary") <- result_summary
+  
+  sdadm_df <- within(sdadm_df, rm(cdate, sstr, send, winter, daystot))
   
   names(sdadm_df)[names(sdadm_df) == 'bioc'] <- 'criteria_value'
   
@@ -523,7 +543,7 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
 }
 
 generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
-                               selectStation) {
+                               selectStation, station_column_name = 'Station_ID') {
   exceed_df <- switch(
     parm,
     "pH" = ({
@@ -546,30 +566,7 @@ generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName,
     }),
     "Temperature" = ({
       if (is.data.frame(new_data)) {
-        ex_df <- data.frame("Station_ID" = rep(unique(new_data$id), 3),
-                            "Station_Description" = rep(unique(strsplit(
-                              selectStation, ' - ')[[1]][2]), 3),
-                            "Time Period" = c('Total', 
-                                              'Summer', 
-                                              'Spawning'),
-                            "Obs" = c(nrow(new_data[!is.na(
-                              new_data$sdadm),]), 
-                              nrow(new_data[!is.na(
-                                new_data$sdadm) & 
-                                  new_data$summer,]),
-                              nrow(new_data[!is.na(
-                                new_data$sdadm) & 
-                                  new_data$spawn,])),
-                            "Exceedances" = if(
-                              all(is.na(new_data$summer)) & 
-                              all(is.na(new_data$spawn))) 
-                              rep(0,3) else
-                                c(nrow(new_data[
-                                  which(new_data$exceedsummer | 
-                                          new_data$exceedspawn),]),
-                                  nrow(new_data[which(new_data$exceedsummer),]),
-                                  nrow(new_data[which(new_data$exceedspawn),]))
-        )
+        ex_df <- attr(new_data, "result_summary")
       } else {
         ex_df <- data.frame()
       }

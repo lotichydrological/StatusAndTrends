@@ -345,7 +345,7 @@ shinyServer(function(input, output, session) {
           need(input$ReviewDf != "", message = FALSE)
         )
         pickReviewDf(input_reviewDf = input$ReviewDf, lstSummaryDfs, df.all)
-        }, options = list(processing = FALSE)) 
+        }, options = list(processing = FALSE), filter = 'top') 
 
       ###################################
       ###################################
@@ -462,8 +462,8 @@ shinyServer(function(input, output, session) {
       
       #Next create the reactive data frame based on the inputs
       DataUse <- reactive({
-        generate_new_data(df.all, input$selectStation, input$selectParameter,
-                          input$selectUse)
+        generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
+                          input$selectUse, input$selectSpawning)
       })
       
       #This builds the exceedance table
@@ -473,6 +473,21 @@ shinyServer(function(input, output, session) {
         )
         generate_exceed_df(DataUse(), input$selectParameter, input$selectpHCrit,
                            ph_crit, input$select, input$selectStation)
+      })
+      
+      #Make the plot interactive
+      ranges <- reactiveValues(x = NULL, y = NULL)
+      
+      observeEvent(input$plot1_dblclick, {
+        brush <- input$plot1_brush
+        if (!is.null(brush)) {
+          ranges$x <- c(as.POSIXct(brush$xmin, origin = "1970-01-01"), 
+                        as.POSIXct(brush$xmax, origin = "1970-01-01"))
+          ranges$y <- c(brush$ymin, brush$ymax)
+        } else {
+          ranges$x <- NULL
+          ranges$y <- NULL
+        }
       })
       
     }

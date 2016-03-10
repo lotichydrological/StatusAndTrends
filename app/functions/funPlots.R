@@ -94,8 +94,9 @@ plot.Temperature <- function(new_data,
                              station_id_column = 'Station_ID',
                              station_desc_column = 'Station_Description',
                              datetime_column = 'date', 
-                             datetime_format = '%m/%d/%y', 
+                             datetime_format = '%Y-%m-%d', 
                              plot_trend = FALSE) {
+  require(ggplot2)
   new_data$Sampled <- as.POSIXct(strptime(new_data[,datetime_column], 
                                           format = datetime_format))  
   x.min <- min(new_data$Sampled) #min of subset date
@@ -111,10 +112,10 @@ plot.Temperature <- function(new_data,
   y.lim <- c(y.min,y.max) ####define the data range
   #river.mile <- spawning.period.table[spawning.period.table$STATION == station,'RM']
   title <- paste0(unique(all_data[all_data[,station_id_column] == 
-                                    new_data[1,"id"],station_desc_column]), 
+                                    new_data[1, station_id_column],station_desc_column]), 
                   ", ID = ", 
-                  new_data[1,"id"]) #, " , river mile = ",river.mile
-  x.lab <- "month"
+                  new_data[1, station_id_column]) #, " , river mile = ",river.mile
+  x.lab <- "Month"
   y.lab <- "Temperature (7DADM)"
   ####definitions for drawing Seasonal Kendall slope line
 #   y.median <- median(new_data$sdadm)
@@ -134,19 +135,23 @@ plot.Temperature <- function(new_data,
 #                      ", n = ", 
 #                      nrow(new_data))
 #    ####plot the timeseries
-  par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-  plot(new_data$Sampled, new_data$sdadm, 
-       xlim=x.lim, ylim=y.lim, 
-       xlab="", ylab=y.lab, bty="L") ####plot the points , log=log.scale  
-  title(main=title, cex.main=1.2, outer=TRUE)
-  # mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-  exceeds.points <- new_data[new_data$exceedsummer | new_data$exceedspawn,]
-  points(exceeds.points$Sampled, exceeds.points$sdadm, col="red", pch=20) ####plot the exceedances
-#   if(plot_trend & !is.na(p.value)){
-#     lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-#   }
-  ####Draw WQS
-  spn_index <- which(new_data$bioc == 13)
+  g <- ggplot(data = new_data, 
+              aes(x = new_data$Sampled, 
+                  y = new_data$sdadm, 
+                  colour = new_data$exceed)) + 
+    geom_point() + 
+    scale_colour_manual("",
+                        values = c('black', 'red'), 
+                        labels = c('Meets', 'Exceeds')) + 
+    xlab(x.lab) + 
+    ylab(y.lab) + 
+    xlim(x.lim) +
+    ylim(y.lim) +
+    theme(legend.position = "top") + 
+    ggtitle(title)
+  
+  ####Draw WQS TODO: CHANGE ALL geom_hline to geom_segment!!!!
+  spn_index <- which(new_data$criteria_value == 13)
   spn_diff <- diff(spn_index)
   
   if (all(spn_diff == 1)) {
@@ -155,30 +160,39 @@ plot.Temperature <- function(new_data,
       
       if (spn_1 == nrow(new_data)) {
         #Plot non-spawn time-period
-        lines(x = c(new_data[1, 'Sampled'],
-                    new_data[spn_index[1] - 1, 'Sampled']),
-              y = c(unique(new_data[1:(spn_index[1] - 1),'bioc']),
-                    unique(new_data[1:(spn_index[1] - 1),'bioc'])), lty = 3)
+        g <- g + geom_hline(data = data.frame(x = c(new_data[1, 'Sampled'],
+                                                    new_data[spn_index[1] - 1, 
+                                                             'Sampled'])),
+                            yintercept = unique(new_data[1:(spn_index[1] - 1),
+                                                         'criteria_value']),
+                            linetype = 5
+                            )
       } else {
         #Plot non-spawn time-period
-        lines(x = c(new_data[spn_1 + 1, 'Sampled'],
-                    new_data[nrow(new_data), 'Sampled']),
-              y = c(unique(new_data[(spn_1 + 1):nrow(new_data),'bioc']),
-                    unique(new_data[(spn_1 + 1):nrow(new_data),'bioc'])), 
-              lty = 3)
+        g <- g + geom_hline(data = data.frame(x = c(new_data[spn_1 + 1, 
+                                                             'Sampled'],
+                                                    new_data[nrow(new_data), 
+                                                             'Sampled'])),
+                            yintercept = unique(new_data[(spn_1 + 1):nrow(new_data),
+                                                         'criteria_value']),
+                            linetype = 5
+                            )
       }
       #Plot spawn time period
-      lines(x = c(new_data[spn_index[1],'Sampled'],
-                  new_data[spn_1,'Sampled']),
-            y = c(unique(new_data[spn_index[1]:spn_1,'bioc']),
-                  unique(new_data[spn_index[1]:spn_1,'bioc'])), lty=2)
+      g <- g + geom_hline(data = data.frame(x = c(new_data[spn_index[1],'Sampled'],
+                                                  new_data[spn_1,'Sampled'])),
+                          yintercept = unique(new_data[spn_index[1]:spn_1,
+                                                       'criteria_value']),
+                          linetpye = 2
+                          )
     } else {
-      lines(x = c(new_data[1,'Sampled'],
-                  new_data[nrow(new_data),'Sampled']),
-            y = c(unique(new_data[1:nrow(new_data),'bioc']),
-                  unique(new_data[1:nrow(new_data),'bioc'])), lty = 3)
+      g <- g + geom_hline(data = data.frame(x = c(new_data[1,'Sampled'],
+                                                  new_data[nrow(new_data),
+                                                           'Sampled'])),
+                          yintercept = unique(new_data[1:nrow(new_data),
+                                                       'criteria_value']),
+                          linetype = 5)
     }
-    
   } else {
     spn_stop <- spn_index[which(spn_diff > 1)]
     spn_start <- spn_index[which(spn_diff > 1) + 1]
@@ -188,74 +202,90 @@ plot.Temperature <- function(new_data,
     for (i in 1:length(spn_start)) {
       if (i < length(spn_start)) {
         #Plot next spawn time period
-        lines(x = c(new_data[spn_start[i],'Sampled'],
-                    new_data[spn_stop[i + 1],'Sampled']),
-              y = c(unique(new_data[spn_start[i]:spn_stop[i + 1],'bioc']),
-                    unique(new_data[spn_start[i]:spn_stop[i + 1],'bioc'])), 
-              lty = 2)
-        
+        g <- g + geom_hline(data = data.frame(x = c(new_data[spn_start[i],
+                                                             'Sampled'],
+                                                    new_data[spn_stop[i + 1],
+                                                             'Sampled'])),
+                            yintercept = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                                         'criteria_value']),
+                            linetype = 2
+                            )
         #Plot non-spawn time period
-        lines(x = c(new_data[nspn_start[i],'Sampled'],
-                    new_data[nspn_stop[i], 'Sampled']),
-              y = c(unique(new_data[nspn_start[i]:nspn_stop[i],'bioc']),
-                    unique(new_data[nspn_start[i]:nspn_stop[i],'bioc'])), 
-              lty = 3)
+        g <- g + geom_hline(data = data.frame(x = c(new_data[nspn_start[i],
+                                                             'Sampled'],
+                                                    new_data[nspn_stop[i], 
+                                                             'Sampled'])),
+                            yintercept = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                                         'criteria_value']),
+                            linetype = 5
+                            )
       } else {
         #Plot last spawn-time period
-        lines(x = c(new_data[spn_start[i],'Sampled'],
-                    new_data[max(spn_index),'Sampled']),
-              y = c(unique(new_data[spn_start[i]:max(spn_index),'bioc']),
-                    unique(new_data[spn_start[i]:max(spn_index),'bioc'])), 
-              lty = 2)
-        
+        g <- g + geom_hline(data = data.frame(x = c(new_data[spn_start[i],
+                                                             'Sampled'],
+                                                    new_data[max(spn_index),
+                                                             'Sampled'])),
+                            yintercept = unique(new_data[spn_start[i]:max(spn_index),
+                                                         'criteria_value']),
+                            linetype = 2
+                            )
         #Plot non-spawn time period
-        lines(x = c(new_data[nspn_start[i],'Sampled'],
-                    new_data[nspn_stop[i], 'Sampled']),
-              y = c(unique(new_data[nspn_start[i]:nspn_stop[i],'bioc']),
-                    unique(new_data[nspn_start[i]:nspn_stop[i],'bioc'])), 
-              lty = 3)
-        
+        g <- g + geom_hline(data = data.frame(x = c(new_data[nspn_start[i],
+                                                             'Sampled'],
+                                                    new_data[nspn_stop[i], 
+                                                             'Sampled'])),
+                            yintercept = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                                         'criteria_value']),
+                            linetype = 5
+                            )
         #Plot last non-spawn time period
-        if (new_data[nrow(new_data),'bioc'] != 13) {
-          lines(x = c(new_data[max(spn_index) + 1,'Sampled'],
-                      new_data[nrow(new_data), 'Sampled']),
-                y = c(unique(new_data[(max(spn_index) + 1):nrow(new_data),
-                                      'bioc']),
-                      unique(new_data[(max(spn_index) + 1):nrow(new_data),
-                                      'bioc'])), 
-                lty = 3)
+        if (new_data[nrow(new_data),'criteria_value'] != 13) {
+          g <- g + geom_hline(data = data.frame(x = c(new_data[max(spn_index) + 
+                                                                 1,'Sampled'],
+                                                      new_data[nrow(new_data), 
+                                                               'Sampled'])),
+                              yintercept = unique(new_data[(max(spn_index) + 
+                                                              1):nrow(new_data),
+                                                           'criteria_value']),
+                              linetype = 5
+                              )
         }
       }
     }
     
     #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
     if (spn_index[1] != 1) {
-      lines(x = c(new_data[1,'Sampled'],
-                  new_data[spn_index[1] - 1, 'Sampled']),
-            y = c(unique(new_data[1:(spn_index[1] - 1), 'bioc']),
-                  unique(new_data[1:(spn_index[1] - 1), 'bioc'])), lty = 3)
+      g <- g + geom_hline(data = data.frame(x = c(new_data[1,'Sampled'],
+                                                  new_data[spn_index[1] - 1, 
+                                                           'Sampled'])),
+                          yintercept = unique(new_data[spn_index[1]:spn_stop[1],
+                                                       'criteria_value']),
+                          linetype = 5
+                          )
     }
     
     #Plot first spawn time period
-    lines(x = c(new_data[spn_index[1],'Sampled'],
-                new_data[spn_stop[1],'Sampled']),
-          y = c(unique(new_data[spn_index[1]:spn_stop[1],'bioc']),
-                unique(new_data[spn_index[1]:spn_stop[1],'bioc'])), lty=2)
-    
+    g <- g + geom_hline(data = data.frame(x = c(new_data[spn_index[1],'Sampled'],
+                                                new_data[spn_stop[1],'Sampled'])),
+                        yintercept = unique(new_data[spn_index[1]:spn_stop[1],
+                                                     'criteria_value']),
+                        linetype = 2
+                        )
   }
   
-  legend(x=par("usr")[1], y=par("usr")[3], 
-         legend=c("Spawning criterion", 
-                  "Non-spawning criterion"#, 
-                  # "Seasonal Kendall trend"
-                  ), 
-         lty=c(2,3),  #,1
-         col=c("black","black"), #,"red"
-         lwd=c(1,1),  #,2
-         xjust=-0.01, yjust=-8., 
-         box.lty=0, 
-         cex=1.0, 
-         horiz=TRUE)
+  g
+  # legend(x=par("usr")[1], y=par("usr")[3], 
+  #        legend=c("Spawning criterion", 
+  #                 "Non-spawning criterion"#, 
+  #                 # "Seasonal Kendall trend"
+  #                 ), 
+  #        lty=c(2,3),  #,1
+  #        col=c("black","black"), #,"red"
+  #        lwd=c(1,1),  #,2
+  #        xjust=-0.01, yjust=-8., 
+  #        box.lty=0, 
+  #        cex=1.0, 
+  #        horiz=TRUE)
 }
 
 
