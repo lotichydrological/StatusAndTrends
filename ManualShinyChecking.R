@@ -42,21 +42,23 @@ source('app/functions/funClean.R')
 source('app/functions/funEvaluateBacteria.R')
 source('app/functions/funPlots.R')
 source('app/functions/funSeaKen.R')
+source('app/functions/funHelpers.R')
 
 agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
+#agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 HUClist <- read.csv('app/data/PlanHUC_LU.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
+wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
+#wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature')
-input$select <- 'North Coast'
-input$dates <- c("2000-01-01", "2015-11-16")
-input$db <- c("DEQ")
+input$parms <- c('Bacteria')
+input$select <- 'Burnt River'
+input$dates <- c("2008-02-01", "2009-02-16")
+input$db <- c("Water Quality Portal", "DEQ")
 input$selectStation <-  "13442 - Tillamook River at Yellow Fir Road"#"13430 - Hoquarten Slough at Hwy 101 (Tillamook)"
 input$selectParameter <- 'Temperature'
 input$selectLogScale <- TRUE

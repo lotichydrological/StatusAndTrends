@@ -53,50 +53,38 @@ shinyUI(fluidPage(
       fluidRow(
         column(3),
         column(3,
-               conditionalPanel(
-                 condition = "input.action_button == 1",
-                 "Please be patient. This will take awhile."
-               ))),
-      fluidRow(
-        column(3),
-        column(3,
                h3(" "),
-               verbatimTextOutput("text1")
+               htmlOutput("text1"),
+               h3(" "),
+               htmlOutput("text2")
         )
       ),
       
       fluidRow(
+        column(3,
+               tableOutput('all_totals')),
         column(3, 
-               verbatimTextOutput("isdf"),
-               tableOutput('view')),
-        column(3, 
-               conditionalPanel(condition = "output.isdf=='Results returned'",
-                                "Click here to download the data",
-                                downloadButton('downloadData','Download')
-               ),
-               conditionalPanel(condition = "output.isdf == 'Results returned'",
-                                verbatimTextOutput("wqp_out"))
+#                conditionalPanel(condition = "output.text2 == ''",
+#                                 "Click here to download the data",
+#                                 downloadButton('downloadData','Download')
+                                uiOutput('downloadData')
+               # )
                ),
         column(3,
-               conditionalPanel(
-                 condition = "output.isdf == 'Results returned'",
-                 'Click here to view map',
-                 actionButton(inputId = 'action_button2',label = 'View map')
+               uiOutput("action_button_map")
                )
       )
       
  
-      ),
+      ,
 
-      conditionalPanel(condition = "input.action_button2 == 1",
-                       uiOutput("mymap"))
+      uiOutput("mymap")
     ),
     tabPanel("Review Data", fluidRow(column(3,
                                             uiOutput('review_control')
                                             ),
                                      column(9,
-                                            conditionalPanel(condition = "input.ReviewDf",
-                                            dataTableOutput("display"))
+                                            DT::dataTableOutput("display")
                                             )
                                      )
              ),
@@ -118,17 +106,23 @@ shinyUI(fluidPage(
              uiOutput('fish_use_link')
             ),
       column(9,
-             conditionalPanel(condition = "inpute.selectParameter",
+             conditionalPanel(condition = "input.selectParameter",
                               renderText("ts_plot_text")),
              conditionalPanel(condition = "input.selectParameter",
-                              plotOutput("ts_plot")),
+                              plotOutput('ts_plot', dblclick = "plot1_dblclick",
+                                         brush = brushOpts(
+                                           id = "plot1_brush",
+                                           resetOnNew = TRUE
+                                         )
+                              )),
+                              #plotOutput("ts_plot"))
              conditionalPanel(
                condition = "input.selectParameter",
                downloadButton(outputId = "downloadPlot", label = "Save plot")
                ),
              br(),
              conditionalPanel(condition = "input.selectParameter",
-                              dataTableOutput("exceed_df"))
+                              DT::dataTableOutput("exceed_df"))
              )
              )
       )
