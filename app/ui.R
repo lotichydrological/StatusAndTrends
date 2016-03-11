@@ -110,10 +110,10 @@ shinyUI(fluidPage(
                               renderText("ts_plot_text")),
              conditionalPanel(condition = "input.selectParameter",
                               plotOutput('ts_plot', dblclick = "plot1_dblclick",
-                                         brush = brushOpts(
-                                           id = "plot1_brush",
-                                           resetOnNew = TRUE
-                                         )
+                                        brush = brushOpts(
+                                          id = "plot1_brush",
+                                          resetOnNew = TRUE
+                                        )
                               )),
                               #plotOutput("ts_plot"))
              conditionalPanel(

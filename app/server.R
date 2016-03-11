@@ -469,19 +469,19 @@ shinyServer(function(input, output, session) {
       #This builds the exceedance table
       output$exceed_df <- DT::renderDataTable({
         validate(
-          need(input$selectParameter != "", message = FALSE)
+          need(input$selectSpawning != "", message = FALSE)
         )
         generate_exceed_df(DataUse(), input$selectParameter, input$selectpHCrit,
                            ph_crit, input$select, input$selectStation)
       })
       
-      #Make the plot interactive
+      # #Make the plot interactive
       ranges <- reactiveValues(x = NULL, y = NULL)
-      
+
       observeEvent(input$plot1_dblclick, {
         brush <- input$plot1_brush
         if (!is.null(brush)) {
-          ranges$x <- c(as.POSIXct(brush$xmin, origin = "1970-01-01"), 
+          ranges$x <- c(as.POSIXct(brush$xmin, origin = "1970-01-01"),
                         as.POSIXct(brush$xmax, origin = "1970-01-01"))
           ranges$y <- c(brush$ymin, brush$ymax)
         } else {
@@ -490,44 +490,41 @@ shinyServer(function(input, output, session) {
         }
       })
       
+      plotInput <- reactive({
+        df <- DataUse()
+        g <- plot.Temperature(new_data = df, all_data = df.all)
+        # g <- g + scale_x_datetime(breaks = "1 day")
+        g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+        g
+      })
+      
+      output$ts_plot <- renderPlot({
+        validate(
+          need(input$selectSpawning != "", message = FALSE)
+        )
+        plotInput()
+      })
+      
+      output$downloadPlot <- downloadHandler(filename = function () {
+        paste(
+          strsplit(input$selectStation, split = " - ")[[1]][1], "-",
+          input$selectParameter, "-",
+          ifelse(is.null(ranges$x[1]), min(DataUse()$date), ranges$x[1]), "-",
+          ifelse(is.null(ranges$x[2]), min(DataUse()$date), ranges$x[2]),
+          "-timeseries.png", sep = "")},
+        content = function(file) {
+          # png(file, width = 700, height = 400)
+          # print(plotInput())
+          # dev.off()
+          ggsave(plotInput(), file = file)
+        })
     }
-    
   })
   
   
   
 
-#       
 
-#       
-
-#       
-
-#       
-
-#       
-#       output$selectRange <- renderUI({
-#         validate(
-#           need(input$selectStation != "", message = FALSE)
-#         )
-#         sliderInput("selectRange", "Select Date Range for Plot",
-#                     min = as.Date(strptime(input$dates[1], 
-#                                            format = "%Y-%m-%d")),
-#                     max = as.Date(strptime(input$dates[2], 
-#                                            format = "%Y-%m-%d")),
-#                     value = c(as.Date(strptime(input$dates[1], 
-#                                                format = "%Y-%m-%d")), 
-#                               as.Date(strptime(input$dates[2], 
-#                                                format = "%Y-%m-%d")))
-#         )
-#       })
-#       
-
-#       
-
-#       
-
-#   
 #         plotInput <- reactive({
 #           switch(EXPR = input$selectParameter, 
 #                "pH" = ({
@@ -583,29 +580,6 @@ shinyServer(function(input, output, session) {
 #                 })
 #           )
 #         })
-#         
-#         ranges <- reactiveValues(x = NULL, y = NULL)
-#         
-#         observeEvent(input$plot1_dblclick, {
-#           brush <- input$plot1_brush
-#           if (!is.null(brush)) {
-#             ranges$x <- c(as.POSIXct(brush$xmin, origin = "1970-01-01"), 
-#                           as.POSIXct(brush$xmax, origin = "1970-01-01"))
-#             ranges$y <- c(brush$ymin, brush$ymax)
-#           } else {
-#             ranges$x <- NULL
-#             ranges$y <- NULL
-#           }
-#         })
-#         
-#         output$plot <- renderPlot({
-#           plot <- ggplot(data = new_data) + 
-#             geom_point(aes( x= Sampled, y = Result, fill = comb_fac,
-#                             col = comb_fac), shape = 21, size = 3) +
-#             coord_cartesian(xlim = ranges$x, ylim = ranges$y)
-#         })
-#         
-#         
 #         output$ts_plot <- renderPlot({
 #           validate(
 #                   need(input$selectParameter != "", message = FALSE)
@@ -620,18 +594,6 @@ shinyServer(function(input, output, session) {
 #           }
 #         })
 #         
-#         output$downloadPlot <- downloadHandler(filename = function () {
-#           paste(
-#           strsplit(input$selectStation, split = " - ")[[1]][1], "-", 
-#           input$selectParameter, "-", 
-#           input$selectRange[1], "-",
-#           input$selectRange[2],
-#           "-timeseries.png", sep = "")}, 
-#           content = function(file) {
-#             png(file, width = 700, height = 400)
-#             print(plotInput())
-#             dev.off()
-#           })
 #         
 
         # })

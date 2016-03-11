@@ -99,6 +99,7 @@ plot.Temperature <- function(new_data,
   require(ggplot2)
   new_data$Sampled <- as.POSIXct(strptime(new_data[,datetime_column], 
                                           format = datetime_format))  
+  new_data$exceed <- factor(new_data$exceed, levels = c(TRUE, FALSE), labels = c('Exceeds', 'Meets'))
   x.min <- min(new_data$Sampled) #min of subset date
   x.max <- max(new_data$Sampled) #max of subset date
   x.lim <- c(x.min, x.max) ####define the data domain for graph
@@ -135,19 +136,15 @@ plot.Temperature <- function(new_data,
 #                      ", n = ", 
 #                      nrow(new_data))
 #    ####plot the timeseries
-  g <- ggplot(data = new_data, 
-              aes(x = new_data$Sampled, 
-                  y = new_data$sdadm, 
-                  colour = new_data$exceed)) + 
+  g <- ggplot(data = new_data, aes(x = Sampled, y = sdadm, color = exceed)) + 
     geom_point() + 
     scale_colour_manual("",
-                        values = c('black', 'red'), 
-                        labels = c('Meets', 'Exceeds')) + 
+                        values = c('red', 'black'), 
+                        labels = levels(new_data$exceed)) + 
     xlab(x.lab) + 
     ylab(y.lab) + 
     xlim(x.lim) +
     ylim(y.lim) +
-    theme(legend.position = "top") + 
     ggtitle(title)
   
   ####Draw WQS TODO: CHANGE ALL geom_hline to geom_segment!!!!
@@ -160,38 +157,41 @@ plot.Temperature <- function(new_data,
       
       if (spn_1 == nrow(new_data)) {
         #Plot non-spawn time-period
-        g <- g + geom_hline(data = data.frame(x = c(new_data[1, 'Sampled'],
-                                                    new_data[spn_index[1] - 1, 
-                                                             'Sampled'])),
-                            yintercept = unique(new_data[1:(spn_index[1] - 1),
-                                                         'criteria_value']),
-                            linetype = 5
-                            )
+        df <- data.frame(x1 = new_data[1, 'Sampled'], 
+                         x2 = new_data[spn_index[1] - 1, 'Sampled'],
+                         y1 = unique(new_data[1:(spn_index[1] - 1), 
+                                              'criteria_value']),
+                         y2 = unique(new_data[1:(spn_index[1] - 1), 
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
+                              data = df, inherit.aes = FALSE)
       } else {
         #Plot non-spawn time-period
-        g <- g + geom_hline(data = data.frame(x = c(new_data[spn_1 + 1, 
-                                                             'Sampled'],
-                                                    new_data[nrow(new_data), 
-                                                             'Sampled'])),
-                            yintercept = unique(new_data[(spn_1 + 1):nrow(new_data),
-                                                         'criteria_value']),
-                            linetype = 5
-                            )
+        df <- data.frame(x1 = new_data[spn_1 + 1, 'Sampled'],
+                         x2 = new_data[nrow(new_data), 'Sampled'],
+                         y1 = unique(new_data[(spn_1 + 1):nrow(new_data), 
+                                              'criteria_value']),
+                         y2 = unique(new_data[(spn_1 + 1):nrow(new_data),
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
+                              data = df, inherit.aes = FALSE)
       }
       #Plot spawn time period
-      g <- g + geom_hline(data = data.frame(x = c(new_data[spn_index[1],'Sampled'],
-                                                  new_data[spn_1,'Sampled'])),
-                          yintercept = unique(new_data[spn_index[1]:spn_1,
-                                                       'criteria_value']),
-                          linetpye = 2
-                          )
+      df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
+                       x2 = new_data[spn_1,'Sampled'],
+                       y1 = unique(new_data[spn_index[1]:spn_1,
+                                            'criteria_value']),
+                       y2 = unique(new_data[spn_index[1]:spn_1,
+                                            'criteria_value']))
+      g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                            data = df, inherit.aes = FALSE)
     } else {
-      g <- g + geom_hline(data = data.frame(x = c(new_data[1,'Sampled'],
-                                                  new_data[nrow(new_data),
-                                                           'Sampled'])),
-                          yintercept = unique(new_data[1:nrow(new_data),
-                                                       'criteria_value']),
-                          linetype = 5)
+      df <- data.frame(x1 = new_data[1,'Sampled'],
+                       x2 = new_data[nrow(new_data), 'Sampled'],
+                       y1 = unique(new_data[1:nrow(new_data), 'criteria_value']),
+                       y2 = unique(new_data[1:nrow(new_data), 'criteria_value']))
+      g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = "Non-spawning"),
+                            data = df, inherit.aes = FALSE) 
     }
   } else {
     spn_stop <- spn_index[which(spn_diff > 1)]
@@ -202,76 +202,84 @@ plot.Temperature <- function(new_data,
     for (i in 1:length(spn_start)) {
       if (i < length(spn_start)) {
         #Plot next spawn time period
-        g <- g + geom_hline(data = data.frame(x = c(new_data[spn_start[i],
-                                                             'Sampled'],
-                                                    new_data[spn_stop[i + 1],
-                                                             'Sampled'])),
-                            yintercept = unique(new_data[spn_start[i]:spn_stop[i + 1],
-                                                         'criteria_value']),
-                            linetype = 2
-                            )
+        df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+                         x2 = new_data[spn_stop[i + 1], 'Sampled'],
+                         y1 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                              'criteria_value']),
+                         y2 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                              data = df, inherit.aes = FALSE)
         #Plot non-spawn time period
-        g <- g + geom_hline(data = data.frame(x = c(new_data[nspn_start[i],
-                                                             'Sampled'],
-                                                    new_data[nspn_stop[i], 
-                                                             'Sampled'])),
-                            yintercept = unique(new_data[nspn_start[i]:nspn_stop[i],
-                                                         'criteria_value']),
-                            linetype = 5
-                            )
+        df <- data.frame(x1 = new_data[nspn_start[i], 'Sampled'],
+                         x2 = new_data[nspn_stop[i], 'Sampled'],
+                         y1 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                              'criteria_value']),
+                         y2 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                              data = df, inherit.aes = FALSE)
       } else {
         #Plot last spawn-time period
-        g <- g + geom_hline(data = data.frame(x = c(new_data[spn_start[i],
-                                                             'Sampled'],
-                                                    new_data[max(spn_index),
-                                                             'Sampled'])),
-                            yintercept = unique(new_data[spn_start[i]:max(spn_index),
-                                                         'criteria_value']),
-                            linetype = 2
-                            )
+        df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+                         x2 = new_data[max(spn_index), 'Sampled'],
+                         y1 = unique(new_data[spn_start[i]:max(spn_index),
+                                              'criteria_value']),
+                         y2 = unique(new_data[spn_start[i]:max(spn_index),
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                              data = df, inherit.aes = FALSE)
         #Plot non-spawn time period
-        g <- g + geom_hline(data = data.frame(x = c(new_data[nspn_start[i],
-                                                             'Sampled'],
-                                                    new_data[nspn_stop[i], 
-                                                             'Sampled'])),
-                            yintercept = unique(new_data[nspn_start[i]:nspn_stop[i],
-                                                         'criteria_value']),
-                            linetype = 5
-                            )
+        df <- data.frame(x1 = new_data[nspn_start[i], 'Sampled'],
+                         x2 = new_data[nspn_stop[i], 'Sampled'],
+                         y1 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                              'criteria_value']),
+                         y2 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                              data = df, inherit.aes = FALSE)
         #Plot last non-spawn time period
         if (new_data[nrow(new_data),'criteria_value'] != 13) {
-          g <- g + geom_hline(data = data.frame(x = c(new_data[max(spn_index) + 
-                                                                 1,'Sampled'],
-                                                      new_data[nrow(new_data), 
-                                                               'Sampled'])),
-                              yintercept = unique(new_data[(max(spn_index) + 
-                                                              1):nrow(new_data),
-                                                           'criteria_value']),
-                              linetype = 5
-                              )
+          df <- data.frame(x1 = new_data[max(spn_index) + 1, 'Sampled'],
+                           x2 = new_data[nrow(new_data), 'Sampled'],
+                           y1 = unique(new_data[(max(spn_index) + 1):nrow(new_data),
+                                                'criteria_value']),
+                           y2 = unique(new_data[(max(spn_index) + 1):nrow(new_data),
+                                                'criteria_value']))
+          g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                                data = df, inherit.aes = FALSE)
         }
       }
     }
     
     #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
     if (spn_index[1] != 1) {
-      g <- g + geom_hline(data = data.frame(x = c(new_data[1,'Sampled'],
-                                                  new_data[spn_index[1] - 1, 
-                                                           'Sampled'])),
-                          yintercept = unique(new_data[spn_index[1]:spn_stop[1],
-                                                       'criteria_value']),
-                          linetype = 5
-                          )
+      df <- data.frame(x1 = new_data[1, 'Sampled'],
+                       x2 = new_data[spn_index[1] - 1, 'Sampled'],
+                       y1 = unique(new_data[spn_index[1]:spn_stop[1],
+                                            'criteria_value']),
+                       y2 = unique(new_data[spn_index[1]:spn_stop[1],
+                                            'criteria_value']))
+      g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                            data = df, inherit.aes = FALSE)
     }
     
     #Plot first spawn time period
-    g <- g + geom_hline(data = data.frame(x = c(new_data[spn_index[1],'Sampled'],
-                                                new_data[spn_stop[1],'Sampled'])),
-                        yintercept = unique(new_data[spn_index[1]:spn_stop[1],
-                                                     'criteria_value']),
-                        linetype = 2
-                        )
+    df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
+                     x2 = new_data[spn_stop[1],'Sampled'],
+                     y1 = unique(new_data[spn_index[1]:spn_stop[1],
+                                          'criteria_value']),
+                     y2 = unique(new_data[spn_index[1]:spn_stop[1],
+                                          'criteria_value']))
+    g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                          data = df, inherit.aes = FALSE)
   }
+  
+  g <- g + scale_linetype_manual(values = c('Non-spawning' = 5,
+                                            'Spawning' = 2))
+  g <- g + theme(legend.position = "top",
+                 legend.title = element_blank(),
+                 legend.direction = 'horizontal')
   
   g
   # legend(x=par("usr")[1], y=par("usr")[3], 
