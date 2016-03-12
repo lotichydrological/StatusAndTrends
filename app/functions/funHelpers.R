@@ -542,25 +542,30 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   return(sdadm_df)
 }
 
+EvaluatepHWQS <- function(new_data, ph_crit, selectpHCrit = input$selectpHCrit) {
+  OWRD_basin <- strsplit(selectpHCrit, " - ")[[1]][1]
+  crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
+  ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
+                           ph_crit$OWRD_basin == OWRD_basin & 
+                           ph_crit$plan_name == PlanName, 
+                         'ph_low']
+  ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+                           ph_crit$OWRD_basin == OWRD_basin & 
+                           ph_crit$plan_name == PlanName, 
+                         'ph_high']
+  new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
+                              new_data[, 'Result'] > ph_crit_max, 
+                            1, 0)
+  new_data$Year <- as.character(years(new_data$Sampled))
+  return(new_data)
+}
+
 generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
                                selectStation, station_column_name = 'Station_ID') {
   exceed_df <- switch(
     parm,
     "pH" = ({
-      OWRD_basin <- strsplit(selectpHCrit, " - ")[[1]][1]
-      crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
-      ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
-                               ph_crit$OWRD_basin == OWRD_basin & 
-                               ph_crit$plan_name == PlanName, 
-                             'ph_low']
-      ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
-                               ph_crit$OWRD_basin == OWRD_basin & 
-                               ph_crit$plan_name == PlanName, 
-                             'ph_high']
-      new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
-                                  new_data[, 'Result'] > ph_crit_max, 
-                                1, 0)
-      new_data$Year <- as.character(years(new_data$Sampled))
+      new_data <- EvaluatepHWQS(new_data, ph_crit)
       ddply(new_data, .(Station_ID, Station_Description, Year), #, Month), 
             summarize, Obs = length(exceed), Exceedances = sum(exceed))
     }),

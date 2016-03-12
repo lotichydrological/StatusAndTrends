@@ -190,14 +190,6 @@ shinyServer(function(input, output, session) {
           lstSummaryDfs[[2]] <- summarizeByStation(df.all)
           names(lstSummaryDfs)[2] <- "df.station.totals"
           
-          #Generate sdadm once for temperature plotting/exceedance use
-          if (any('Temperature' %in% df.all$Analyte)) {
-            sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
-                                     '%Y-%m-%d %H:%M:%S')
-          } else {
-            sdadm <- NULL
-          }
-          
           #### Cleaning result field ####
           incProgress(1/10, detail = "Cleaning result field")
           prog <- prog + 1/10
@@ -215,6 +207,27 @@ shinyServer(function(input, output, session) {
             df.all <- update_fc2ec(df.all)
           }
 
+          #### Calculate trends and adnl data for plotting ####
+          incProgress(1/10, detail = "Calculating 7DADM and Trends")
+          prog <- prog + 1/10
+          #Generate sdadm once for temperature plotting/exceedance use
+          if (any('Temperature' %in% df.all$Analyte)) {
+            sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
+                                     '%Y-%m-%d %H:%M:%S')
+          } else {
+            sdadm <- NULL
+          }
+          
+          #Run Seasonal Kendall for pH and Bacteria
+          if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
+            SeaKen <- run_seaKen(df.all)
+          } else {
+            SeaKen <- NULL
+          }
+          
+          #Calculate 30 GM for E. Coli and Enterococcus
+          #WIll get to this later. May need to go in plotting section.
+          
           #### Performing QA Screen ####
           incProgress(1/10, detail = "Performing QA Screen")
           prog <- prog + 1/10
@@ -460,6 +473,10 @@ shinyServer(function(input, output, session) {
              target = "_blank"))
       })
       
+      #######################
+      #### Data Handling ####
+      #######################
+      
       #Next create the reactive data frame based on the inputs
       DataUse <- reactive({
         generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
@@ -492,6 +509,14 @@ shinyServer(function(input, output, session) {
       
       plotInput <- reactive({
         df <- DataUse()
+        switch(EXPR(input$selectParameter),
+               "pH" = ({
+                 g <- plot.ph(new_data = df, sea_ken_table = SeaKen,  ph_crit, 
+                              plot_trend = input$plotTrend,
+                              plot_criteria = input$selectpHCrit,
+                              plan_area = input$select)
+               })
+               )
         g <- plot.Temperature(new_data = df, all_data = df.all)
         # g <- g + scale_x_datetime(breaks = "1 day")
         g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)

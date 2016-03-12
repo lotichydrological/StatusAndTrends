@@ -7,8 +7,8 @@ plot.ph <- function(new_data,
                     station_desc_column = 'Station_Description',
                     datetime_column = 'Sampled', 
                     datetime_format = '%Y-%m-%d', 
-                    x_min = min(new_data$Sampled),
-                    x_max = max(new_data$Sampled),
+                    x_min = min(df$Sampled),
+                    x_max = max(df$Sampled),
                     plot_trend = FALSE,
                     plot_criteria,
                     plan_area) {
@@ -24,7 +24,7 @@ plot.ph <- function(new_data,
   y.lim <- c(y.min, y.max) ####define the data range
   title <- paste0(min(new_data[, station_desc_column]), ", ID = ", 
                   min(new_data[, station_id_column])) #, " , river mile = ",river.mile
-  x.lab <- "month"
+  x.lab <- "Month"
   y.lab <- unique(new_data[, analyte_column])[1]
   ####definitions for drawing Seasonal Kendall slope line
   y.median <- median(new_data[, result_column])
@@ -59,6 +59,24 @@ plot.ph <- function(new_data,
                      round(slope, digits=2), 
                      ", n = ", 
                      nrow(new_data))
+  
+  #Evaluate against standard
+  new_data <- EvaluatepHWQS(new_data, ph_crit)
+  new_data$exceed <- factor(new_data$exceed, levels = c(0, 1), 
+                            labels = c('Meets', 'Exceeds'))
+  
+  ####plot the timeseries
+  g <- ggplot(data = new_data, aes_string(x = 'Sampled', y = result_column, color = 'exceed')) + 
+    geom_point() + 
+    scale_colour_manual("",
+                        values = c('black', 'red'), 
+                        labels = levels(new_data$exceed)) + 
+    xlab(x.lab) + 
+    ylab(y.lab) + 
+    xlim(x.lim) +
+    ylim(y.lim) +
+    ggtitle(expression(atop(paste(title), atop(paste(sub.text)))))
+  
   par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
   plot(new_data$Sampled, new_data[,result_column], 
        xlim = x.lim, ylim = y.lim, 
@@ -118,24 +136,8 @@ plot.Temperature <- function(new_data,
                   new_data[1, station_id_column]) #, " , river mile = ",river.mile
   x.lab <- "Month"
   y.lab <- "Temperature (7DADM)"
-  ####definitions for drawing Seasonal Kendall slope line
-#   y.median <- median(new_data$sdadm)
-#   slope <- as.numeric(sea_ken_table[sea_ken_table$Station_ID == unique(new_data$id), 'slope'])
-#   p.value <- as.numeric(sea_ken_table[sea_ken_table$Station_ID == unique(new_data$id), 
-#                                'pvalue'])
-#   p.value.label <- sea_ken_table[sea_ken_table$Station_ID == unique(new_data$id), 'signif'] 
-#   x.delta <- as.numeric((x.max-x.min)/2)####average date
-#   SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
-#   SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
-#   sub.text <- paste0("p value = " ,
-#                      round(p.value, digits=3),
-#                      ", ",  
-#                      p.value.label, 
-#                      ", slope = ", 
-#                      round(slope, digits=2), 
-#                      ", n = ", 
-#                      nrow(new_data))
-#    ####plot the timeseries
+  
+  ####plot the timeseries  #TODO: finish cleaning up ggplot for ph so it looks good
   g <- ggplot(data = new_data, aes(x = Sampled, y = sdadm, color = exceed)) + 
     geom_point() + 
     scale_colour_manual("",
@@ -146,8 +148,12 @@ plot.Temperature <- function(new_data,
     xlim(x.lim) +
     ylim(y.lim) +
     ggtitle(title)
+  g <- g + scale_linetype_manual(values = c('Water Quality Standard' = 1))
+  g <- g + theme(legend.position = "top",
+                 legend.title = element_blank(),
+                 legend.direction = 'horizontal')
   
-  ####Draw WQS TODO: CHANGE ALL geom_hline to geom_segment!!!!
+  ####Draw WQS 
   spn_index <- which(new_data$criteria_value == 13)
   spn_diff <- diff(spn_index)
   
@@ -282,18 +288,6 @@ plot.Temperature <- function(new_data,
                  legend.direction = 'horizontal')
   
   g
-  # legend(x=par("usr")[1], y=par("usr")[3], 
-  #        legend=c("Spawning criterion", 
-  #                 "Non-spawning criterion"#, 
-  #                 # "Seasonal Kendall trend"
-  #                 ), 
-  #        lty=c(2,3),  #,1
-  #        col=c("black","black"), #,"red"
-  #        lwd=c(1,1),  #,2
-  #        xjust=-0.01, yjust=-8., 
-  #        box.lty=0, 
-  #        cex=1.0, 
-  #        horiz=TRUE)
 }
 
 
@@ -313,7 +307,7 @@ plot.ecoli <- function(new_data,
   x.min <- as.POSIXct(strptime(x_min, format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
   x.max <- as.POSIXct(strptime(x_max, format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
   x.lim <- c(x.min, x.max) ####define the data domain for graph
-  y.min <- if(floor(min(new_data[,result_column]))<=0 & plot_log){ #min of data for graph TODO: Add check box for log scale  & log.scale=="y"
+  y.min <- if(floor(min(new_data[,result_column]))<=0 & plot_log){ #min of data for graph
     1 #set minimum y value for log scale to one
   }else{
     floor(min(new_data[,result_column]))
@@ -419,7 +413,7 @@ plot.entero <- function (new_data,
   x.min <- as.POSIXct(strptime(x_min, format = '%Y-%m-%d'))#min(new_data$Sampled) #min of subset date
   x.max <- as.POSIXct(strptime(x_max, format = '%Y-%m-%d'))#max(new_data$Sampled) #max of subset date
   x.lim <- c(x.min, x.max) ####define the data domain for graph
-  y.min <- if(floor(min(new_data[,result_column]))<=0 & plot_log){ #min of data for graph TODO: Add check box for log scale  & log.scale=="y"
+  y.min <- if(floor(min(new_data[,result_column]))<=0 & plot_log){ #min of data for graph
     1 #set minimum y value for log scale to one
   }else{
     floor(min(new_data[,result_column]))

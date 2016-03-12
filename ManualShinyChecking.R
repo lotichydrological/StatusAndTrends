@@ -55,18 +55,16 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Bacteria', 'Temperature')
+input$parms <- c('pH')
 input$select <- 'Burnt River'
 input$dates <- c("2005-01-01", "2015-12-31")
 input$db <- c("DEQ")
 input$selectStation <-  "36195 - Burnt River at Unity Reservoir Dam"
-input$selectParameter <- 'Temperature'
+input$selectParameter <- 'pH'
 input$selectLogScale <- TRUE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
-input$selectpHCrit <- 'North Coast - All other basin waters'
-input$selectRange <- (c(as.Date(strptime(input$dates[1], format = "%Y-%m-%d")), 
-                                                       as.Date(strptime(input$dates[2], format = "%Y-%m-%d"))))
+input$selectpHCrit <- 'Powder - All other basin waters'
 input$plotTrend <- FALSE
 
 wqpData <- NULL
