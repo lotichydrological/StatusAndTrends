@@ -77,33 +77,33 @@ plot.ph <- function(new_data,
     ylim(y.lim) +
     ggtitle(expression(atop(paste(title), atop(paste(sub.text)))))
   
-  par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-  plot(new_data$Sampled, new_data[,result_column], 
-       xlim = x.lim, ylim = y.lim, 
-       xlab = "", ylab = y.lab, bty = "L") ####plot the points , log=log.scale  
-  title(main=title, cex.main=1.2, outer=TRUE)
-  mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-  OWRD_basin <- strsplit(plot_criteria, " - ")[[1]][1]
-  crit_selected <- strsplit(plot_criteria, " - ")[[1]][2]
-  ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
-                           ph_crit$OWRD_basin == OWRD_basin & 
-                           ph_crit$plan_name == plan_area, 'ph_low']
-  ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
-                           ph_crit$OWRD_basin == OWRD_basin & 
-                           ph_crit$plan_name == plan_area, 'ph_high']
-  exceeds.points <- new_data[new_data[,result_column] < ph_crit_min | 
-                               new_data[,result_column] > ph_crit_max,]
-  points(exceeds.points$Sampled, exceeds.points$Result, col="red", pch=20) ####plot the exceedances
-  if(plot_trend & !is.na(p.value)) {
-    lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-  }
-  lines(x=c(x.min, x.max), y=c(ph_crit_min, ph_crit_min), lty=2)#draw WQS 
-  lines(x=c(x.min, x.max), y=c(ph_crit_max, ph_crit_max), lty=3)#draw WQS 
-  legend(x=par("usr")[1],y=par("usr")[3], legend=c("Maximum criterion", 
-                                                   "Minimum criterion", 
-                                                   "Seasonal Kendall trend"), 
-         lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
-         xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
+  # par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
+  # plot(new_data$Sampled, new_data[,result_column], 
+  #      xlim = x.lim, ylim = y.lim, 
+  #      xlab = "", ylab = y.lab, bty = "L") ####plot the points , log=log.scale  
+  # title(main=title, cex.main=1.2, outer=TRUE)
+  # mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
+  # OWRD_basin <- strsplit(plot_criteria, " - ")[[1]][1]
+  # crit_selected <- strsplit(plot_criteria, " - ")[[1]][2]
+  # ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
+  #                          ph_crit$OWRD_basin == OWRD_basin & 
+  #                          ph_crit$plan_name == plan_area, 'ph_low']
+  # ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+  #                          ph_crit$OWRD_basin == OWRD_basin & 
+  #                          ph_crit$plan_name == plan_area, 'ph_high']
+  # exceeds.points <- new_data[new_data[,result_column] < ph_crit_min | 
+  #                              new_data[,result_column] > ph_crit_max,]
+  # points(exceeds.points$Sampled, exceeds.points$Result, col="red", pch=20) ####plot the exceedances
+  # if(plot_trend & !is.na(p.value)) {
+  #   lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
+  # }
+  # lines(x=c(x.min, x.max), y=c(ph_crit_min, ph_crit_min), lty=2)#draw WQS 
+  # lines(x=c(x.min, x.max), y=c(ph_crit_max, ph_crit_max), lty=3)#draw WQS 
+  # legend(x=par("usr")[1],y=par("usr")[3], legend=c("Maximum criterion", 
+  #                                                  "Minimum criterion", 
+  #                                                  "Seasonal Kendall trend"), 
+  #        lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
+  #        xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
 }
 
 plot.Temperature <- function(new_data, 

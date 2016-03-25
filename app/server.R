@@ -509,15 +509,27 @@ shinyServer(function(input, output, session) {
       
       plotInput <- reactive({
         df <- DataUse()
-        switch(EXPR(input$selectParameter),
+        switch(input$selectParameter,
                "pH" = ({
                  g <- plot.ph(new_data = df, sea_ken_table = SeaKen,  ph_crit, 
                               plot_trend = input$plotTrend,
                               plot_criteria = input$selectpHCrit,
                               plan_area = input$select)
+               }),
+               "Temperature" = ({
+                 g <- plot.Temperature(new_data = df, all_data = df.all)
+               }),
+               "E. Coli" = ({
+                 g <-plot.ecoli(new_data, 
+                                SeaKen,
+                                ecoli_gm_eval,
+                                plot_trend = input$plotTrend,
+                                plot_log = input$selectLogScale,
+                                x_min = input$selectRange[1],
+                                x_max = input$selectRange[2])
                })
                )
-        g <- plot.Temperature(new_data = df, all_data = df.all)
+        
         # g <- g + scale_x_datetime(breaks = "1 day")
         g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
         g
