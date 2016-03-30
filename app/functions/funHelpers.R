@@ -579,6 +579,26 @@ EvaluateEColiWQS <- function(new_data) {
   return(new_data)
 }
 
+EvaluateEnteroWQS <- function(new_data) {
+  new_data$exceed <- ifelse(new_data[, 'Result'] > 158, 1, 0)
+  entero_gm_eval <- gm_mean_30_day(new_data, 
+                                   unique(new_data$Analyte), 
+                                   unique(new_data$Station_ID))
+  entero_gm_eval$exceed <- ifelse(entero_gm_eval$gm > 35, 1, 0)
+  ex_df <- data.frame("Station_ID" = rep(unique(new_data$Station_ID),2),
+                      "Station_Description" = rep(unique(
+                        new_data$Station_Description), 2),
+                      "Sample" = c('Single sample', 'Geomean'),
+                      "Obs" = c(nrow(new_data),
+                                nrow(entero_gm_eval)),
+                      "Exceedances" = c(sum(new_data$exceed),
+                                        sum(entero_gm_eval$exceed))
+  )
+  attr(new_data, "entero_gm_eval") <- entero_gm_eval
+  attr(new_data, "ex_df") <- ex_df
+  return(new_data)
+}
+
 generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
                                selectStation, selectUse, selectSpawning,
                                station_column_name = 'Station_ID') {
@@ -615,20 +635,8 @@ generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName,
       attr(new_data, "ex_df")
     }),
     "Enterococcus" = ({
-      new_data$exceed <- ifelse(new_data[, 'Result'] > 158, 1, 0)
-      entero_gm_eval <- gm_mean_30_day(new_data, 
-                                       unique(new_data$Analyte), 
-                                       unique(new_data$Station_ID))
-      entero_gm_eval$exceed <- ifelse(entero_gm_eval$gm > 35, 1, 0)
-      ex_df <- data.frame("Station_ID" = rep(unique(new_data$id),2),
-                          "Station_Description" = rep(unique(strsplit(
-                            selectStation, ' - ')[[1]][2]), 2),
-                          "Sample" = c('Single sample', 'Geomean'),
-                          "Obs" = c(nrow(new_data),
-                                    nrow(ecoli_gm_eval)),
-                          "Exceedances" = c(sum(new_data$exceed),
-                                            sum(entero_gm_eval$exceed))
-      )
+      new_data <- EvaluateEnteroWQS(new_data)
+      attr(new_data, "ex_df")
     })
   )
   exceed_df$Percent_Exceed <- exceed_df$Exceedances/exceed_df$Obs * 100

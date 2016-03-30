@@ -40,7 +40,6 @@ options(stringsAsFactors = FALSE)
 
 source('app/functions/01_DataQuery.R')
 source('app/functions/funClean.R')
-source('app/functions/funEvaluateBacteria.R')
 source('app/functions/funPlots.R')
 source('app/functions/funSeaKen.R')
 source('app/functions/funHelpers.R')
@@ -56,12 +55,12 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature')
-input$select <- 'Burnt River'
+input$parms <- c('Temperature', 'pH','Bacteria')
+input$select <- 'Coos-Coquille'
 input$dates <- c("2006-01-01", "2015-12-31")
 input$db <- c("DEQ")
-input$selectStation <-  "11494 - Burnt River at Snake River Road (Huntington)"
-input$selectParameter <- 'Temperature'
+input$selectStation <-  "32131 - "
+input$selectParameter <- 'Enterococcus'
 input$selectLogScale <- TRUE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
@@ -167,8 +166,6 @@ if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minu
   }
   
   #### Calculate trends and adnl data for plotting ####
-  incProgress(1/10, detail = "Calculating 7DADM and Trends")
-  prog <- prog + 1/10
   #Generate sdadm once for temperature plotting/exceedance use
   if (any('Temperature' %in% df.all$Analyte)) {
     sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",

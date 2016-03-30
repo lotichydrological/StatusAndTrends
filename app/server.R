@@ -504,7 +504,8 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectpHCrit), message = FALSE)
             )
-          } else if (input$selectParameter == 'E. Coli') {
+          } else if (input$selectParameter == 'E. Coli' |
+                     input$selectParameter == 'Enterococcus') {
             validate(
               need(!is.null(input$selectLogScale), message = FALSE)
             )
@@ -553,7 +554,7 @@ shinyServer(function(input, output, session) {
         df <- DataUse()
         switch(EXPR = input$selectParameter,
                "pH" = ({
-                 if (nrow(df) > 1) {
+                 if (nrow(df) > 2) {
                    g <- plot.ph(new_data = df, 
                                 sea_ken_table = SeaKen,  
                                 ph_crit,
@@ -580,10 +581,24 @@ shinyServer(function(input, output, session) {
                }),
                "E. Coli" = ({
                  if (nrow(df) > 2) {
-                   g <- plot.ecoli(new_data = df,
-                                   sea_ken_table = SeaKen,
-                                   plot_trend = input$plotTrend,
-                                   plot_log = input$selectLogScale)
+                   g <- plot.bacteria(new_data = df,
+                                      sea_ken_table = SeaKen,
+                                      plot_trend = input$plotTrend,
+                                      plot_log = input$selectLogScale,
+                                      parm = 'E. Coli')
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
+                 }
+               }),
+               "Enterococcus" = ({
+                 if (nrow(df) > 2) {
+                   g <- plot.bacteria(new_data = df,
+                                      sea_ken_table = SeaKen,
+                                      plot_trend = input$plotTrend,
+                                      plot_log = input$selectLogScale,
+                                      parm = 'Enterococcus')
                  } else {
                    g <- ggplot(data.frame()) + geom_point() + 
                      annotate("text", label = "Insufficient data for plotting", 
@@ -619,7 +634,8 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectpHCrit), message = FALSE)
             )
-          } else if (input$selectParameter == 'E. Coli') {
+          } else if (input$selectParameter == 'E. Coli' | 
+                     input$selectParameter == 'Enterococcus' ) {
             validate(
               need(!is.null(input$plotTrend), message = FALSE)
             )
@@ -640,40 +656,6 @@ shinyServer(function(input, output, session) {
         })
     }
   })
-  
-  
-  
-
-
-#         
-#               "E. Coli" = ({
-#                 new_data <- DataUse()
-                # ecoli_gm_eval <- gm_mean_30_day(new_data,
-                #                                 unique(new_data$Analyte),
-                #                                 unique(new_data$Station_ID))
-#                 SeaKen <- run_seaKen(new_data)
-#                 plot.ecoli(new_data, 
-#                            SeaKen, 
-#                            ecoli_gm_eval,
-#                            plot_trend = input$plotTrend,
-#                            plot_log = input$selectLogScale,
-#                            x_min = input$selectRange[1],
-#                            x_max = input$selectRange[2])
-#                 }),
-#                 "Enterococcus" = ({ 
-#                   new_data <- DataUse()
-#                   entero_gm_eval <- gm_mean_30_day(new_data, 
-#                                                    unique(new_data$Analyte), 
-#                                                    unique(new_data$Station_ID))
-#                   SeaKen <- run_seaKen(new_data)
-#                   plot.entero(new_data, 
-#                               SeaKen, 
-#                               entero_gm_eval,
-#                               plot_trend = input$plotTrend,
-#                               plot_log = input$selectLogScale,
-#                               x_min = input$selectRange[1],
-#                               x_max = input$selectRange[2])
-
-  })
+})
 
 options(warn = 0)
