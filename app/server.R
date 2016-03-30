@@ -15,6 +15,7 @@ library(DT)
 library(wq)
 library(chron)
 library(reshape)
+library(ggplot2)
 #library(xlsx)
 #library(RODBC)
 
@@ -159,11 +160,7 @@ shinyServer(function(input, output, session) {
                              error = function(err) 
                              {err <- geterrmessage()})
         }
-        
-#         if (is.null(df.all)) {
-#           df.all <- 'Your query returned no data'
-#         }
-        
+
         if(is.null(df.all)) {
           output$text2 <- renderUI(HTML("<b> Your query returned no data </b>"))
         } else {
@@ -259,6 +256,7 @@ shinyServer(function(input, output, session) {
         }
       })
       
+      #This outputs the table of results returned by parameter
       output$all_totals<- renderTable({
         validate(
           need(try(is.data.frame(df.all)), message = FALSE)
@@ -266,6 +264,7 @@ shinyServer(function(input, output, session) {
         all.totals
         })
       
+      #This creates the button for downloading the raw formatted data
       output$downloadData <- renderUI({
         validate(
           need(is.data.frame(df.all), message = FALSE)
@@ -283,6 +282,7 @@ shinyServer(function(input, output, session) {
         }
       )
       
+      #This adds the View Map action button
       output$action_button_map <- renderUI({
         validate(
           need(is.data.frame(df.all), message = FALSE)
@@ -290,6 +290,7 @@ shinyServer(function(input, output, session) {
         actionButton(inputId = 'action_button_map',label = 'View map')
       })
       
+      #This builds the map view
       observeEvent(input$action_button_map, {
         output$mymap <- renderUI({
           req(ag_sub)
@@ -333,6 +334,7 @@ shinyServer(function(input, output, session) {
       ###################################
       ###################################
       
+      #The control is built here
       output$review_control <- renderUI({
         validate(
           need(is.data.frame(df.all), message = FALSE)
@@ -353,6 +355,7 @@ shinyServer(function(input, output, session) {
         )
       })
       
+      #The table is built here
       output$display <- DT::renderDataTable({
         validate(
           need(input$ReviewDf != "", message = FALSE)
@@ -479,22 +482,57 @@ shinyServer(function(input, output, session) {
       
       #Next create the reactive data frame based on the inputs
       DataUse <- reactive({
-        generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
-                          input$selectUse, input$selectSpawning)
+        generate_new_data(df.all, 
+                          sdadm, 
+                          input$selectStation, 
+                          input$selectParameter)
       })
       
       #This builds the exceedance table
       output$exceed_df <- DT::renderDataTable({
         validate(
-          need(input$selectSpawning != "", message = FALSE)
+          need(input$selectStation != '', message = FALSE)
         )
-        generate_exceed_df(DataUse(), input$selectParameter, input$selectpHCrit,
-                           ph_crit, input$select, input$selectStation)
-      })
+        validate(
+          need(input$selectParameter != "", message = FALSE)
+        )
+        if (input$selectParameter != '') {
+          if (input$selectParameter == 'Temperature') {
+            validate(
+              need(!is.null(input$selectUse), message = FALSE)
+            )
+          } else if (input$selectParameter == 'pH') {
+            validate(
+              need(!is.null(input$selectpHCrit), message = FALSE)
+            )
+          }
+        }
+        generate_exceed_df(DataUse(), 
+                           input$selectParameter, 
+                           input$selectpHCrit,
+                           ph_crit, 
+                           PlanName = input$select, 
+                           input$selectStation, 
+                           input$selectUse, 
+                           input$selectSpawning)
+        })
       
       # #Make the plot interactive
+      #First set up the ranges object
       ranges <- reactiveValues(x = NULL, y = NULL)
-
+      
+      #Next make sure it resets when Station and Parameter change
+      observeEvent(input$selectStation, {
+        ranges$x <- NULL
+        ranges$y <- NULL
+      })
+      
+      observeEvent(input$selectParameter, {
+        ranges$x <- NULL
+        ranges$y <- NULL
+      })
+      
+      #Then add in the observation that creates the range based on the brush
       observeEvent(input$plot1_dblclick, {
         brush <- input$plot1_brush
         if (!is.null(brush)) {
@@ -507,38 +545,66 @@ shinyServer(function(input, output, session) {
         }
       })
       
+      #Reactive function to build plot based on input$selectParameter
       plotInput <- reactive({
         df <- DataUse()
-        switch(input$selectParameter,
+        switch(EXPR = input$selectParameter,
                "pH" = ({
-                 g <- plot.ph(new_data = df, sea_ken_table = SeaKen,  ph_crit, 
-                              plot_trend = input$plotTrend,
-                              plot_criteria = input$selectpHCrit,
-                              plan_area = input$select)
+                 if (nrow(df) > 1) {
+                   g <- plot.ph(new_data = df, 
+                                sea_ken_table = SeaKen,  
+                                ph_crit,
+                                plot_trend = input$plotTrend,
+                                plot_criteria = input$selectpHCrit,
+                                plan_area = input$select)
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
+                 }
                }),
                "Temperature" = ({
-                 g <- plot.Temperature(new_data = df, all_data = df.all)
-               }),
-               "E. Coli" = ({
-                 g <-plot.ecoli(new_data, 
-                                SeaKen,
-                                ecoli_gm_eval,
-                                plot_trend = input$plotTrend,
-                                plot_log = input$selectLogScale,
-                                x_min = input$selectRange[1],
-                                x_max = input$selectRange[2])
+                 if (any(!is.na(df$sdadm))) {
+                   g <- plot.Temperature(new_data = df, 
+                                         all_data = df.all,
+                                         selectUse = input$selectUse,
+                                         selectSpawning = input$selectSpawning)
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data to calculate a single 7DADM", 
+                              x = 1, y = 1)
+                 }
+                 
                })
-               )
-        
-        # g <- g + scale_x_datetime(breaks = "1 day")
+        )
+        #g <- g + scale_x_datetime(breaks = "1 day") #TODO: Make date labeling better
         g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
         g
+        
+        
+      
       })
       
+      #Call the plot rendering function making sure it doesn't try to generate the
+      #plot prematurely by adding in the cascading validations
       output$ts_plot <- renderPlot({
         validate(
-          need(input$selectSpawning != "", message = FALSE)
+          need(input$selectStation != '', message = FALSE)
         )
+        validate(
+          need(input$selectParameter != "", message = FALSE)
+        )
+        if (input$selectParameter != '') {
+          if (input$selectParameter == 'Temperature') {
+            validate(
+              need(!is.null(input$selectUse), message = FALSE)
+            )
+          } else if (input$selectParameter == 'pH') {
+            validate(
+              need(!is.null(input$selectpHCrit), message = FALSE)
+            )
+          }
+        }
         plotInput()
       })
       
@@ -550,9 +616,6 @@ shinyServer(function(input, output, session) {
           ifelse(is.null(ranges$x[2]), min(DataUse()$date), ranges$x[2]),
           "-timeseries.png", sep = "")},
         content = function(file) {
-          # png(file, width = 700, height = 400)
-          # print(plotInput())
-          # dev.off()
           ggsave(plotInput(), file = file)
         })
     }
@@ -562,31 +625,7 @@ shinyServer(function(input, output, session) {
   
 
 
-#         plotInput <- reactive({
-#           switch(EXPR = input$selectParameter, 
-#                "pH" = ({
-#                  new_data <- DataUse()
-#                  validate(need(is.data.frame(new_data), message = ""))
-#                  SeaKen <- run_seaKen(new_data)
-#                  plot.ph(new_data, 
-#                          SeaKen, 
-#                          ph_crit, 
-#                          x_min = input$selectRange[1],
-#                          x_max = input$selectRange[2],
-#                          plot_trend = input$plotTrend,
-#                          plot_criteria = input$selectpHCrit,
-#                          plan_area = input$select
-#                          )
-#                  }),
-#                "Temperature" = ({
-#                  new_data <- DataUse()
-#                  validate(need(is.data.frame(new_data), 
-#                           "Insufficient data to calculate a single 7DADM"))
-#                  #SeaKen <- run_seaKen(new_data) 
-#                  plot.Temperature(new_data, 
-#                                   df.all, 
-#                                   plot_trend = input$plotTrend)
-#                  }),
+#         
 #               "E. Coli" = ({
 #                 new_data <- DataUse()
 #                 ecoli_gm_eval <- gm_mean_30_day(new_data, 
@@ -614,27 +653,7 @@ shinyServer(function(input, output, session) {
 #                               plot_log = input$selectLogScale,
 #                               x_min = input$selectRange[1],
 #                               x_max = input$selectRange[2])
-#                 })
-#           )
-#         })
-#         output$ts_plot <- renderPlot({
-#           validate(
-#                   need(input$selectParameter != "", message = FALSE)
-#             #,
-# #             need(plotInput() != "Insufficient data to calculate a single 7DADM",
-# #                  "Insufficient data to calculate a single 7DADM")
-#           )
-#           if (plotInput()[1] == "Insufficient data to calculate a single 7DADM") {
-#             "Insufficient data to calculate a single 7DADM"
-#           } else {
-#             print(plotInput())
-#           }
-#         })
-#         
-#         
 
-        # })
-#### ####
   })
 
 options(warn = 0)

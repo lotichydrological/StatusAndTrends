@@ -6,16 +6,15 @@ plot.ph <- function(new_data,
                     station_id_column = 'Station_ID',
                     station_desc_column = 'Station_Description',
                     datetime_column = 'Sampled', 
-                    datetime_format = '%Y-%m-%d', 
-                    x_min = min(df$Sampled),
-                    x_max = max(df$Sampled),
+                    datetime_format = '%Y-%m-%d %H:%M:%S', 
                     plot_trend = FALSE,
                     plot_criteria,
                     plan_area) {
+  require(ggplot2)
   new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column], 
                                           format = datetime_format))  
-  x.min <- as.POSIXct(strptime(x_min, format = datetime_format))#min(new_data$Sampled) #min of subset date
-  x.max <- as.POSIXct(strptime(x_max, format = datetime_format))#max(new_data$Sampled) #max of subset date
+  x.min <- as.POSIXct(strptime(min(new_data$Sampled), format = datetime_format))#min(new_data$Sampled) #min of subset date
+  x.max <- as.POSIXct(strptime(max(new_data$Sampled), format = datetime_format))#max(new_data$Sampled) #max of subset date
   x.lim <- c(x.min, x.max) ####define the data domain for graph
   y.min <- ifelse(floor(min(new_data[, result_column]))< 4,
                   floor(min(new_data[, result_column])), 4) #{ #min of data for graph& log.scale=="y"
@@ -24,7 +23,7 @@ plot.ph <- function(new_data,
   y.lim <- c(y.min, y.max) ####define the data range
   title <- paste0(min(new_data[, station_desc_column]), ", ID = ", 
                   min(new_data[, station_id_column])) #, " , river mile = ",river.mile
-  x.lab <- "Month"
+  x.lab <- "Date"
   y.lab <- unique(new_data[, analyte_column])[1]
   ####definitions for drawing Seasonal Kendall slope line
   y.median <- median(new_data[, result_column])
@@ -59,62 +58,94 @@ plot.ph <- function(new_data,
                      round(slope, digits=2), 
                      ", n = ", 
                      nrow(new_data))
+  df_trend_line <- data.frame(x = c(x.min - 10000, x.max + 10000),
+                              y = c(SK.min, SK.max),
+                              variable = rep('Trend line', 2))
   
   #Evaluate against standard
-  new_data <- EvaluatepHWQS(new_data, ph_crit)
+  new_data <- EvaluatepHWQS(new_data = new_data, 
+                            ph_crit = ph_crit, 
+                            PlanName = plan_area, 
+                            selectpHCrit = plot_criteria)
   new_data$exceed <- factor(new_data$exceed, levels = c(0, 1), 
                             labels = c('Meets', 'Exceeds'))
   
-  ####plot the timeseries
-  g <- ggplot(data = new_data, aes_string(x = 'Sampled', y = result_column, color = 'exceed')) + 
+  #Extract basin specific ph criteria
+  OWRD_basin <- strsplit(plot_criteria, " - ")[[1]][1]
+  crit_selected <- strsplit(plot_criteria, " - ")[[1]][2]
+  ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected &
+                           ph_crit$OWRD_basin == OWRD_basin &
+                           ph_crit$plan_name == plan_area, 'ph_low']
+  ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+                           ph_crit$OWRD_basin == OWRD_basin &
+                           ph_crit$plan_name == plan_area, 'ph_high']
+
+  df_ph_crit_max <- data.frame(x = c(x.min - 10000, x.max + 10000),
+                               y = rep(ph_crit_max, 2),
+                               variable = rep('pH Criteria', 2))
+  df_ph_crit_min <- data.frame(x = c(x.min - 10000, x.max + 10000),
+                               y = rep(ph_crit_min, 2),
+                               variable = rep('pH Criteria', 2))
+  
+    ####plot the timeseries
+  g <- ggplot(data = new_data, aes_string(x = 'Sampled', y = result_column, colour = 'exceed')) + 
     geom_point() + 
-    scale_colour_manual("",
-                        values = c('black', 'red'), 
-                        labels = levels(new_data$exceed)) + 
+    # scale_color_manual("",
+    #                   values = c('Meets' = 'black',
+    #                               'Exceeds' = 'red'),
+    #                    labels = levels(new_data$exceed)) +
+    ggtitle(bquote(atop(.(title), atop(paste(.(sub.text)))))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
     xlab(x.lab) + 
     ylab(y.lab) + 
     xlim(x.lim) +
-    ylim(y.lim) +
-    ggtitle(expression(atop(paste(title), atop(paste(sub.text)))))
-  
-  # par(xpd=NA,oma=c(0,0,4,0), mar=c(5.1,4.1,3.1,2.1)) 
-  # plot(new_data$Sampled, new_data[,result_column], 
-  #      xlim = x.lim, ylim = y.lim, 
-  #      xlab = "", ylab = y.lab, bty = "L") ####plot the points , log=log.scale  
-  # title(main=title, cex.main=1.2, outer=TRUE)
-  # mtext(text=sub.text, side=3,cex=1.0, outer=TRUE)
-  # OWRD_basin <- strsplit(plot_criteria, " - ")[[1]][1]
-  # crit_selected <- strsplit(plot_criteria, " - ")[[1]][2]
-  # ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
-  #                          ph_crit$OWRD_basin == OWRD_basin & 
-  #                          ph_crit$plan_name == plan_area, 'ph_low']
-  # ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
-  #                          ph_crit$OWRD_basin == OWRD_basin & 
-  #                          ph_crit$plan_name == plan_area, 'ph_high']
-  # exceeds.points <- new_data[new_data[,result_column] < ph_crit_min | 
-  #                              new_data[,result_column] > ph_crit_max,]
-  # points(exceeds.points$Sampled, exceeds.points$Result, col="red", pch=20) ####plot the exceedances
-  # if(plot_trend & !is.na(p.value)) {
-  #   lines(x=c(x.min, x.max), y=c(SK.min, SK.max), col="red", lwd=2)#draw Seasonal Kendall slope line using median concentration at average date
-  # }
-  # lines(x=c(x.min, x.max), y=c(ph_crit_min, ph_crit_min), lty=2)#draw WQS 
-  # lines(x=c(x.min, x.max), y=c(ph_crit_max, ph_crit_max), lty=3)#draw WQS 
-  # legend(x=par("usr")[1],y=par("usr")[3], legend=c("Maximum criterion", 
-  #                                                  "Minimum criterion", 
-  #                                                  "Seasonal Kendall trend"), 
-  #        lty=c(2,3,1), col=c("black","black","red"), lwd=c(1,1,2), 
-  #        xjust=-0.01, yjust=-8., box.lty=0, cex=1.0, horiz=TRUE)
+    ylim(y.lim) 
+  if (plot_trend & !is.na(p.value)) {
+    g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_trend_line)  
+  }
+  g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_ph_crit_min, linetype = 'dashed')
+  g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_ph_crit_max, linetype = 'dashed')
+  if (plot_trend & !is.na(p.value)) {
+    if ('Exceeds' %in% unique(new_data$exceed)) {
+      g <- g + scale_color_manual("", values = c('red', 'black', 'black', 'blue'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("blank", "blank", "dashed", "solid"),
+                                    shape = c(19, 19, NA, NA))))
+    } else {
+      g <- g + scale_color_manual("", values = c('black', 'black', 'blue'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("blank","dashed", "solid"),
+                                    shape = c(19, NA, NA))))
+    }
+  } else {
+    if ('Exceeds' %in% unique(new_data$exceed)) {
+      g <- g + scale_color_manual("", values = c('red', 'black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("blank", "blank", "dashed"),
+                                    shape = c(19, 19, NA))))
+    } else {
+      g <- g + scale_color_manual("", values = c('black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("blank", "dashed"),
+                                    shape = c(19,  NA))))
+    }
+  }
+  g  
 }
 
 plot.Temperature <- function(new_data, 
                              all_data,
-                             #sea_ken_table,
+                             selectUse,
+                             selectSpawning,
                              station_id_column = 'Station_ID',
                              station_desc_column = 'Station_Description',
                              datetime_column = 'date', 
                              datetime_format = '%Y-%m-%d', 
                              plot_trend = FALSE) {
   require(ggplot2)
+  new_data <- new_data <- EvaluateTempWQS(new_data, selectUse, selectSpawning, "Station_ID") 
   new_data$Sampled <- as.POSIXct(strptime(new_data[,datetime_column], 
                                           format = datetime_format))  
   new_data$exceed <- factor(new_data$exceed, levels = c(TRUE, FALSE), labels = c('Exceeds', 'Meets'))
@@ -134,7 +165,7 @@ plot.Temperature <- function(new_data,
                                     new_data[1, station_id_column],station_desc_column]), 
                   ", ID = ", 
                   new_data[1, station_id_column]) #, " , river mile = ",river.mile
-  x.lab <- "Month"
+  x.lab <- "Date"
   y.lab <- "Temperature (7DADM)"
   
   ####plot the timeseries  #TODO: finish cleaning up ggplot for ph so it looks good
@@ -148,7 +179,7 @@ plot.Temperature <- function(new_data,
     xlim(x.lim) +
     ylim(y.lim) +
     ggtitle(title)
-  g <- g + scale_linetype_manual(values = c('Water Quality Standard' = 1))
+  #g <- g + scale_linetype_manual(values = c('Water Quality Standard' = 1))
   g <- g + theme(legend.position = "top",
                  legend.title = element_blank(),
                  legend.direction = 'horizontal')

@@ -259,16 +259,10 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
 }
 
 generate_new_data <- function(df.all, sdadm, selectStation, selectParameter,
-                              selectUse, selectSpawning) {
+                              selectUse = NULL, selectSpawning= NULL) {
   if (selectParameter == 'Temperature') {
-    tmp_sdadm <- sdadm[sdadm$Station_ID == unique(strsplit(
+    df.sub <- sdadm[sdadm$Station_ID == unique(strsplit(
       selectStation, ' - ')[[1]][1]),]
-    
-    if (any(!is.na(tmp_sdadm$sdadm))) {
-      df.sub <- EvaluateTempWQS(tmp_sdadm, selectUse, selectSpawning, "Station_ID") 
-    } else {
-      df.sub <- "Insufficient data to calculate a single 7DADM"
-    }
   } else {
     df.sub <- df.all[df.all$Station_ID == unique(strsplit(
       selectStation, ' - ')[[1]][1]) & df.all$Analyte == selectParameter,]
@@ -542,40 +536,58 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   return(sdadm_df)
 }
 
-EvaluatepHWQS <- function(new_data, ph_crit, selectpHCrit = input$selectpHCrit) {
-  OWRD_basin <- strsplit(selectpHCrit, " - ")[[1]][1]
-  crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
-  ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
-                           ph_crit$OWRD_basin == OWRD_basin & 
-                           ph_crit$plan_name == PlanName, 
-                         'ph_low']
-  ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
-                           ph_crit$OWRD_basin == OWRD_basin & 
-                           ph_crit$plan_name == PlanName, 
-                         'ph_high']
-  new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
-                              new_data[, 'Result'] > ph_crit_max, 
-                            1, 0)
-  new_data$Year <- as.character(years(new_data$Sampled))
-  return(new_data)
+EvaluatepHWQS <- function(new_data, ph_crit, PlanName, selectpHCrit = NULL) {
+  if (is.null(selectpHCrit)) {
+    return("Please indicate the selected pH criteria")
+  } else {
+    OWRD_basin <- strsplit(selectpHCrit, " - ")[[1]][1]
+    crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
+    ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
+                             ph_crit$OWRD_basin == OWRD_basin & 
+                             ph_crit$plan_name == PlanName, 
+                           'ph_low']
+    ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+                             ph_crit$OWRD_basin == OWRD_basin & 
+                             ph_crit$plan_name == PlanName, 
+                           'ph_high']
+    new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
+                                new_data[, 'Result'] > ph_crit_max, 
+                              1, 0)
+    new_data$Year <- as.character(years(new_data$Sampled))
+    return(new_data)
+  }
 }
 
 generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
-                               selectStation, station_column_name = 'Station_ID') {
+                               selectStation, selectUse, selectSpawning,
+                               station_column_name = 'Station_ID') {
   exceed_df <- switch(
     parm,
     "pH" = ({
-      new_data <- EvaluatepHWQS(new_data, ph_crit)
-      ddply(new_data, .(Station_ID, Station_Description, Year), #, Month), 
-            summarize, Obs = length(exceed), Exceedances = sum(exceed))
+      if (is.null(selectpHCrit)) {
+        NULL
+      } else {
+        new_data <- EvaluatepHWQS(new_data, ph_crit, PlanName, selectpHCrit)
+        ddply(new_data, .(Station_ID, Station_Description, Year), #, Month), 
+              summarize, Obs = length(exceed), Exceedances = sum(exceed)) 
+      }
     }),
     "Temperature" = ({
-      if (is.data.frame(new_data)) {
-        ex_df <- attr(new_data, "result_summary")
+      if (is.null(selectSpawning)) {
+        NULL 
       } else {
-        ex_df <- data.frame()
+        if (any(!is.na(new_data$sdadm))) {
+          new_data <- EvaluateTempWQS(new_data, selectUse, selectSpawning, "Station_ID") 
+        } else {
+          new_data <- "Insufficient data to calculate a single 7DADM"
+        }
+        
+        if (is.data.frame(new_data)) {
+          ex_df <- attr(new_data, "result_summary")
+        } else {
+          ex_df <- data.frame()
+        }
       }
-      
     }),
     "E. Coli" = ({
       new_data$exceed <- ifelse(new_data[, 'Result'] > 406, 1, 0)

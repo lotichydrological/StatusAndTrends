@@ -32,6 +32,7 @@ library(DT)
 library(wq)
 library(chron)
 library(reshape)
+library(ggplot2)
 #library(xlsx)
 #library(RODBC)
 
@@ -55,12 +56,12 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('pH')
+input$parms <- c('Temperature')
 input$select <- 'Burnt River'
-input$dates <- c("2005-01-01", "2015-12-31")
+input$dates <- c("2006-01-01", "2015-12-31")
 input$db <- c("DEQ")
-input$selectStation <-  "36195 - Burnt River at Unity Reservoir Dam"
-input$selectParameter <- 'pH'
+input$selectStation <-  "11494 - Burnt River at Snake River Road (Huntington)"
+input$selectParameter <- 'Temperature'
 input$selectLogScale <- TRUE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
@@ -150,14 +151,6 @@ if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minu
   lstSummaryDfs[[2]] <- summarizeByStation(df.all)
   names(lstSummaryDfs)[2] <- "df.station.totals"
   
-  #Generate sdadm once for temperature plotting/exceedance use
-  if (any('Temperature' %in% df.all$Analyte)) {
-    sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
-                             '%Y-%m-%d %H:%M:%S')
-  } else {
-    sdadm <- NULL
-  }
-  
   #### Cleaning result field ####
   #Fix non-numeric results in the Result field
   df.all$Result <- clean(df.all$Result)
@@ -171,6 +164,24 @@ if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minu
   #Fecal coliform to e. coli conversion
   if ("Fecal Coliform" %in% df.all$Analyte) {
     df.all <- update_fc2ec(df.all)
+  }
+  
+  #### Calculate trends and adnl data for plotting ####
+  incProgress(1/10, detail = "Calculating 7DADM and Trends")
+  prog <- prog + 1/10
+  #Generate sdadm once for temperature plotting/exceedance use
+  if (any('Temperature' %in% df.all$Analyte)) {
+    sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
+                             '%Y-%m-%d %H:%M:%S')
+  } else {
+    sdadm <- NULL
+  }
+  
+  #Run Seasonal Kendall for pH and Bacteria
+  if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
+    SeaKen <- run_seaKen(df.all)
+  } else {
+    SeaKen <- NULL
   }
   
   #### Performing QA Screen ####
@@ -201,3 +212,15 @@ if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minu
   
   generate_exceed_df(new_data, input$selectParameter, input$selectpHCrit,
                      ph_crit, input$select, input$selectStation)
+
+  sea_ken_table <- SeaKen
+  plot_trend <- input$plotTrend
+  plot_criteria <- input$selectpHCrit
+  plan_area <- input$select
+  
+  plot.ph(new_data = new_data, 
+          sea_ken_table = SeaKen,  
+          ph_crit,
+          plot_trend = input$plotTrend,
+          plot_criteria = input$selectpHCrit,
+          plan_area = input$select)
