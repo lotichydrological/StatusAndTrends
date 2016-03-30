@@ -25,7 +25,6 @@ options(stringsAsFactors = FALSE, warn = -1, shiny.reactlog = FALSE)
 
 source('functions/01_DataQuery.R')
 source('functions/funClean.R')
-source('functions/funEvaluateBacteria.R')
 source('functions/funPlots.R')
 source('functions/funSeaKen.R')
 source('functions/funHelpers.R')
@@ -505,6 +504,10 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectpHCrit), message = FALSE)
             )
+          } else if (input$selectParameter == 'E. Coli') {
+            validate(
+              need(!is.null(input$selectLogScale), message = FALSE)
+            )
           }
         }
         generate_exceed_df(DataUse(), 
@@ -574,15 +577,28 @@ shinyServer(function(input, output, session) {
                      annotate("text", label = "Insufficient data to calculate a single 7DADM", 
                               x = 1, y = 1)
                  }
-                 
+               }),
+               "E. Coli" = ({
+                 if (nrow(df) > 2) {
+                   g <- plot.ecoli(new_data = df,
+                                   sea_ken_table = SeaKen,
+                                   plot_trend = input$plotTrend,
+                                   plot_log = input$selectLogScale)
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
+                 }
                })
         )
         #g <- g + scale_x_datetime(breaks = "1 day") #TODO: Make date labeling better
-        g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+        if (input$selectLogScale) {
+          g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+        } else {
+          g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+        }
+        
         g
-        
-        
-      
       })
       
       #Call the plot rendering function making sure it doesn't try to generate the
@@ -602,6 +618,10 @@ shinyServer(function(input, output, session) {
           } else if (input$selectParameter == 'pH') {
             validate(
               need(!is.null(input$selectpHCrit), message = FALSE)
+            )
+          } else if (input$selectParameter == 'E. Coli') {
+            validate(
+              need(!is.null(input$plotTrend), message = FALSE)
             )
           }
         }
@@ -628,9 +648,9 @@ shinyServer(function(input, output, session) {
 #         
 #               "E. Coli" = ({
 #                 new_data <- DataUse()
-#                 ecoli_gm_eval <- gm_mean_30_day(new_data, 
-#                                                 unique(new_data$Analyte), 
-#                                                 unique(new_data$Station_ID))
+                # ecoli_gm_eval <- gm_mean_30_day(new_data,
+                #                                 unique(new_data$Analyte),
+                #                                 unique(new_data$Station_ID))
 #                 SeaKen <- run_seaKen(new_data)
 #                 plot.ecoli(new_data, 
 #                            SeaKen, 
