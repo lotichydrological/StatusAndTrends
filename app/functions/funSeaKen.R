@@ -6,9 +6,10 @@ run_seaKen <- function (df.all) {
                             median="none",
                             N="none",
                             stringsAsFactors=FALSE)
-  for (p in 1:length(unique(df.all$Analyte))) {
-    parm <- unique(df.all$Analyte)[p]
-    
+  parms <- unique(df.all$Analyte)
+  parms <- parms[parms != 'Temperature']
+  for (p in 1:length(parms)) {
+    parm <- parms[p]
     for(ii in 1:length(sea_ken_int$Station_ID)) { 
       # specifiy current Station_ID
       tmp.one.station <- sea_ken_int$Station_ID[ii]

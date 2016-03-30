@@ -36,7 +36,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                all.x = TRUE)
     W$Sampled <- paste(W$ActivityStartDate, W$ActivityStartTime.Time)
     W <- W[,c(names(wqp.map),'Sampled')]
-    W <- rename(W,wqp.map)
+    W <- plyr::rename(W,wqp.map)
     W$Database <- 'Water Quality Portal'
     W$SD <- paste(W$Database, W$Station_ID)
   } else {
@@ -59,7 +59,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                   'hucCd' = 'HUC',
                   'srs' = 'DATUM')
     N <- N[,c(names(name_map),'Analyte','Result','Unit','Status')]
-    N <- rename(N, name_map)
+    N <- plyr::rename(N, name_map)
     N <- cbind(N, data.frame(SampleType = rep("Continuous", nrow(N)),
                              MRL = rep(NA, nrow(N)),
                              Database = rep("NWIS", nrow(N)),
@@ -85,7 +85,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                    'SAMPLE_DATE_TIME' = 'Sampled',
                    'AREA_ABBREVIATION' = 'HUC')
     L <- L[,c(names(lasar.map),'DATUM','DECIMAL_LAT','DECIMAL_LONG')]
-    L <- rename(L,lasar.map)
+    L <- plyr::rename(L,lasar.map)
     L$Database <- 'LASAR'
     L$SD <- paste(L$Database, L$Station_ID)
     L <- cbind(L, data.frame(Detect = rep(NA, nrow(L)), 
@@ -94,7 +94,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
   }
   
   if (!is.null(E)) {
-    E <- rename(E, c('Units' = 'Unit', 
+    E <- plyr::rename(E, c('Units' = 'Unit', 
                      'DQL' = 'Status', 
                      'SampleQualifiers' = 'StatusIdentifier', 
                      'AnalyteQualifiers' = 'Comment',
@@ -378,9 +378,9 @@ wqp.data <- readWQPdata(#stateCode = myArea,
 # wqp.stations.filename <- paste('./Data/wqpStations',timestamp,'.csv',sep='')
 # write.csv(wqp.stations,wqp.stations.filename)
 
-if (is.null(wqp.data)) {
-  wqp.data <- "No data"
-}
+# if (is.null(wqp.data)) {
+#   wqp.data <- "No data"
+# }
 
 #### ####
 return(wqp.data)
@@ -484,10 +484,10 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
                                        value = TRUE), 
                             value = TRUE)
       comment_rename <- setNames("Status", comment_field)
-      x <- rename(x, comment_rename)
+      x <- plyr::rename(x, comment_rename)
       result_field <- grep('^X', names(x), value = TRUE)
       result_rename <- setNames("Result", result_field)
-      x <- rename(x, result_rename)
+      x <- plyr::rename(x, result_rename)
     })
     site_list <- lapply(df_list, function (x) {
       x_siteInfo <- attr(x, "siteInfo")
@@ -496,7 +496,7 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
     siteInfo <- as.data.frame(data.table::rbindlist(site_list))
     attr(nwis_data, "siteInfo") <- siteInfo
   } else {
-    nwis_data <- 'No data'
+    nwis_data <- NULL
   }
   return(nwis_data)
 }
