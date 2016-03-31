@@ -566,6 +566,8 @@ shinyServer(function(input, output, session) {
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
                  }
+                 
+                 g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                }),
                "Temperature" = ({
                  if (any(!is.na(df$sdadm))) {
@@ -578,6 +580,8 @@ shinyServer(function(input, output, session) {
                      annotate("text", label = "Insufficient data to calculate a single 7DADM", 
                               x = 1, y = 1)
                  }
+                 
+                 g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                }),
                "E. Coli" = ({
                  if (nrow(df) > 2) {
@@ -590,6 +594,12 @@ shinyServer(function(input, output, session) {
                    g <- ggplot(data.frame()) + geom_point() + 
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
+                 }
+                 
+                 if (input$selectLogScale) {
+                   g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+                 } else {
+                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
                }),
                "Enterococcus" = ({
@@ -604,15 +614,16 @@ shinyServer(function(input, output, session) {
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
                  }
+                 
+                 if (input$selectLogScale) {
+                   g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+                 } else {
+                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+                 }
                })
         )
         #g <- g + scale_x_datetime(breaks = "1 day") #TODO: Make date labeling better
-        if (input$selectLogScale) {
-          g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
-        } else {
-          g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
-        }
-        
+
         g
       })
       
