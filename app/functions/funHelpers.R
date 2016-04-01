@@ -499,7 +499,7 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   # exceedspawn <- tapply(sdadm_df$exceedspawn,
   #                       list(sdadm_df[, station_column_name],
   #                            sdadm_df$exceedspawn), length)
-  sdadm_df <- sdadm_df[!is.na(sdadm_df$sdadm),]
+  #sdadm_df <- sdadm_df[!is.na(sdadm_df$sdadm),]
   
   sdadm_df$Time_Period <- ifelse(sdadm_df$summer, "Summer", "Spawning")
   sdadm_df$Time_Period <- factor(sdadm_df$Time_Period, levels = c('Summer', 'Spawning', 'Total'))

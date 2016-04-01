@@ -141,9 +141,10 @@ plot.Temperature <- function(new_data,
                              datetime_format = '%Y-%m-%d', 
                              plot_trend = FALSE) {
   require(ggplot2)
-  new_data <- new_data <- EvaluateTempWQS(new_data, selectUse, selectSpawning, "Station_ID") 
+  new_data <- EvaluateTempWQS(new_data, selectUse, selectSpawning, "Station_ID") 
   new_data$Sampled <- as.POSIXct(strptime(new_data[,datetime_column], 
                                           format = datetime_format))  
+  new_data[!is.na(new_data$sdadm) & is.na(new_data$exceed), 'exceed'] <- FALSE
   new_data$exceed <- factor(new_data$exceed, levels = c(TRUE, FALSE), labels = c('Exceeds', 'Meets'))
   x.min <- min(new_data$Sampled) 
   x.max <- max(new_data$Sampled) 
@@ -154,6 +155,16 @@ plot.Temperature <- function(new_data,
     10
   }
   y.max <- ceiling(max(new_data$sdadm, na.rm = TRUE)) 
+  if (y.max < 20 & selectUse %in% c('Salmon and Steelhead Migration Corridors',
+                                    'Redband and Lanhontan Cutthroat Trout')) {
+    y.max <- 21
+  } else if (y.max < 18 & selectUse == 'Salmon and Trout Rearing and Migration') {
+    y.max <- 19
+  } else if (y.max < 16 & selectUse == 'Core Cold Water Habitat') {
+    y.max <- 17
+  } else if (y.max < 13) {
+    y.max <- 14
+  }
   y.lim <- c(y.min,y.max) 
   title <- paste0(unique(all_data[all_data[,station_id_column] == 
                                     new_data[1, station_id_column],station_desc_column]), 
@@ -163,171 +174,257 @@ plot.Temperature <- function(new_data,
   y.lab <- "Temperature (7DADM)"
   
   ####plot the timeseries
-  g <- ggplot(data = new_data, aes(x = Sampled, y = sdadm, color = exceed)) + 
-    geom_point() + 
-    scale_colour_manual("",
-                        values = c('red', 'black'), 
-                        labels = levels(new_data$exceed)) + 
-    xlab(x.lab) + 
-    ylab(y.lab) + 
-    xlim(x.lim) +
-    ylim(y.lim) +
-    ggtitle(title)
-  g <- g + theme(legend.position = "top",
-                 legend.title = element_blank(),
-                 legend.direction = 'horizontal')
-  
-  ####Draw WQS 
-  spn_index <- which(new_data$criteria_value == 13)
-  spn_diff <- diff(spn_index)
-  
-  if (all(spn_diff == 1)) {
-    if (length(spn_index) > 0) {
-      spn_1 <- max(spn_index)
-      
-      if (spn_1 == nrow(new_data)) {
-        #Plot non-spawn time-period
-        df <- data.frame(x1 = new_data[1, 'Sampled'], 
-                         x2 = new_data[spn_index[1] - 1, 'Sampled'],
-                         y1 = unique(new_data[1:(spn_index[1] - 1), 
-                                              'criteria_value']),
-                         y2 = unique(new_data[1:(spn_index[1] - 1), 
-                                              'criteria_value']))
-        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
-                              data = df, inherit.aes = FALSE)
-      } else {
-        #Plot non-spawn time-period
-        df <- data.frame(x1 = new_data[spn_1 + 1, 'Sampled'],
-                         x2 = new_data[nrow(new_data), 'Sampled'],
-                         y1 = unique(new_data[(spn_1 + 1):nrow(new_data), 
-                                              'criteria_value']),
-                         y2 = unique(new_data[(spn_1 + 1):nrow(new_data),
-                                              'criteria_value']))
-        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
-                              data = df, inherit.aes = FALSE)
-      }
-      #Plot spawn time period
-      df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
-                       x2 = new_data[spn_1,'Sampled'],
-                       y1 = unique(new_data[spn_index[1]:spn_1,
-                                            'criteria_value']),
-                       y2 = unique(new_data[spn_index[1]:spn_1,
-                                            'criteria_value']))
-      g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
-                            data = df, inherit.aes = FALSE)
-    } else {
-      df <- data.frame(x1 = new_data[1,'Sampled'],
-                       x2 = new_data[nrow(new_data), 'Sampled'],
-                       y1 = unique(new_data[1:nrow(new_data), 'criteria_value']),
-                       y2 = unique(new_data[1:nrow(new_data), 'criteria_value']))
-      g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = "Non-spawning"),
-                            data = df, inherit.aes = FALSE) 
-    }
+  if (selectSpawning == 'No spawning' & any(selectUse %in% 
+                                            c('Cool water species', 
+                                              'No Salmonid Use/Out of State'))) {
+    g <- ggplot(data = new_data, aes(x = Sampled, y = sdadm), color = 'black') + 
+      geom_point() + 
+      xlab(x.lab) + 
+      ylab(y.lab) + 
+      xlim(x.lim) +
+      ylim(y.lim) +
+      ggtitle(title)
+    g <- g + theme(legend.position = "top",
+                   legend.title = element_blank(),
+                   legend.direction = 'horizontal')
   } else {
-    spn_stop <- spn_index[which(spn_diff > 1)]
-    spn_start <- spn_index[which(spn_diff > 1) + 1]
-    nspn_start <- spn_stop + 1
-    nspn_stop <- spn_start - 1
+    g <- ggplot(data = new_data, aes(x = Sampled, y = sdadm, color = exceed)) + 
+      geom_point() + 
+      xlab(x.lab) + 
+      ylab(y.lab) + 
+      xlim(x.lim) +
+      ylim(y.lim) +
+      ggtitle(title)
+    if (all(new_data$exceed == 'Meets', na.rm = TRUE)) {
+      g <- g + scale_colour_manual("",
+                                   values = c('black'), 
+                                   labels = 'Meets') 
+    } else if (all(new_data$exceed == 'Exceeds', na.rm = TRUE)) {
+      g <- g +  scale_colour_manual("",
+                                    values = c('red'), 
+                                    labels = 'Exceeds')
+    } else {
+      g <- g + scale_colour_manual("",
+                                   values = c('red', 'black'), 
+                                   labels = levels(new_data$exceed))
+    }
+    g <- g + theme(legend.position = "top",
+                   legend.title = element_blank(),
+                   legend.direction = 'horizontal')
     
-    for (i in 1:length(spn_start)) {
-      if (i < length(spn_start)) {
-        #Plot next spawn time period
-        df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
-                         x2 = new_data[spn_stop[i + 1], 'Sampled'],
-                         y1 = unique(new_data[spn_start[i]:spn_stop[i + 1],
-                                              'criteria_value']),
-                         y2 = unique(new_data[spn_start[i]:spn_stop[i + 1],
-                                              'criteria_value']))
-        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
-                              data = df, inherit.aes = FALSE)
-        #Plot non-spawn time period
-        df <- data.frame(x1 = new_data[nspn_start[i], 'Sampled'],
-                         x2 = new_data[nspn_stop[i], 'Sampled'],
-                         y1 = unique(new_data[nspn_start[i]:nspn_stop[i],
-                                              'criteria_value']),
-                         y2 = unique(new_data[nspn_start[i]:nspn_stop[i],
-                                              'criteria_value']))
-        g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
-                              data = df, inherit.aes = FALSE)
-      } else {
-        #Plot last spawn-time period
-        df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
-                         x2 = new_data[max(spn_index), 'Sampled'],
-                         y1 = unique(new_data[spn_start[i]:max(spn_index),
-                                              'criteria_value']),
-                         y2 = unique(new_data[spn_start[i]:max(spn_index),
-                                              'criteria_value']))
-        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
-                              data = df, inherit.aes = FALSE)
-        #Plot non-spawn time period
-        df <- data.frame(x1 = new_data[nspn_start[i], 'Sampled'],
-                         x2 = new_data[nspn_stop[i], 'Sampled'],
-                         y1 = unique(new_data[nspn_start[i]:nspn_stop[i],
-                                              'criteria_value']),
-                         y2 = unique(new_data[nspn_start[i]:nspn_stop[i],
-                                              'criteria_value']))
-        g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
-                              data = df, inherit.aes = FALSE)
-        #Plot last non-spawn time period
-        if (new_data[nrow(new_data),'criteria_value'] != 13) {
-          df <- data.frame(x1 = new_data[max(spn_index) + 1, 'Sampled'],
-                           x2 = new_data[nrow(new_data), 'Sampled'],
-                           y1 = unique(new_data[(max(spn_index) + 1):nrow(new_data),
+    ####Draw WQS 
+    if (selectSpawning != 'No spawning' & any(selectUse %in% 
+                                              c('Cool water species', 
+                                                'No Salmonid Use/Out of State'))) {
+      spn_index <- which(new_data$criteria_value == 13)
+      spn_diff <- diff(spn_index)
+      
+      if (all(spn_diff == 1)) {
+        if (length(spn_index) > 0) {
+          spn_1 <- max(spn_index)
+          
+          #Plot spawn time period
+          df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
+                           x2 = new_data[spn_1,'Sampled'],
+                           y1 = unique(new_data[spn_index[1]:spn_1,
                                                 'criteria_value']),
-                           y2 = unique(new_data[(max(spn_index) + 1):nrow(new_data),
+                           y2 = unique(new_data[spn_index[1]:spn_1,
+                                                'criteria_value']))
+          g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                data = df, inherit.aes = FALSE)
+        } 
+      } else {
+        spn_stop <- spn_index[which(spn_diff > 1)]
+        spn_start <- spn_index[which(spn_diff > 1) + 1]
+        nspn_start <- spn_stop + 1
+        nspn_stop <- spn_start - 1
+        
+        for (i in 1:length(spn_start)) {
+          if (i < length(spn_start)) {
+            #Plot next spawn time period
+            df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+                             x2 = new_data[spn_stop[i + 1], 'Sampled'],
+                             y1 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                                  'criteria_value']),
+                             y2 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                  data = df, inherit.aes = FALSE)
+          } else {
+            #Plot last spawn-time period
+            df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+                             x2 = new_data[max(spn_index), 'Sampled'],
+                             y1 = unique(new_data[spn_start[i]:max(spn_index),
+                                                  'criteria_value']),
+                             y2 = unique(new_data[spn_start[i]:max(spn_index),
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                  data = df, inherit.aes = FALSE)
+            }
+          }
+        }
+
+        #Plot first spawn time period
+        df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
+                         x2 = new_data[spn_stop[1],'Sampled'],
+                         y1 = unique(new_data[spn_index[1]:spn_stop[1],
+                                              'criteria_value']),
+                         y2 = unique(new_data[spn_index[1]:spn_stop[1],
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                              data = df, inherit.aes = FALSE)
+    } else {
+      spn_index <- which(new_data$criteria_value == 13)
+      spn_diff <- diff(spn_index)
+      
+      if (all(spn_diff == 1)) {
+        if (length(spn_index) > 0) {
+          spn_1 <- max(spn_index)
+          
+          if (spn_1 == nrow(new_data)) {
+            #Plot non-spawn time-period
+            df <- data.frame(x1 = new_data[1, 'Sampled'], 
+                             x2 = new_data[spn_index[1] - 1, 'Sampled'],
+                             y1 = unique(new_data[1:(spn_index[1] - 1), 
+                                                  'criteria_value']),
+                             y2 = unique(new_data[1:(spn_index[1] - 1), 
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
+                                  data = df, inherit.aes = FALSE)
+          } else {
+            #Plot non-spawn time-period
+            df <- data.frame(x1 = new_data[spn_1 + 1, 'Sampled'],
+                             x2 = new_data[nrow(new_data), 'Sampled'],
+                             y1 = unique(new_data[(spn_1 + 1):nrow(new_data), 
+                                                  'criteria_value']),
+                             y2 = unique(new_data[(spn_1 + 1):nrow(new_data),
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
+                                  data = df, inherit.aes = FALSE)
+          }
+          #Plot spawn time period
+          df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
+                           x2 = new_data[spn_1,'Sampled'],
+                           y1 = unique(new_data[spn_index[1]:spn_1,
+                                                'criteria_value']),
+                           y2 = unique(new_data[spn_index[1]:spn_1,
+                                                'criteria_value']))
+          g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                data = df, inherit.aes = FALSE)
+        } else {
+          df <- data.frame(x1 = new_data[1,'Sampled'],
+                           x2 = new_data[nrow(new_data), 'Sampled'],
+                           y1 = unique(new_data[1:nrow(new_data), 'criteria_value']),
+                           y2 = unique(new_data[1:nrow(new_data), 'criteria_value']))
+          g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = "Non-spawning"),
+                                data = df, inherit.aes = FALSE) 
+        }
+      } else {
+        spn_stop <- spn_index[which(spn_diff > 1)]
+        spn_start <- spn_index[which(spn_diff > 1) + 1]
+        nspn_start <- spn_stop + 1
+        nspn_stop <- spn_start - 1
+        
+        for (i in 1:length(spn_start)) {
+          if (i < length(spn_start)) {
+            #Plot next spawn time period
+            df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+                             x2 = new_data[spn_stop[i + 1], 'Sampled'],
+                             y1 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                                  'criteria_value']),
+                             y2 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                  data = df, inherit.aes = FALSE)
+            #Plot non-spawn time period
+            df <- data.frame(x1 = new_data[nspn_start[i], 'Sampled'],
+                             x2 = new_data[nspn_stop[i], 'Sampled'],
+                             y1 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                                  'criteria_value']),
+                             y2 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                                  data = df, inherit.aes = FALSE)
+          } else {
+            #Plot last spawn-time period
+            df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+                             x2 = new_data[max(spn_index), 'Sampled'],
+                             y1 = unique(new_data[spn_start[i]:max(spn_index),
+                                                  'criteria_value']),
+                             y2 = unique(new_data[spn_start[i]:max(spn_index),
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                  data = df, inherit.aes = FALSE)
+            #Plot non-spawn time period
+            df <- data.frame(x1 = new_data[nspn_start[i], 'Sampled'],
+                             x2 = new_data[nspn_stop[i], 'Sampled'],
+                             y1 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                                  'criteria_value']),
+                             y2 = unique(new_data[nspn_start[i]:nspn_stop[i],
+                                                  'criteria_value']))
+            g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                                  data = df, inherit.aes = FALSE)
+            #Plot last non-spawn time period
+            if (new_data[nrow(new_data),'criteria_value'] != 13) {
+              df <- data.frame(x1 = new_data[max(spn_index) + 1, 'Sampled'],
+                               x2 = new_data[nrow(new_data), 'Sampled'],
+                               y1 = unique(new_data[(max(spn_index) + 1):nrow(new_data),
+                                                    'criteria_value']),
+                               y2 = unique(new_data[(max(spn_index) + 1):nrow(new_data),
+                                                    'criteria_value']))
+              g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+                                    data = df, inherit.aes = FALSE)
+            }
+          }
+        }
+        
+        #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
+        if (spn_index[1] != 1) {
+          df <- data.frame(x1 = new_data[1, 'Sampled'],
+                           x2 = new_data[spn_index[1] - 1, 'Sampled'],
+                           y1 = unique(new_data[spn_index[1]:spn_stop[1],
+                                                'criteria_value']),
+                           y2 = unique(new_data[spn_index[1]:spn_stop[1],
                                                 'criteria_value']))
           g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
                                 data = df, inherit.aes = FALSE)
         }
+        
+        #Plot first spawn time period
+        df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
+                         x2 = new_data[spn_stop[1],'Sampled'],
+                         y1 = unique(new_data[spn_index[1]:spn_stop[1],
+                                              'criteria_value']),
+                         y2 = unique(new_data[spn_index[1]:spn_stop[1],
+                                              'criteria_value']))
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                              data = df, inherit.aes = FALSE)
       }
     }
     
-    #Plot first non-spawn time period TODO: Add functionality to check if start of data is in spawning or non-spawning
-    if (spn_index[1] != 1) {
-      df <- data.frame(x1 = new_data[1, 'Sampled'],
-                       x2 = new_data[spn_index[1] - 1, 'Sampled'],
-                       y1 = unique(new_data[spn_index[1]:spn_stop[1],
-                                            'criteria_value']),
-                       y2 = unique(new_data[spn_index[1]:spn_stop[1],
-                                            'criteria_value']))
-      g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
-                            data = df, inherit.aes = FALSE)
-    }
-    
-    #Plot first spawn time period
-    df <- data.frame(x1 = new_data[spn_index[1],'Sampled'],
-                     x2 = new_data[spn_stop[1],'Sampled'],
-                     y1 = unique(new_data[spn_index[1]:spn_stop[1],
-                                          'criteria_value']),
-                     y2 = unique(new_data[spn_index[1]:spn_stop[1],
-                                          'criteria_value']))
-    g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
-                          data = df, inherit.aes = FALSE)
+    g <- g + scale_linetype_manual(values = c('Non-spawning' = 5,
+                                              'Spawning' = 2))
+    g <- g + theme(legend.position = "top",
+                   legend.title = element_blank(),
+                   legend.direction = 'horizontal')
   }
-  
-  g <- g + scale_linetype_manual(values = c('Non-spawning' = 5,
-                                            'Spawning' = 2))
-  g <- g + theme(legend.position = "top",
-                 legend.title = element_blank(),
-                 legend.direction = 'horizontal')
-  
   g
 }
 
 
 plot.bacteria <- function(new_data, 
-                       sea_ken_table,
-                       analyte_column = 'Analyte',
-                       result_column = 'Result',
-                       station_id_column = 'Station_ID',
-                       station_desc_column = 'Station_Description',
-                       datetime_column = 'Sampled',
-                       datetime_format = '%Y-%m-%d',
-                       plot_trend = FALSE,
-                       plot_log = FALSE,
-                       x_min = min(new_data$Sampled),
-                       x_max = max(new_data$Sampled),
-                       parm) {
+                          sea_ken_table,
+                          analyte_column = 'Analyte',
+                          result_column = 'Result',
+                          station_id_column = 'Station_ID',
+                          station_desc_column = 'Station_Description',
+                          datetime_column = 'Sampled',
+                          datetime_format = '%Y-%m-%d',
+                          plot_trend = FALSE,
+                          plot_log = FALSE,
+                          x_min = min(new_data$Sampled),
+                          x_max = max(new_data$Sampled),
+                          parm) {
   x.min <- as.POSIXct(strptime(x_min, format = '%Y-%m-%d'))
   x.max <- as.POSIXct(strptime(x_max, format = '%Y-%m-%d'))
   x.lim <- c(x.min, x.max) 
