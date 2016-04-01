@@ -55,15 +55,15 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature', 'pH','Bacteria')
-input$select <- 'Coos-Coquille'
+input$parms <- c('Temperature')
+input$select <- 'North Coast'
 input$dates <- c("2006-01-01", "2015-12-31")
 input$db <- c("DEQ")
-input$selectStation <-  "32131 - "
-input$selectParameter <- 'Enterococcus'
+input$selectStation <-  "33312 - "
+input$selectParameter <- 'Temperature'
 input$selectLogScale <- TRUE
-input$selectSpawning <- 'No spawning'
-input$selectUse <- 'Redband and Lanhontan Cutthroat Trout'
+input$selectSpawning <- 'January 1-June 15'
+input$selectUse <- 'Cool water species'
 input$selectpHCrit <- 'Powder - All other basin waters'
 input$plotTrend <- FALSE
 
