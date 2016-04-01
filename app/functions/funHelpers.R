@@ -504,14 +504,17 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   sdadm_df$Time_Period <- ifelse(sdadm_df$summer, "Summer", "Spawning")
   sdadm_df$Time_Period <- factor(sdadm_df$Time_Period, levels = c('Summer', 'Spawning', 'Total'))
   sdadm_df$exceed <- sdadm_df$exceedspawn | sdadm_df$exceedsummer
-  result_summary <- ddply(sdadm_df, .(sdadm_df[, station_column_name], Time_Period), 
+  sdadm_df_noNA <- sdadm_df[!is.na(sdadm_df$sdadm),]
+  sdadm_df_noNA[is.na(sdadm_df_noNA$Time_Period), 'exceed'] <- FALSE
+  sdadm_df_noNA[is.na(sdadm_df_noNA$Time_Period), 'Time_Period'] <- 'Summer'
+  result_summary <- ddply(sdadm_df_noNA, .(sdadm_df_noNA[, station_column_name], Time_Period), 
                                             summarise, 
                                             Exceedances = sum(exceed),                  
                           #exceedspawn = sum(exceedspawn),
                                             #exceedsummer = sum(exceedsummer),
                                             Obs = sum(daystot), .drop = FALSE)
   result_summary <- plyr::rename(result_summary, 
-                                 c('sdadm_df[, station_column_name]' = 
+                                 c('sdadm_df_noNA[, station_column_name]' = 
                                      station_column_name))
   
   if (any(is.na(result_summary$Time_Period))) {

@@ -493,9 +493,19 @@ plot.bacteria <- function(new_data,
   if (parm == 'E. Coli') {
     new_data <- EvaluateEColiWQS(new_data)
     gm_table <- attr(new_data, 'ecoli_gm_eval')
+    #Define lines for WQS
+    df_gm <- data.frame(x = c(x.min, x.max), y = rep(126, 2), 
+                        variable = rep('Geometric mean WQS', 2))
+    df_ss <- data.frame(x = c(x.min, x.max), y = rep(406, 2),
+                        variable = rep('Single sample WQS', 2))
   } else {
     new_data <- EvaluateEnteroWQS(new_data)
     gm_table <- attr(new_data, 'entero_gm_eval')
+    #Define lines for WQS
+    df_gm <- data.frame(x = c(x.min, x.max), y = rep(35, 2), 
+                        variable = rep('Geometric mean WQS', 2))
+    df_ss <- data.frame(x = c(x.min, x.max), y = rep(158, 2),
+                        variable = rep('Single sample WQS', 2))
   }
   
   new_data$exceed <- factor(new_data$exceed, levels = c(0, 1), 
@@ -504,11 +514,7 @@ plot.bacteria <- function(new_data,
                             labels = c('Meets', 'Exceeds'))
   gm_table$Sampled <- as.POSIXct(strptime(gm_table$day, format = "%Y-%m-%d"))
   
-  #Define lines for WQS
-  df_gm <- data.frame(x = c(x.min, x.max), y = rep(126, 2), 
-                      variable = rep('Geometric mean WQS', 2))
-  df_ss <- data.frame(x = c(x.min, x.max), y = rep(406, 2),
-                      variable = rep('Single sample WQS', 2))
+  
 
   ####plot the timeseries
   if (nrow(gm_table) > 0) {
