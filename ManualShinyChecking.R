@@ -45,9 +45,11 @@ source('app/functions/funSeaKen.R')
 source('app/functions/funHelpers.R')
 
 agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 #agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 HUClist <- read.csv('app/data/PlanHUC_LU.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
+ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
@@ -55,17 +57,17 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature')
-input$select <- 'North Coast'
+input$parms <- c('Bacteria')
+input$select <- "17100203 - Wilson-Trask-Nestucca"
 input$dates <- c("2006-01-01", "2015-12-31")
 input$db <- c("DEQ")
-input$selectStation <-  "33312 - "
-input$selectParameter <- 'Temperature'
-input$selectLogScale <- TRUE
+input$selectStation <-  "30510 - "
+input$selectParameter <- 'Enterococcus'
+input$selectLogScale <- FALSE
 input$selectSpawning <- 'January 1-June 15'
 input$selectUse <- 'Cool water species'
-input$selectpHCrit <- 'Powder - All other basin waters'
-input$plotTrend <- FALSE
+input$selectpHCrit <- 'Owyhee - All other basin waters'
+input$plotTrend <- TRUE
 
 wqpData <- NULL
 lasarData <- NULL
@@ -135,74 +137,80 @@ if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minu
 #           df.all <- 'Your query returned no data'
 #         }
 
-  #### Tabulate Results ####
-  #Isolate to only include data at stations in the plan area polygon
-  df.all <- clipToPlanArea(df.all, agwqma, input$select)
-  
-  #Summarize Stations and Number of results by Analyte
-  all.totals <- tabulateResults(df.all)
-  
-  #Summarize results by organization
-  lstSummaryDfs[[1]] <- summarizeByOrg(df.all)
-  names(lstSummaryDfs)[1] <- "df.org"
-  
-  #Tabulate number of results at each station
-  lstSummaryDfs[[2]] <- summarizeByStation(df.all)
-  names(lstSummaryDfs)[2] <- "df.station.totals"
-  
-  #### Cleaning result field ####
-  #Fix non-numeric results in the Result field
-  df.all$Result <- clean(df.all$Result)
-  lstSummaryDfs[[3]] <- attr(df.all$Result, "report")
-  names(lstSummaryDfs)[3] <- "df.report"
-  df.all$Result <- suppressWarnings(as.numeric(df.all$Result))
-  
-  #MRL handling
-  df.all <- MRLhandling(df.all)
-  
-  #Fecal coliform to e. coli conversion
-  if ("Fecal Coliform" %in% df.all$Analyte) {
-    df.all <- update_fc2ec(df.all)
-  }
-  
-  #### Calculate trends and adnl data for plotting ####
-  #Generate sdadm once for temperature plotting/exceedance use
-  if (any('Temperature' %in% df.all$Analyte)) {
-    sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
-                             '%Y-%m-%d %H:%M:%S')
-  } else {
-    sdadm <- NULL
-  }
-  
-  #Run Seasonal Kendall for pH and Bacteria
-  if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
-    SeaKen <- run_seaKen(df.all)
-  } else {
-    SeaKen <- NULL
-  }
-  
-  #### Performing QA Screen ####
-  #Check QA info and remove data not meeting QA objectives
-  df.all <- remove_QAfail(df.all)
-  #Pull out the tracking data frame of data removed
-  lstSummaryDfs[[4]] <- attr(df.all, "removal_tracking")
-  names(lstSummaryDfs)[4] <- "df.removal"
-  
-  #### Preparing data for mapping ####
-  #Generate layer for mapping
-  all.sp <- generateStnLyrToPlot(df.all, lstSummaryDfs[["df.station.totals"]])
-  
-  #Restrict ag plan areas to select plan area
+#### Tabulate Results ####
+#Isolate to only include data at stations in the plan area polygon
+df.all <- clipToPlanArea(df.all, agwqma, input$select)
+
+#Summarize Stations and Number of results by Analyte
+all.totals <- tabulateResults(df.all)
+
+#Summarize results by organization
+lstSummaryDfs[[1]] <- summarizeByOrg(df.all)
+names(lstSummaryDfs)[1] <- "df.org"
+
+#Tabulate number of results at each station
+lstSummaryDfs[[2]] <- summarizeByStation(df.all)
+names(lstSummaryDfs)[2] <- "df.station.totals"
+
+#### Cleaning result field ####
+#Fix non-numeric results in the Result field
+df.all$Result <- clean(df.all$Result)
+lstSummaryDfs[[3]] <- attr(df.all$Result, "report")
+names(lstSummaryDfs)[3] <- "df.report"
+df.all$Result <- suppressWarnings(as.numeric(df.all$Result))
+
+#MRL handling
+df.all <- MRLhandling(df.all)
+
+#Fecal coliform to e. coli conversion
+if ("Fecal Coliform" %in% df.all$Analyte) {
+  df.all <- update_fc2ec(df.all)
+}
+
+#### Calculate trends and adnl data for plotting ####
+#Generate sdadm once for temperature plotting/exceedance use
+if (any('Temperature' %in% df.all$Analyte)) {
+  sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
+                           '%Y-%m-%d %H:%M:%S')
+} else {
+  sdadm <- NULL
+}
+
+#Run Seasonal Kendall for pH and Bacteria
+if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
+  SeaKen <- run_seaKen(df.all)
+} else {
+  SeaKen <- NULL
+}
+
+#Calculate 30 GM for E. Coli and Enterococcus
+#WIll get to this later. May need to go in plotting section.
+
+#### Performing QA Screen ####
+#Check QA info and remove data not meeting QA objectives
+df.all <- remove_QAfail(df.all)
+#Pull out the tracking data frame of data removed
+lstSummaryDfs[[4]] <- attr(df.all, "removal_tracking")
+names(lstSummaryDfs)[4] <- "df.removal"
+
+#### Preparing data for mapping ####
+#Generate layer for mapping
+all.sp <- generateStnLyrToPlot(df.all, lstSummaryDfs[["df.station.totals"]])
+
+#Restrict ag plan areas to select plan area
+if (!grepl("[0-9].", input$select)) {
   ag_sub <- agwqma[agwqma$PlanName == input$select,]
   ag_sub <- spTransform(ag_sub, CRS("+init=epsg:4269"))
   
   #Restrict layer for mapping to just the selected plan area
   all.sp <- all.sp[ag_sub,]
-  
-  #Extract 303(d) segments in the plan area for parameters
-  #returned in the query
-  lstSummaryDfs[[5]] <- extract_303d(df.all, wq_limited, input$select)
-  names(lstSummaryDfs)[5] <- "wq_limited"
+}
+
+#Extract 303(d) segments in the plan area for parameters
+#returned in the query
+lstSummaryDfs[[5]] <- extract_303d(df.all, wq_limited, input$select)
+names(lstSummaryDfs)[5] <- "wq_limited"
+
 
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
@@ -215,9 +223,17 @@ if (wqp_message != 'Water Quality Portal is busy. Please try again in a few minu
   plot_criteria <- input$selectpHCrit
   plan_area <- input$select
   
+  new_data$Sampled <- as.POSIXct(strptime(new_data$Sampled, format = "%Y-%m-%d %H:%M:%S"))
+  plot.bacteria(new_data = new_data,
+                     sea_ken_table = SeaKen,
+                     plot_trend = input$plotTrend,
+                     plot_log = input$selectLogScale,
+                     parm = 'Enterococcus')
+  
   plot.ph(new_data = new_data, 
           sea_ken_table = SeaKen,  
           ph_crit,
           plot_trend = input$plotTrend,
           plot_criteria = input$selectpHCrit,
           plan_area = input$select)
+  

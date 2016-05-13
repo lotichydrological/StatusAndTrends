@@ -58,7 +58,7 @@ plot.ph <- function(new_data,
                      round(slope, digits=2), 
                      ", n = ", 
                      nrow(new_data))
-  df_trend_line <- data.frame(x = c(x.min - 10000, x.max + 10000),
+  df_trend_line <- data.frame(x = c(x.min + 10000, x.max - 10000),
                               y = c(SK.min, SK.max),
                               variable = rep('Trend line', 2))
   
@@ -75,15 +75,21 @@ plot.ph <- function(new_data,
   crit_selected <- strsplit(plot_criteria, " - ")[[1]][2]
   ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected &
                            ph_crit$OWRD_basin == OWRD_basin &
-                           ph_crit$plan_name == plan_area, 'ph_low']
+                           (ph_crit$plan_name == plan_area | 
+                              ph_crit$HUC8 == strsplit(plan_area, 
+                                                       split = " - ")[[1]][1]), 
+                         'ph_low']
   ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
                            ph_crit$OWRD_basin == OWRD_basin &
-                           ph_crit$plan_name == plan_area, 'ph_high']
+                           (ph_crit$plan_name == plan_area | 
+                              ph_crit$HUC8 == strsplit(plan_area, 
+                                                       split = " - ")[[1]][1]), 
+                         'ph_high']
 
-  df_ph_crit_max <- data.frame(x = c(x.min - 10000, x.max + 10000),
+  df_ph_crit_max <- data.frame(x = c(x.min + 10000, x.max - 10000),
                                y = rep(ph_crit_max, 2),
                                variable = rep('pH Criteria', 2))
-  df_ph_crit_min <- data.frame(x = c(x.min - 10000, x.max + 10000),
+  df_ph_crit_min <- data.frame(x = c(x.min + 10000, x.max - 10000),
                                y = rep(ph_crit_min, 2),
                                variable = rep('pH Criteria', 2))
   
@@ -425,8 +431,8 @@ plot.bacteria <- function(new_data,
                           x_min = min(new_data$Sampled),
                           x_max = max(new_data$Sampled),
                           parm) {
-  x.min <- as.POSIXct(strptime(x_min, format = '%Y-%m-%d'))
-  x.max <- as.POSIXct(strptime(x_max, format = '%Y-%m-%d'))
+  x.min <- as.POSIXct(strptime(x_min, format = '%Y-%m-%d %H:%M:%S'))
+  x.max <- as.POSIXct(strptime(x_max, format = '%Y-%m-%d %H:%M:%S'))
   x.lim <- c(x.min, x.max) 
   y.min <- if(floor(min(new_data[,result_column]))<=0 & plot_log){
     1 
@@ -462,7 +468,11 @@ plot.bacteria <- function(new_data,
                             unique(new_data[,analyte_column]),'signif'] 
   x.delta <- as.numeric((x.max-x.min)/2)####average date
   SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
+  if (SK.min < y.min) {SK.min <- y.min}
+  if (SK.min > y.max) {SK.min <- y.max}
   SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
+  if (SK.max < y.min) {SK.max <- y.min}
+  if (SK.max > y.max) {SK.max <- y.max}
   sub.text <- paste0("p value = " ,
                      round(p.value, digits=3),
                      ", ",  
@@ -484,7 +494,7 @@ plot.bacteria <- function(new_data,
                                 y = c(SK.min, 1),
                                 variable = rep('Trend line', 2))
   } else {
-    df_trend_line <- data.frame(x = c(x.min, x.max),
+    df_trend_line <- data.frame(x = c(x.min + 10000, x.max - 10000),
                                 y = c(SK.min, SK.max),
                                 variable = rep('Trend line', 2))
   }
@@ -542,7 +552,7 @@ plot.bacteria <- function(new_data,
     ylim(y.lim) 
   
   if (plot_trend & !is.na(p.value)) {
-    g <- g + geom_line(aes(x = x, y = y, color = variable, shape = ''), 
+    g <- g + geom_line(aes(x = x, y = y, color = variable, shape = '', group = variable), 
                        data = df_trend_line)  
   }
   
@@ -557,6 +567,25 @@ plot.bacteria <- function(new_data,
       if ('Exceeds' %in% unique(plot_data$exceed)) {
         if (all(c('Exceeds Geometric mean','Exceeds Single sample') %in% 
                 unique(plot_data$exceed_type))) {
+          if (!"Meets Geometric mean" %in% unique(plot_data$exceed_type)) {
+            g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+                                                       'black', 
+                                                       'black', 'blue'),
+                                        labels = c('Exceeds Single Sample', 
+                                                   'Exceeds Geometric Mean', 
+                                                   'Geomteric Mean WQS',  
+                                                   'Meets Single Sample',
+                                                   'Single Sample WQS',
+                                                   'Trend line'),
+                                        guide = guide_legend(override.aes = list(
+                                          linetype = c("blank", "blank", "dotdash", 
+                                                       "blank", 
+                                                       "dashed", "solid"),
+                                          shape = c(19, 17, NA, 19, NA, NA)),
+                                          nrow = 2))
+            g <- g + scale_shape_manual("", values = c(NA, 17, 19, 19),
+                                        guide = FALSE)
+          } else {
           g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
                                                      'black', 'black', 
                                                      'black', 'blue'),
@@ -575,6 +604,7 @@ plot.bacteria <- function(new_data,
                                         nrow = 2))
           g <- g + scale_shape_manual("", values = c(NA, 17, 19, 17, 19),
                                       guide = FALSE)
+          }
         } else if (!'Exceeds Geometric mean' %in% unique(plot_data$exceed_type)) {
           g <- g + scale_color_manual("", values = c('red', 'black', 
                                                      'black', 'black', 
@@ -634,21 +664,39 @@ plot.bacteria <- function(new_data,
       if ('Exceeds' %in% unique(plot_data$exceed)) {
         if (all(c('Exceeds Geometric mean','Exceeds Single sample') %in% 
                 unique(plot_data$exceed_type))) {
-          g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
-                                                     'black', 'black', 'black'),
-                                      labels = c('Exceeds Single Sample', 
-                                                 'Exceeds Geometric Mean', 
-                                                 'Geomteric Mean WQS', 
-                                                 'Meets Geometric Mean', 
-                                                 'Meets Single Sample',
-                                                 'Single Sample WQS'),
-                                      guide = guide_legend(override.aes = list(
-                                        linetype = c("blank", "blank", "dotdash", 
-                                                     "blank","blank", "dashed"),
-                                        shape = c(19, 17, NA, 17, 19, NA)),
-                                        nrow = 2))
-          g <- g + scale_shape_manual("", values = c(NA, 17, 19, 17, 19),
-                                      guide = FALSE)
+          if ((!"Meets Geometric mean" %in% unique(plot_data$exceed_type))) {
+            g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+                                                        'black', 'black'),
+                                        labels = c('Exceeds Single Sample', 
+                                                   'Exceeds Geometric Mean', 
+                                                   'Geomteric Mean WQS', 
+                                                   'Meets Single Sample',
+                                                   'Single Sample WQS'),
+                                        guide = guide_legend(override.aes = list(
+                                          linetype = c("blank", "blank", "dotdash", 
+                                                       "blank", "dashed"),
+                                          shape = c(19, 17, NA, 19, NA)),
+                                          nrow = 2))
+            g <- g + scale_shape_manual("", values = c(NA, 17, 19, 19),
+                                        guide = FALSE)
+          } else {
+            g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+                                                       'black', 'black', 'black'),
+                                        labels = c('Exceeds Single Sample', 
+                                                   'Exceeds Geometric Mean', 
+                                                   'Geomteric Mean WQS', 
+                                                   'Meets Geometric Mean', 
+                                                   'Meets Single Sample',
+                                                   'Single Sample WQS'),
+                                        guide = guide_legend(override.aes = list(
+                                          linetype = c("blank", "blank", "dotdash", 
+                                                       "blank","blank", "dashed"),
+                                          shape = c(19, 17, NA, 17, 19, NA)),
+                                          nrow = 2))
+            g <- g + scale_shape_manual("", values = c(NA, 17, 19, 17, 19),
+                                        guide = FALSE)
+          }
+          
         } else if (!'Exceeds Geometric mean' %in% unique(plot_data$exceed_type)) {
           g <- g + scale_color_manual("", values = c('red', 'black', 
                                                      'black', 'black', 'black'),

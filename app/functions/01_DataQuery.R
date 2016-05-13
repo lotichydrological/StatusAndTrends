@@ -143,8 +143,11 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
 #     parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
   
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
+  
   if (is.null(planArea)) {
     myHUCs <- HUClist
+  } else if (grepl("[0-9].", planArea)) {
+    myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
   } else {
     myHUCs <- HUClist[HUClist$PlanName == planArea,'HUC8']
   }
@@ -225,6 +228,8 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
   if (is.null(planArea)) {
     myHUCs <- paste(HUClist, collapse = "','")
+  } else if (grepl("[0-9].", planArea)) {
+    myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
   } else {
     myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse="','")
   }
@@ -323,6 +328,8 @@ options(stringsAsFactors = FALSE)
 #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
 if (is.null(planArea)) {
   myHUCs <- URLencode.PTB(paste(HUClist, collapse = ";"))
+} else if (grepl("[0-9].", planArea)) {
+  myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
 } else {
   myHUCs <- URLencode.PTB(paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';'))
 }
@@ -424,6 +431,8 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
   if (is.null(planArea)) {
     myHUCs <- paste(HUClist, collapse = ",")
+  } else if (grepl("[0-9].", planArea)) {
+    myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
   } else {
     myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=',')
   }

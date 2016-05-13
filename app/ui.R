@@ -19,35 +19,40 @@ agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 
 shinyUI(fluidPage(
   
-  titlePanel("Oregon Ag Water Quality Biennial Review Beta"),
+  titlePanel("Oregon Water Quality Status and Trend Beta Version 2.0"),
   
   mainPanel(
     HTML("<script> if (!window.chrome) { alert('For full functionality you will need to load this link in Google Chrome');} </script>"),
     tabsetPanel(
       tabPanel("Data Query", fluidRow(
         column(3, 
-               selectInput("select",label = h3('Select Plan Area'),
-                           #choices = list())                  
-                           choices = c("Choose one" = "",sort(agwqma$PlanName)))
+               radioButtons("query_area", label = h3("Geographic Area Type"),
+                                  choices = c('8-digit HUC', 'ODA Agricultural Plan Area'))
         ),
         column(3,
-               checkboxGroupInput("parms",label = h3("Select Paramters to Query"),
+               checkboxGroupInput("parms",label = h3("Paramters to Query"),
                                   choices = c('Temperature','pH','Bacteria'),
                                   selected = 1)
         ),
         column(3,
-               dateRangeInput("dates",label = h3("Select the Start and End Dates")))
+               dateRangeInput("dates",label = h3("Start and End Dates")))
       ),
       
       fluidRow(
         column(3,
-               checkboxGroupInput('db','Select Database(s) to Query:',
-                                  c('Water Quality Portal','DEQ'),
-                                  selected = 1)
+               selectInput("select",label = h3('Geographic Area'),           
+                           choices = c("Choose one" = "")
+                           )                       
                ),
         column(3,
+               checkboxGroupInput('db', label = h3('Database(s) to Query:'),
+                                  c('Water Quality Portal','DEQ'),
+                                  selected = 1)
+        ),
+        column(3,
                h3("Run Query"),
-               actionButton(inputId = "action_button",label = 'Submit'))
+               actionButton(inputId = "action_button",label = 'Submit')
+               )
       ),
       
       fluidRow(

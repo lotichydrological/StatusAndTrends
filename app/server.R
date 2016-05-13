@@ -16,6 +16,7 @@ library(wq)
 library(chron)
 library(reshape)
 library(ggplot2)
+library(zoo)
 #library(xlsx)
 #library(RODBC)
 
@@ -30,7 +31,7 @@ source('functions/funSeaKen.R')
 source('functions/funHelpers.R')
 
 agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-
+hucs <- readOGR(dsn = './data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 #Bring in the HUC list mapped to overlapping ag plan areas
 #This process would not produce desired results (only those HUCs wholly contained by the plan area)
 #When done through the use of intersection and overlay tools provided in the sp and rgdal packages
@@ -39,6 +40,7 @@ HUClist <- read.csv('data/PlanHUC_LU.csv')
 
 #Table of ph criteria for lookup
 ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
+ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 
 #The entire list of WQP parameters that match to a criteria
 parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
@@ -53,11 +55,23 @@ shinyServer(function(input, output, session) {
   ###################################
   ###################################
   
+  #
+  observe({
+    if (input$query_area == '8-digit HUC') {
+      area_choices <- c("Choose one" = "", sort(unique(paste(hucs$HUC_8, "-", 
+                                                             hucs$HU_8_NAME))))
+    } else {
+      area_choices <- c("Choose one" = "", sort(agwqma$PlanName))
+    }
+    
+    updateSelectInput(session, "select", choices = area_choices)
+  })
+  
   #First check for all required inputs and provide a place for printing the text
   #since the result of the button isn't directly a single table or chart
   input_check_text <- eventReactive(input$action_button, {
     if (input$select == "") {
-      "Please select a Plan Area"
+      "Please select a Geographic Area"
     } else if (is.null(input$parms)) {
       "Please select a parmaeter to query"
     } else if (input$dates[1] == input$dates[2]) {
@@ -67,7 +81,7 @@ shinyServer(function(input, output, session) {
     } else {
       HTML(paste0("You just submitted ", 
               input$select, 
-              " Plan Area Query for ", 
+              " Geographic Area Query for ", 
               paste(input$parms,collapse=", "), 
               " from",
               "<br/>",
@@ -220,6 +234,8 @@ shinyServer(function(input, output, session) {
           } else {
             SeaKen <- NULL
           }
+          lstSummaryDfs[[4]] <- SeaKen
+          names(lstSummaryDfs)[4] <- "sea_ken_table"
           
           #Calculate 30 GM for E. Coli and Enterococcus
           #WIll get to this later. May need to go in plotting section.
@@ -230,8 +246,8 @@ shinyServer(function(input, output, session) {
           #Check QA info and remove data not meeting QA objectives
           df.all <- remove_QAfail(df.all)
           #Pull out the tracking data frame of data removed
-          lstSummaryDfs[[4]] <- attr(df.all, "removal_tracking")
-          names(lstSummaryDfs)[4] <- "df.removal"
+          lstSummaryDfs[[5]] <- attr(df.all, "removal_tracking")
+          names(lstSummaryDfs)[5] <- "df.removal"
           
           #### Preparing data for mapping ####
           incProgress(1/10, detail = "Preparing data for mapping")
@@ -240,18 +256,27 @@ shinyServer(function(input, output, session) {
           all.sp <- generateStnLyrToPlot(df.all, lstSummaryDfs[["df.station.totals"]])
           
           #Restrict ag plan areas to select plan area
-          ag_sub <- agwqma[agwqma$PlanName == input$select,]
-          ag_sub <- spTransform(ag_sub, CRS("+init=epsg:4269"))
-          
-          #Restrict layer for mapping to just the selected plan area
-          all.sp <- all.sp[ag_sub,]
+          if (!grepl("[0-9].", input$select)) {
+            ag_sub <- agwqma[agwqma$PlanName == input$select,]
+            ag_sub <- spTransform(ag_sub, CRS("+init=epsg:4269"))
+            
+            #Restrict layer for mapping to just the selected plan area
+            all.sp <- all.sp[ag_sub,]
+          } else {
+            huc_sub <- hucs[hucs$HUC_8 == strsplit(input$select, 
+                                                   split = " - ")[[1]][1],]
+            huc_sub <- spTransform(huc_sub, CRS("+init=epsg:4269"))
+            
+            #Restrict layer for mapping to just the selected plan area
+            #all.sp <- all.sp[huc_sub,]
+          }
           
           incProgress(1/10, detail = "Extracting 303(d) listed segments")
           prog <- prog + 1/10
           #Extract 303(d) segments in the plan area for parameters
           #returned in the query
-          lstSummaryDfs[[5]] <- extract_303d(df.all, wq_limited, input$select)
-          names(lstSummaryDfs)[5] <- "wq_limited"
+          lstSummaryDfs[[6]] <- extract_303d(df.all, wq_limited, input$select)
+          names(lstSummaryDfs)[6] <- "wq_limited"
         }
       })
       
@@ -292,7 +317,7 @@ shinyServer(function(input, output, session) {
       #This builds the map view
       observeEvent(input$action_button_map, {
         output$mymap <- renderUI({
-          req(ag_sub)
+          #req(ag_sub | hucs)
           withProgress(message = "Processing:", value = 0, {
             incProgress(1/3, detail = 'Plotting stations')
             prog <- 1/3
@@ -305,16 +330,27 @@ shinyServer(function(input, output, session) {
                                 layerName = "Sampling stations", 
                                 mapTypeId = "ROADMAP")
             
-            incProgress(prog, detail = "Plotting Ag Area")
+            incProgress(prog, detail = "Plotting Geographic Area")
             prog <- 2/3
             
-            m <- plotGoogleMaps(ag_sub, 
-                                previousMap = m, 
-                                filename = "myMap2.html", 
-                                openMap = FALSE, 
-                                layerName = "Ag Plan Areas", 
-                                legend = FALSE, 
-                                colPalette = "light green")
+            if (grepl("[0-9].", input$select)) {
+              m <- plotGoogleMaps(huc_sub, 
+                                  previousMap = m, 
+                                  filename = "myMap2.html", 
+                                  openMap = FALSE, 
+                                  layerName = "Selected 8 digit HUC", 
+                                  legend = FALSE, 
+                                  colPalette = "light green")
+            } else {
+              m <- plotGoogleMaps(ag_sub, 
+                                  previousMap = m, 
+                                  filename = "myMap2.html", 
+                                  openMap = FALSE, 
+                                  layerName = "Ag Plan Areas", 
+                                  legend = FALSE, 
+                                  colPalette = "light green")
+            }
+            
             
             incProgress(1 - prog, detail = "Rendering plot")
             
@@ -345,6 +381,7 @@ shinyServer(function(input, output, session) {
                                    "Data in tabular format" = 'df.sub',
                                    "WQ Limited Waters within Ag Area" = 
                                      'wq_limited',
+                                   "Seasonal Kendall Results" = 'sea_ken_table',
                                    "QA - Summary by organization" = 'df.org',
                                    "QA - Result values modified" = "df.report",
                                    "QA - Data removal information" = "df.removal",
@@ -405,14 +442,21 @@ shinyServer(function(input, output, session) {
           need(input$selectParameter == 'pH',message = FALSE)
         )
         ph_crit_choices <- paste(ph_crit[ph_crit$plan_name == 
-                                           input$select,c('OWRD_basin')],
+                                           input$select | ph_crit$HUC8 == 
+                                           strsplit(input$select, 
+                                                    split = " - ")[[1]][1],
+                                         c('OWRD_basin')],
                                  ph_crit[ph_crit$plan_name == 
-                                           input$select,c('ph_standard')],
+                                           input$select | ph_crit$HUC8 == 
+                                           strsplit(input$select, 
+                                                    split = " - ")[[1]][1],
+                                         c('ph_standard')],
                                  sep = " - ")
         selectInput('selectpHCrit',
                     "Select applicable OWRD Basin specific pH criteria:",
                     choices = ph_crit_choices,
-                    selectize = TRUE)
+                    selectize = TRUE,
+                    selected = NULL)
       })
       
       output$plotTrend <- renderUI({
@@ -554,6 +598,7 @@ shinyServer(function(input, output, session) {
         df <- DataUse()
         switch(EXPR = input$selectParameter,
                "pH" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
                  if (nrow(df) > 2) {
                    g <- plot.ph(new_data = df, 
                                 sea_ken_table = SeaKen,  
@@ -584,6 +629,7 @@ shinyServer(function(input, output, session) {
                  g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                }),
                "E. Coli" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
                  if (nrow(df) > 2) {
                    g <- plot.bacteria(new_data = df,
                                       sea_ken_table = SeaKen,
@@ -597,12 +643,13 @@ shinyServer(function(input, output, session) {
                  }
                  
                  if (input$selectLogScale) {
-                   g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+                   g <- g + coord_trans(y = "log10", limx = ranges$x, limy = ranges$y)
                  } else {
                    g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
                }),
                "Enterococcus" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
                  if (nrow(df) > 2) {
                    g <- plot.bacteria(new_data = df,
                                       sea_ken_table = SeaKen,
@@ -616,7 +663,7 @@ shinyServer(function(input, output, session) {
                  }
                  
                  if (input$selectLogScale) {
-                   g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+                   g <- g + coord_trans(y = "log10", limx = ranges$x, limy = ranges$y)
                  } else {
                    g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }

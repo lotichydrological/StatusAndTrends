@@ -6,6 +6,10 @@ clipToPlanArea <- function (df.all, agwqma, selected_planArea) {
   #agwqma = shapefile of ag plan area polygons
   #selected_planArea = input$select which is the selected plan area from the user defined query
   
+  if(grepl("[0-9].", selected_planArea)) {
+    return(df.all)
+  }
+  
   #First pull out stations and set the projection
   all.sp <- df.all[!duplicated(df.all$SD),c(3,1:2,4:17)]
   coordinates(all.sp) = ~DECIMAL_LONG+DECIMAL_LAT
@@ -205,9 +209,16 @@ extract_303d <- function (df.all, wq_limited, selectedPlanArea) {
   #fname_303d = filename of 303d list shapefile
   
   #Bring in the shpaefile of the wq limited waters from the IR
+  if (grepl("[0-9].", selectedPlanArea)) {
+    wq_limited <- wq_limited[wq_limited$Pollutant %in% 
+                               unique(df.all$Analyte) & 
+                               wq_limited$HUC_4th_Co == strsplit(selectedPlanArea, 
+                                                                 split = " - ")[[1]][1],]  
+  } else {
   wq_limited <- wq_limited[wq_limited$Pollutant %in% 
                              unique(df.all$Analyte) & 
                              wq_limited$PlanName == selectedPlanArea,]
+  }
   
   return(wq_limited)
 }
@@ -253,7 +264,10 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
                      }),
                      "wq_limited" = (
                        lstSummaryDfs[["wq_limited"]]                                                
-                     )      
+                     ),
+                     "sea_ken_table" = (
+                       lstSummaryDfs[["sea_ken_table"]]
+                     )
   )
   return(reviewDf)
 }
@@ -547,11 +561,13 @@ EvaluatepHWQS <- function(new_data, ph_crit, PlanName, selectpHCrit = NULL) {
     crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
     ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
                              ph_crit$OWRD_basin == OWRD_basin & 
-                             ph_crit$plan_name == PlanName, 
+                             ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
+                             strsplit(PlanName, split = " - ")[[1]][1], 
                            'ph_low']
     ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
                              ph_crit$OWRD_basin == OWRD_basin & 
-                             ph_crit$plan_name == PlanName, 
+                             ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
+                             strsplit(PlanName, split = " - ")[[1]][1], 
                            'ph_high']
     new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
                                 new_data[, 'Result'] > ph_crit_max, 
@@ -667,8 +683,8 @@ fc2ec <- function(fc) {
 }
 
 gm_mean_30_day <- function(df, parameter, station) {
-  sub <- df[df$Analyte == parameter &
-              df$Station_ID == station,]
+  #sub <- df[df$Analyte == parameter &
+  #           df$Station_ID == station,]
   
   sub_start <- df[df$Analyte == parameter,]
   
@@ -676,8 +692,9 @@ gm_mean_30_day <- function(df, parameter, station) {
   for (i in 1:length(unique(sub_start$Station_ID))) {
     sub <- sub_start[sub_start$Station_ID == unique(sub_start$Station_ID)[i],]
     
-    sort(sub[,'Sampled'])
+    #sort(sub[,'Sampled'])
     
+    sub$Sampled <- as.POSIXct(strptime(sub$Sampled, format = "%Y-%m-%d %H:%M:%S"))
     sub$day <- as.Date(sub$Sampled, format = "%Y-%m-%d")
     
     if ((as.Date(max(sub$Sampled)) - as.Date(min(sub$Sampled)) < 30)) {
