@@ -58,7 +58,7 @@ plot.ph <- function(new_data,
                      round(slope, digits=2), 
                      ", n = ", 
                      nrow(new_data))
-  df_trend_line <- data.frame(x = c(x.min - 10000, x.max + 10000),
+  df_trend_line <- data.frame(x = c(x.min + 10000, x.max - 10000),
                               y = c(SK.min, SK.max),
                               variable = rep('Trend line', 2))
   
@@ -80,10 +80,10 @@ plot.ph <- function(new_data,
                            ph_crit$OWRD_basin == OWRD_basin &
                            ph_crit$plan_name == plan_area, 'ph_high']
 
-  df_ph_crit_max <- data.frame(x = c(x.min - 10000, x.max + 10000),
+  df_ph_crit_max <- data.frame(x = c(x.min + 10000, x.max - 10000),
                                y = rep(ph_crit_max, 2),
                                variable = rep('pH Criteria', 2))
-  df_ph_crit_min <- data.frame(x = c(x.min - 10000, x.max + 10000),
+  df_ph_crit_min <- data.frame(x = c(x.min + 10000, x.max - 10000),
                                y = rep(ph_crit_min, 2),
                                variable = rep('pH Criteria', 2))
   

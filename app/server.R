@@ -16,6 +16,7 @@ library(wq)
 library(chron)
 library(reshape)
 library(ggplot2)
+library(zoo)
 #library(xlsx)
 #library(RODBC)
 
@@ -597,7 +598,7 @@ shinyServer(function(input, output, session) {
                  }
                  
                  if (input$selectLogScale) {
-                   g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+                   g <- g + coord_trans(y = "log10", limx = ranges$x, limy = ranges$y)
                  } else {
                    g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
@@ -616,7 +617,7 @@ shinyServer(function(input, output, session) {
                  }
                  
                  if (input$selectLogScale) {
-                   g <- g + coord_trans(ytrans = "log10", limx = ranges$x, limy = ranges$y)
+                   g <- g + coord_trans(y = "log10", limx = ranges$x, limy = ranges$y)
                  } else {
                    g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
