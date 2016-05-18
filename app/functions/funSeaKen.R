@@ -17,7 +17,7 @@ run_seaKen <- function (df.all) {
                                df.all$Analyte == parm,]
       sea_ken_int$analyte[ii] <- parm
       sea_ken_int$N[ii] <- length(tmp.data.raw$Result)
-      if (!nrow(tmp.data.raw) > 1) next
+      if (!nrow(tmp.data.raw) > 1 | all(is.na(tmp.data.raw$Result))) next
       # Reshape and manipulate data to convert to wqData-class
       tmp.data <- data.frame(date=tmp.data.raw$Sampled,
                              time="0000",
