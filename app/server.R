@@ -232,7 +232,7 @@ shinyServer(function(input, output, session) {
           if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
             SeaKen <- run_seaKen(df.all)
           } else {
-            SeaKen <- NULL
+            SeaKen <- data.frame()
           }
           lstSummaryDfs[[4]] <- SeaKen
           names(lstSummaryDfs)[4] <- "sea_ken_table"
