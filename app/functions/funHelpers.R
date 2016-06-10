@@ -220,6 +220,7 @@ extract_303d <- function (df.all, wq_limited, selectedPlanArea) {
                              wq_limited$PlanName == selectedPlanArea,]
   }
   
+  rownames(wq_limited) <- 1:nrow(wq_limited)
   return(wq_limited)
 }
 

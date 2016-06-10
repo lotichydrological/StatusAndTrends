@@ -468,11 +468,16 @@ plot.bacteria <- function(new_data,
                             unique(new_data[,analyte_column]),'signif'] 
   x.delta <- as.numeric((x.max-x.min)/2)####average date
   SK.min <- y.median-x.delta*slope/365.25#minimum y value for line
-  if (SK.min < y.min) {SK.min <- y.min}
-  if (SK.min > y.max) {SK.min <- y.max}
+  if (!is.na(SK.min)) {
+    if (SK.min < y.min) {SK.min <- y.min}
+    if (SK.min > y.max) {SK.min <- y.max}
+    
+  }
   SK.max <- y.median+x.delta*slope/365.25#maximum y value for line
-  if (SK.max < y.min) {SK.max <- y.min}
-  if (SK.max > y.max) {SK.max <- y.max}
+  if (!is.na(SK.max)) {
+    if (SK.max < y.min) {SK.max <- y.min}
+    if (SK.max > y.max) {SK.max <- y.max}
+  }
   sub.text <- paste0("p value = " ,
                      round(p.value, digits=3),
                      ", ",  
