@@ -220,6 +220,10 @@ extract_303d <- function (df.all, wq_limited, selectedPlanArea) {
                              wq_limited$PlanName == selectedPlanArea,]
   }
   
+  if (nrow(wq_limited) >= 1) {
+    rownames(wq_limited) <- 1:nrow(wq_limited)
+  }
+  
   return(wq_limited)
 }
 
@@ -559,16 +563,16 @@ EvaluatepHWQS <- function(new_data, ph_crit, PlanName, selectpHCrit = NULL) {
   } else {
     OWRD_basin <- strsplit(selectpHCrit, " - ")[[1]][1]
     crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
-    ph_crit_min <- ph_crit[ph_crit$ph_standard == crit_selected & 
+    ph_crit_min <- unique(ph_crit[ph_crit$ph_standard == crit_selected & 
                              ph_crit$OWRD_basin == OWRD_basin & 
-                             ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
-                             strsplit(PlanName, split = " - ")[[1]][1], 
-                           'ph_low']
-    ph_crit_max <- ph_crit[ph_crit$ph_standard == crit_selected &
+                             (ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
+                             strsplit(PlanName, split = " - ")[[1]][1]), 
+                           'ph_low'])
+    ph_crit_max <- unique(ph_crit[ph_crit$ph_standard == crit_selected &
                              ph_crit$OWRD_basin == OWRD_basin & 
-                             ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
-                             strsplit(PlanName, split = " - ")[[1]][1], 
-                           'ph_high']
+                             (ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
+                             strsplit(PlanName, split = " - ")[[1]][1]), 
+                           'ph_high'])
     new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
                                 new_data[, 'Result'] > ph_crit_max, 
                               1, 0)
@@ -754,3 +758,29 @@ gm_mean_30_day <- function(df, parameter, station) {
   return(gm_df)
 }
 
+resolveMRLs <- function(ids, dnd, results){
+  #If there is more than one result value that matches a single case and 
+  #the max, min or detection then all result values will be returned
+  #Therefore if you need to remove duplicates follow up with function remove.dups
+  dnd.sum <- ave(dnd, ids, FUN = sum)
+  cases   <- findInterval(dnd.sum, c(0, 1, 2))
+  
+  id.max <- ave(results, ids, FUN = max)
+  id.min <- ave(results, ids, FUN = min)
+  
+  i0 <- cases == 1 & id.min == results
+  i1 <- cases == 2 & dnd == 1
+  i2 <- cases == 3 & id.max == results
+  
+  return(i0 | i1 | i2)
+}
+
+remove.dups <- function(tname, fun_type) {
+  #Code should be a concatenation of station, analyte and day (for most parameters)
+  no.dups <- aggregate(Result ~ code, data = tname, FUN = fun_type)
+  tname <- tname[!duplicated(tname$code),]
+  tname <- merge(no.dups, tname, by = 'code')
+  #tname$tResult <- round(tname$tResult.x, 2)
+  tname$Result <- tname$Result.x
+  tname <- within(tname, rm(Result.x, Result.y))
+}

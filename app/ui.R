@@ -19,45 +19,55 @@ agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 
 shinyUI(fluidPage(
   
-  titlePanel("Oregon Water Quality Status and Trend Beta Version 2.0"),
+  titlePanel("Oregon Water Quality Status and Trend Beta Version 2.1"),
   
   mainPanel(
     HTML("<script> if (!window.chrome) { alert('For full functionality you will need to load this link in Google Chrome');} </script>"),
     tabsetPanel(
       tabPanel("Data Query", fluidRow(
-        column(3, 
+        column(4, 
                radioButtons("query_area", label = h3("Geographic Area Type"),
                                   choices = c('8-digit HUC', 'ODA Agricultural Plan Area'))
         ),
         column(3,
-               checkboxGroupInput("parms",label = h3("Paramters to Query"),
+               checkboxGroupInput("parms",label = h3("Parameter(s) to Query"),
                                   choices = c('Temperature','pH','Bacteria'),
                                   selected = 1)
         ),
-        column(3,
+        column(5,
                dateRangeInput("dates",label = h3("Start and End Dates")))
       ),
       
       fluidRow(
-        column(3,
+        column(4,
                selectInput("select",label = h3('Geographic Area'),           
                            choices = c("Choose one" = "")
                            )                       
                ),
         column(3,
-               checkboxGroupInput('db', label = h3('Database(s) to Query:'),
+               checkboxGroupInput('db', label = h3('Database(s) to Query'),
                                   c('Water Quality Portal','DEQ'),
                                   selected = 1)
         ),
-        column(3,
+        column(5,
                h3("Run Query"),
                actionButton(inputId = "action_button",label = 'Submit')
+               # checkboxGroupInput('grade', label = h3("Data Quality Level (for DEQ data)"),
+               #                    choices = c('A', 'B', 'C', 'E'),
+               #                    selected = c('A', 'B', 'C', 'E'),
+               #                    inline = TRUE)
                )
       ),
       
+      # fluidRow(
+      #   column(4),
+      #   column(3, h3("Run Query"),
+      #          actionButton(inputId = "action_button",label = 'Submit')
+      # )
+      # ),
+      
       fluidRow(
-        column(3),
-        column(3,
+        column(12,
                h3(" "),
                htmlOutput("text1"),
                h3(" "),
@@ -66,7 +76,7 @@ shinyUI(fluidPage(
       ),
       
       fluidRow(
-        column(3,
+        column(6,
                tableOutput('all_totals')),
         column(3, 
 #                conditionalPanel(condition = "output.text2 == ''",
@@ -80,18 +90,20 @@ shinyUI(fluidPage(
                )
       )
       
- 
       ,
 
       uiOutput("mymap")
     ),
-    tabPanel("Review Data", fluidRow(column(3,
-                                            uiOutput('review_control')
-                                            ),
-                                     column(9,
-                                            DT::dataTableOutput("display")
-                                            )
-                                     )
+    tabPanel("Review Data", 
+             fluidRow(column(3,
+                             uiOutput('review_control'),
+                             uiOutput('wq_lim_link'),
+                             uiOutput('Note_text')
+             ),
+             column(9,
+                    DT::dataTableOutput("display")
+             )
+             )
              ),
     tabPanel("Plot Status and Trend", fluidRow(
       column(3,

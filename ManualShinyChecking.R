@@ -57,16 +57,16 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Bacteria')
-input$select <- "17100203 - Wilson-Trask-Nestucca"
-input$dates <- c("2006-01-01", "2015-12-31")
+input$parms <- c('Bacteria','pH')
+input$select <- "17070204 - Lower John Day"
+input$dates <- c("2006-01-01", "2016-06-01")
 input$db <- c("DEQ")
-input$selectStation <-  "30510 - "
-input$selectParameter <- 'Enterococcus'
+input$selectStation <-  "11826 - "
+input$selectParameter <- 'pH'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'January 1-June 15'
 input$selectUse <- 'Cool water species'
-input$selectpHCrit <- 'Owyhee - All other basin waters'
+input$selectpHCrit <- 'John Day - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
 
 wqpData <- NULL
@@ -180,8 +180,10 @@ if (any('Temperature' %in% df.all$Analyte)) {
 if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
   SeaKen <- run_seaKen(df.all)
 } else {
-  SeaKen <- NULL
+  SeaKen <- data.frame()
 }
+lstSummaryDfs[[4]] <- SeaKen
+names(lstSummaryDfs)[4] <- "sea_ken_table"
 
 #Calculate 30 GM for E. Coli and Enterococcus
 #WIll get to this later. May need to go in plotting section.
@@ -190,8 +192,8 @@ if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
 #Check QA info and remove data not meeting QA objectives
 df.all <- remove_QAfail(df.all)
 #Pull out the tracking data frame of data removed
-lstSummaryDfs[[4]] <- attr(df.all, "removal_tracking")
-names(lstSummaryDfs)[4] <- "df.removal"
+lstSummaryDfs[[5]] <- attr(df.all, "removal_tracking")
+names(lstSummaryDfs)[5] <- "df.removal"
 
 #### Preparing data for mapping ####
 #Generate layer for mapping
@@ -204,18 +206,45 @@ if (!grepl("[0-9].", input$select)) {
   
   #Restrict layer for mapping to just the selected plan area
   all.sp <- all.sp[ag_sub,]
+} else {
+  huc_sub <- hucs[hucs$HUC_8 == strsplit(input$select, 
+                                         split = " - ")[[1]][1],]
+  huc_sub <- spTransform(huc_sub, CRS("+init=epsg:4269"))
+  
+  #Restrict layer for mapping to just the selected plan area
+  #all.sp <- all.sp[huc_sub,]
 }
 
 #Extract 303(d) segments in the plan area for parameters
 #returned in the query
-lstSummaryDfs[[5]] <- extract_303d(df.all, wq_limited, input$select)
-names(lstSummaryDfs)[5] <- "wq_limited"
+wq_lim_whole <- extract_303d(df.all, wq_limited, input$select)
+lstSummaryDfs[[6]] <- wq_lim_whole[,c('Stream_Lak', 'LLID_Strea', 
+                                      'Miles', 'Pollutant', 'Season', 
+                                      'Assessme_1', 'Criteria', 
+                                      'Listing_St')]
+lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]], 
+                                   c('Stream_Lak' = 'Waterbody',
+                                     'LLID_Strea' = 'LLID',
+                                     'Assessme_1' = 'Year Assessed',
+                                     'Listing_St' = 'Listing Status'))
+names(lstSummaryDfs)[6] <- "wq_limited"
 
 
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
   
-  generate_exceed_df(new_data, input$selectParameter, input$selectpHCrit,
+  if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
+    tmp_df <- new_data
+    tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
+    tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
+    sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
+    tmp_df_MRL <- tmp_df[sub,]
+    tmp_df <- remove.dups(tmp_df_MRL, max)
+  } else {
+    tmp_df <- new_data
+  }
+  
+  generate_exceed_df(tmp_df, input$selectParameter, input$selectpHCrit,
                      ph_crit, input$select, input$selectStation)
 
   sea_ken_table <- SeaKen
@@ -228,7 +257,7 @@ names(lstSummaryDfs)[5] <- "wq_limited"
                      sea_ken_table = SeaKen,
                      plot_trend = input$plotTrend,
                      plot_log = input$selectLogScale,
-                     parm = 'Enterococcus')
+                     parm = 'E. Coli')
   
   plot.ph(new_data = new_data, 
           sea_ken_table = SeaKen,  

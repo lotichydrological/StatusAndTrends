@@ -275,9 +275,18 @@ shinyServer(function(input, output, session) {
           prog <- prog + 1/10
           #Extract 303(d) segments in the plan area for parameters
           #returned in the query
-          lstSummaryDfs[[6]] <- extract_303d(df.all, wq_limited, input$select)
+          wq_lim_whole <- extract_303d(df.all, wq_limited, input$select)
+          lstSummaryDfs[[6]] <- wq_lim_whole[,c('Stream_Lak', 'LLID_Strea', 
+                                                'Miles', 'Pollutant', 'Season', 
+                                                'Assessme_1', 'Criteria', 
+                                                'Listing_St')]
+          lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]], 
+                                             c('Stream_Lak' = 'Waterbody',
+                                               'LLID_Strea' = 'LLID',
+                                               'Assessme_1' = 'Year Assessed',
+                                               'Listing_St' = 'Listing Status'))
           names(lstSummaryDfs)[6] <- "wq_limited"
-        }
+          }
       })
       
       #This outputs the table of results returned by parameter
@@ -379,7 +388,7 @@ shinyServer(function(input, output, session) {
                     choices = list("Parameter results by station" = 
                                      'df.station.totals',
                                    "Data in tabular format" = 'df.sub',
-                                   "WQ Limited Waters within Ag Area" = 
+                                   "WQ Limited Waters within Geographic Area" = 
                                      'wq_limited',
                                    "Seasonal Kendall Results" = 'sea_ken_table',
                                    "QA - Summary by organization" = 'df.org',
@@ -397,8 +406,41 @@ shinyServer(function(input, output, session) {
           need(input$ReviewDf != "", message = FALSE)
         )
         pickReviewDf(input_reviewDf = input$ReviewDf, lstSummaryDfs, df.all)
-        }, options = list(processing = FALSE), filter = 'top') 
-
+        }, options = list(processing = FALSE), 
+        filter = 'top', selection = "single", server = FALSE) 
+      
+      output$wq_lim_link <- renderUI({
+        validate(
+          need(input$ReviewDf == 'wq_limited', message = FALSE)
+        )
+        
+        s = input$display_rows_selected
+        
+        if (length(s)) {
+          link <- paste0('http://www.deq.state.or.us/wq/assessment/rpt2012/results.asp?txtLlid=',
+                       wq_lim_whole[s, "LLID_Strea"], "&cboParameters=",
+                       wq_lim_whole[s, "Pollutant_"], "&Status=10")
+          h5(a("Click here to view on the WQ Assessment Web Page",
+               href = link,
+               target = "_blank"))
+        }
+      })
+      
+      output$Note_text <- renderUI({
+        validate(
+          need(input$ReviewDf == 'wq_limited', message = FALSE)
+        )
+        
+        s = input$display_rows_selected
+        
+        if (length(s)) {
+          h5("Make sure to click 'New Search' before you leave that page in order for new selections from this page to update as expected.")
+        }
+        
+      })
+        
+      
+      
       ###################################
       ###################################
       #### Plot Status and Trend Tab ####
@@ -546,7 +588,8 @@ shinyServer(function(input, output, session) {
             )
           } else if (input$selectParameter == 'pH') {
             validate(
-              need(!is.null(input$selectpHCrit), message = FALSE)
+              need(!is.null(input$selectpHCrit) & input$selectpHCrit != "", 
+                   message = FALSE)
             )
           } else if (input$selectParameter == 'E. Coli' |
                      input$selectParameter == 'Enterococcus') {
@@ -555,7 +598,19 @@ shinyServer(function(input, output, session) {
             )
           }
         }
-        generate_exceed_df(DataUse(), 
+        
+        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
+          tmp_df <- DataUse()
+          tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
+          tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
+          sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
+          tmp_df_MRL <- tmp_df[sub,]
+          tmp_df <- remove.dups(tmp_df_MRL, max)
+        } else {
+          tmp_df <- DataUse()
+        }
+        
+        generate_exceed_df(tmp_df, 
                            input$selectParameter, 
                            input$selectpHCrit,
                            ph_crit, 
@@ -690,12 +745,13 @@ shinyServer(function(input, output, session) {
             )
           } else if (input$selectParameter == 'pH') {
             validate(
-              need(!is.null(input$selectpHCrit), message = FALSE)
+              need(!is.null(input$selectpHCrit) & input$selectpHCrit != "", 
+                   message = FALSE)
             )
           } else if (input$selectParameter == 'E. Coli' | 
                      input$selectParameter == 'Enterococcus' ) {
             validate(
-              need(!is.null(input$plotTrend), message = FALSE)
+              need(!is.null(input$selectLogScale), message = FALSE)
             )
           }
         }
