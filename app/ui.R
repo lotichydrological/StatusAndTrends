@@ -30,7 +30,7 @@ shinyUI(fluidPage(
                                   choices = c('8-digit HUC', 'ODA Agricultural Plan Area'))
         ),
         column(3,
-               checkboxGroupInput("parms",label = h3("Paramters to Query"),
+               checkboxGroupInput("parms",label = h3("Parameter(s) to Query"),
                                   choices = c('Temperature','pH','Bacteria'),
                                   selected = 1)
         ),
@@ -45,15 +45,26 @@ shinyUI(fluidPage(
                            )                       
                ),
         column(3,
-               checkboxGroupInput('db', label = h3('Database(s) to Query:'),
+               checkboxGroupInput('db', label = h3('Database(s) to Query'),
                                   c('Water Quality Portal','DEQ'),
                                   selected = 1)
         ),
         column(5,
                h3("Run Query"),
                actionButton(inputId = "action_button",label = 'Submit')
+               # checkboxGroupInput('grade', label = h3("Data Quality Level (for DEQ data)"),
+               #                    choices = c('A', 'B', 'C', 'E'),
+               #                    selected = c('A', 'B', 'C', 'E'),
+               #                    inline = TRUE)
                )
       ),
+      
+      # fluidRow(
+      #   column(4),
+      #   column(3, h3("Run Query"),
+      #          actionButton(inputId = "action_button",label = 'Submit')
+      # )
+      # ),
       
       fluidRow(
         column(12,

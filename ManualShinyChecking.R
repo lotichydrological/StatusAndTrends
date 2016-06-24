@@ -58,15 +58,15 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 input <- list(action_button = c(0))
 input$action_button <- 1
 input$parms <- c('Bacteria','pH')
-input$select <- "Yamhill"
-input$dates <- c("2013-01-01", "2016-06-01")
+input$select <- "17070204 - Lower John Day"
+input$dates <- c("2006-01-01", "2016-06-01")
 input$db <- c("DEQ")
-input$selectStation <-  "10929 - "
-input$selectParameter <- 'E. Coli'
+input$selectStation <-  "11826 - "
+input$selectParameter <- 'pH'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'January 1-June 15'
 input$selectUse <- 'Cool water species'
-input$selectpHCrit <- 'Owyhee - All other basin waters'
+input$selectpHCrit <- 'John Day - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
 
 wqpData <- NULL
@@ -233,7 +233,18 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
   
-  generate_exceed_df(new_data, input$selectParameter, input$selectpHCrit,
+  if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
+    tmp_df <- new_data
+    tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
+    tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
+    sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
+    tmp_df_MRL <- tmp_df[sub,]
+    tmp_df <- remove.dups(tmp_df_MRL, max)
+  } else {
+    tmp_df <- new_data
+  }
+  
+  generate_exceed_df(tmp_df, input$selectParameter, input$selectpHCrit,
                      ph_crit, input$select, input$selectStation)
 
   sea_ken_table <- SeaKen

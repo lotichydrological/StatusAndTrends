@@ -588,7 +588,8 @@ shinyServer(function(input, output, session) {
             )
           } else if (input$selectParameter == 'pH') {
             validate(
-              need(!is.null(input$selectpHCrit), message = FALSE)
+              need(!is.null(input$selectpHCrit) & input$selectpHCrit != "", 
+                   message = FALSE)
             )
           } else if (input$selectParameter == 'E. Coli' |
                      input$selectParameter == 'Enterococcus') {
@@ -597,7 +598,19 @@ shinyServer(function(input, output, session) {
             )
           }
         }
-        generate_exceed_df(DataUse(), 
+        
+        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
+          tmp_df <- DataUse()
+          tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
+          tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
+          sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
+          tmp_df_MRL <- tmp_df[sub,]
+          tmp_df <- remove.dups(tmp_df_MRL, max)
+        } else {
+          tmp_df <- DataUse()
+        }
+        
+        generate_exceed_df(tmp_df, 
                            input$selectParameter, 
                            input$selectpHCrit,
                            ph_crit, 
@@ -732,12 +745,13 @@ shinyServer(function(input, output, session) {
             )
           } else if (input$selectParameter == 'pH') {
             validate(
-              need(!is.null(input$selectpHCrit), message = FALSE)
+              need(!is.null(input$selectpHCrit) & input$selectpHCrit != "", 
+                   message = FALSE)
             )
           } else if (input$selectParameter == 'E. Coli' | 
                      input$selectParameter == 'Enterococcus' ) {
             validate(
-              need(!is.null(input$plotTrend), message = FALSE)
+              need(!is.null(input$selectLogScale), message = FALSE)
             )
           }
         }

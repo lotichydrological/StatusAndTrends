@@ -5,6 +5,7 @@ run_seaKen <- function (df.all) {
                             pvalue="none",
                             median="none",
                             N="none",
+                            signif="none",
                             stringsAsFactors=FALSE)
   parms <- unique(df.all$Analyte)
   parms <- parms[parms != 'Temperature']
@@ -36,10 +37,15 @@ run_seaKen <- function (df.all) {
                        time.format = "%Y-%m-%d %H:%M:%S")
       # Create time series from water quality data
       tmp.ts <- suppressWarnings(tsMake(tmp.wq, focus = parm, layer = c(0, 5)))
+      if (length(unique(as.integer(time(tmp.ts)))) < 8) {
+        sea_ken_int$signif[ii] <- "Years<8"
+      }
       if (!length(tmp.ts) > 2 |
           start(tmp.ts)[1] == end(tmp.ts)[1] | 
           !any(1:frequency(tmp.ts) %in% cycle(tmp.ts)) |
-          !all(1:12 %in% cycle(tmp.ts))) next
+          frequency(tmp.ts) <= 1
+          #| !all(1:12 %in% cycle(tmp.ts))
+          ) next
       tmp.result <- seaKen(tmp.ts)
       sea_ken_int$pvalue[ii] <- tmp.result$p.value
       sea_ken_int$slope[ii] <- tmp.result$sen.slope
@@ -60,7 +66,9 @@ run_seaKen <- function (df.all) {
                                         "90% Significance Level",
                                         ifelse(SeaKen$pvalue<=0.2, 
                                                "80% Significance Level",
-                                               "Not Significant"))))
+                                               ifelse(SeaKen$signif=="Years<8",
+                                                      "Need at least 8 years",
+                                                      "Not Significant")))))
   
   return(SeaKen)
 }

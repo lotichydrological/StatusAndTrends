@@ -188,7 +188,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
                 qryParms, "') AND Matrix in (", 
                 siteType, ") AND Sampled >= '", 
                 startDate, "' AND Sampled <= '",
-                endDate, "';")
+                endDate, "' AND DQL in ('A', 'B', 'C', 'E');")
   
   #### Pass the query ####
   myData <- sqlQuery(elm, qry)
