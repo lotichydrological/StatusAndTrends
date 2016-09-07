@@ -405,7 +405,13 @@ shinyServer(function(input, output, session) {
         validate(
           need(input$ReviewDf != "", message = FALSE)
         )
-        pickReviewDf(input_reviewDf = input$ReviewDf, lstSummaryDfs, df.all)
+        tbl_disp <- pickReviewDf(input_reviewDf = input$ReviewDf, 
+                               lstSummaryDfs, df.all)
+        if ("Sampled" %in% names(tbl_disp)) {
+          tbl_disp <- datatable(tbl_disp) %>% formatDate("Sampled", 
+                                                         'toLocaleString')
+        }
+         tbl_disp            
         }, options = list(processing = FALSE), 
         filter = 'top', selection = "single", server = FALSE) 
       
