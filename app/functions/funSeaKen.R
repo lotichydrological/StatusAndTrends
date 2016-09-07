@@ -58,16 +58,16 @@ run_seaKen <- function (df.all) {
     ifelse(p == 1, SeaKen <- sea_ken_int, SeaKen <- rbind(SeaKen, sea_ken_int))
   }
   
-  SeaKen$signif <- ifelse(SeaKen$pvalue<=0.01, 
-                          "99% Significance Level",
-                          ifelse(SeaKen$pvalue<=0.05, 
-                                 "95% Significance Level",
-                                 ifelse(SeaKen$pvalue<=0.1, 
-                                        "90% Significance Level",
-                                        ifelse(SeaKen$pvalue<=0.2, 
-                                               "80% Significance Level",
-                                               ifelse(SeaKen$signif=="Years<8",
-                                                      "Need at least 8 years",
+  SeaKen$signif <- ifelse(SeaKen$signif=="Years<8",
+                          "Need at least 8 years",
+                          ifelse(SeaKen$pvalue<=0.01, 
+                                 "99% Significance Level",
+                                 ifelse(SeaKen$pvalue<=0.05, 
+                                        "95% Significance Level",
+                                        ifelse(SeaKen$pvalue<=0.1, 
+                                               "90% Significance Level",
+                                               ifelse(SeaKen$pvalue<=0.2, 
+                                                      "80% Significance Level",
                                                       "Not Significant")))))
   
   return(SeaKen)

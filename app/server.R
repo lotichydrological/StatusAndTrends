@@ -408,8 +408,10 @@ shinyServer(function(input, output, session) {
         tbl_disp <- pickReviewDf(input_reviewDf = input$ReviewDf, 
                                lstSummaryDfs, df.all)
         if ("Sampled" %in% names(tbl_disp)) {
-          tbl_disp <- datatable(tbl_disp) %>% formatDate("Sampled", 
-                                                         'toLocaleString')
+          tbl_disp <- datatable(tbl_disp, 
+                                filter = "top", 
+                                selection = "none") %>% 
+            formatDate("Sampled", 'toLocaleString')
         }
          tbl_disp            
         }, options = list(processing = FALSE), 
