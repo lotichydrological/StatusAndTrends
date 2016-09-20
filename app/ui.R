@@ -103,6 +103,10 @@ shinyUI(fluidPage(
              column(9,
                     DT::dataTableOutput("display")
              )
+             ),
+             fluidRow(column(3),
+                      column(9,
+                             downloadButton('dlReviewTab', 'Download the data'))
              )
              ),
     tabPanel("Plot Status and Trend", fluidRow(

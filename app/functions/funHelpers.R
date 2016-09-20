@@ -271,6 +271,9 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
                      ),
                      "sea_ken_table" = (
                        lstSummaryDfs[["sea_ken_table"]]
+                     ),
+                     "stn_nlcd_df" = (
+                       lstSummaryDfs[["stn_nlcd_df"]]
                      )
   )
   return(reviewDf)
@@ -783,4 +786,44 @@ remove.dups <- function(tname, fun_type) {
   #tname$tResult <- round(tname$tResult.x, 2)
   tname$Result <- tname$Result.x
   tname <- within(tname, rm(Result.x, Result.y))
+}
+
+landUseAnalysis <- function(all.sp, cats, nlcd) {
+  all.sp <- spTransform(all.sp, CRS(proj4string(cats)))
+  
+  #Spatial join (match station to catchment)
+  stct <- point.in.poly(all.sp, cats)
+  
+  #Bring in the nlcd now that we know which catchment we are in
+  stn_nlcd <- merge(stct, nlcd, by.x="FEATUREID", by.y="COMID", all.x=TRUE, all.y=FALSE)
+  stndf_nlcd <- as.data.frame(stn_nlcd)
+  
+  #Reclass the NLCD
+  stn_cat_use_2011 <- stndf_nlcd %>% 
+    group_by(Station_ID) %>% 
+    summarise(Station_Description,
+              Year = "2011",
+              WsAreaSqKm,
+              PerUrbanWs = sum(PctUrbOp2011Ws,
+                               PctUrbLo2011Ws,
+                               PctUrbMd2011Ws,
+                               PctUrbHi2011Ws),
+              PerForestWs = sum(PctDecid2011Ws,
+                                PctConif2011Ws,
+                                PctMxFst2011Ws),
+              PerAgWs = sum(PctHay2011Ws,
+                            PctCrop2011Ws),
+              PerRangeWs = sum(PctShrb2011Ws,
+                               PctGrs2011Ws),
+              PerOtherWs = sum(PctOw2011Ws,
+                               PctIce2011Ws,
+                               PctBl2011Ws,
+                               PctWdWet2011Ws,
+                               PctHbWet2011Ws),
+              TotWs = sum(PerUrbanWs,
+                          PerForestWs,
+                          PerAgWs,
+                          PerOtherWs))
+  
+  return(stn_cat_use_2011)
 }

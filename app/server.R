@@ -17,6 +17,8 @@ library(chron)
 library(reshape)
 library(ggplot2)
 library(zoo)
+library(spatialEco)
+library(dplyr)
 #library(xlsx)
 #library(RODBC)
 
@@ -47,6 +49,12 @@ parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #Pre-extracted 303(d) with PlanName added
 wq_limited <- read.csv('data/wq_limited_df_temp_bact_ph.csv')
+
+#Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
+load('data/NLCD2011_OR.Rdata')
+cats <- readOGR(dsn = './data/GIS', 
+                layer = 'OR_Catchments', 
+                verbose = FALSE)
 
 shinyServer(function(input, output, session) { 
   ###################################
@@ -286,6 +294,13 @@ shinyServer(function(input, output, session) {
                                                'Assessme_1' = 'Year Assessed',
                                                'Listing_St' = 'Listing Status'))
           names(lstSummaryDfs)[6] <- "wq_limited"
+          
+          incProgress(1/10, detail = "Performing Land Use Analysis")
+          prog <- prog + 1/10
+          #Pull in Stream Cat data for NLCD 2011 land use
+          stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
+          lstSummaryDfs[[7]] <- stn_nlcd_df
+          names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
           }
       })
       
@@ -390,6 +405,7 @@ shinyServer(function(input, output, session) {
                                    "Data in tabular format" = 'df.sub',
                                    "WQ Limited Waters within Geographic Area" = 
                                      'wq_limited',
+                                   'Land Use Breakdown' = 'stn_nlcd_df',
                                    "Seasonal Kendall Results" = 'sea_ken_table',
                                    "QA - Summary by organization" = 'df.org',
                                    "QA - Result values modified" = "df.report",
@@ -401,12 +417,16 @@ shinyServer(function(input, output, session) {
       })
       
       #The table is built here
-      output$display <- DT::renderDataTable({
+      tbl_disp_input <- reactive({
         validate(
-          need(input$ReviewDf != "", message = FALSE)
-        )
-        tbl_disp <- pickReviewDf(input_reviewDf = input$ReviewDf, 
+        need(input$ReviewDf != "", message = FALSE)
+      )
+      tbl_disp <- pickReviewDf(input_reviewDf = input$ReviewDf, 
                                lstSummaryDfs, df.all)
+      })
+      
+      output$display <- DT::renderDataTable({
+        tbl_disp <- tbl_disp_input()
         if ("Sampled" %in% names(tbl_disp)) {
           tbl_disp <- datatable(tbl_disp, 
                                 filter = "top", 
@@ -447,6 +467,16 @@ shinyServer(function(input, output, session) {
         
       })
         
+      
+      # #This creates the button for downloading the raw formatted data
+      output$dlReviewTab <- downloadHandler(
+        filename = function() {
+          paste(input$select, "_", input$ReviewDf, ".csv",sep='')
+        },
+        content = function(file) {
+          write.csv(tbl_disp_input(), file, row.names = FALSE)
+        }
+      )
       
       
       ###################################
