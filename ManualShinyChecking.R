@@ -57,12 +57,12 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Bacteria','pH')
-input$select <- "17070204 - Lower John Day"
-input$dates <- c("2006-01-01", "2016-06-01")
+input$parms <- c('Bacteria')
+input$select <- "Burnt River"
+input$dates <- c("2000-01-01", "2016-06-01")
 input$db <- c("DEQ")
-input$selectStation <-  "11826 - "
-input$selectParameter <- 'pH'
+input$selectStation <-  "36197 - "
+input$selectParameter <- 'E. Coli'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'January 1-June 15'
 input$selectUse <- 'Cool water species'
