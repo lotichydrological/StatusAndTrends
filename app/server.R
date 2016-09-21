@@ -52,9 +52,7 @@ wq_limited <- read.csv('data/wq_limited_df_temp_bact_ph.csv')
 
 #Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
 load('data/NLCD2011_OR.Rdata')
-cats <- readOGR(dsn = './data/GIS', 
-                layer = 'OR_Catchments', 
-                verbose = FALSE)
+load('data/OR_cats.Rdata')
 
 shinyServer(function(input, output, session) { 
   ###################################
