@@ -819,11 +819,6 @@ landUseAnalysis <- function(all.sp, cats, nlcd) {
                                PctIce2011Ws,
                                PctBl2011Ws,
                                PctWdWet2011Ws,
-                               PctHbWet2011Ws),
-              TotWs = sum(PerUrbanWs,
-                          PerForestWs,
-                          PerAgWs,
-                          PerOtherWs))
-  
+                               PctHbWet2011Ws))
   return(stn_cat_use_2011)
 }

@@ -18,7 +18,10 @@ run_seaKen <- function (df.all) {
                                df.all$Analyte == parm,]
       sea_ken_int$analyte[ii] <- parm
       sea_ken_int$N[ii] <- length(tmp.data.raw$Result)
-      if (!nrow(tmp.data.raw) > 1 | all(is.na(tmp.data.raw$Result))) next
+      if (!nrow(tmp.data.raw) > 1 | all(is.na(tmp.data.raw$Result))) {
+        sea_ken_int$signif[ii] <- "Years<8"
+        next
+      } 
       # Reshape and manipulate data to convert to wqData-class
       tmp.data <- data.frame(date=tmp.data.raw$Sampled,
                              time="0000",
@@ -37,7 +40,7 @@ run_seaKen <- function (df.all) {
                        time.format = "%Y-%m-%d %H:%M:%S")
       # Create time series from water quality data
       tmp.ts <- suppressWarnings(tsMake(tmp.wq, focus = parm, layer = c(0, 5)))
-      if (length(unique(as.integer(time(tmp.ts)))) < 8) {
+      if (length(unique(years(tmp.data$date))) < 8) {
         sea_ken_int$signif[ii] <- "Years<8"
       }
       if (!length(tmp.ts) > 2 |
