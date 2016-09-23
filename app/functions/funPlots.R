@@ -13,8 +13,8 @@ plot.ph <- function(new_data,
   require(ggplot2)
   new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column], 
                                           format = datetime_format))  
-  x.min <- as.POSIXct(strptime(min(new_data$Sampled), format = datetime_format))
-  x.max <- as.POSIXct(strptime(max(new_data$Sampled), format = datetime_format))
+  x.min <- min(new_data$Sampled)
+  x.max <- max(new_data$Sampled)
   x.lim <- c(x.min, x.max) 
   y.min <- ifelse(floor(min(new_data[, result_column]))< 4,
                   floor(min(new_data[, result_column])), 4) 
@@ -428,11 +428,9 @@ plot.bacteria <- function(new_data,
                           datetime_format = '%Y-%m-%d',
                           plot_trend = FALSE,
                           plot_log = FALSE,
-                          x_min = min(new_data$Sampled),
-                          x_max = max(new_data$Sampled),
                           parm) {
-  x.min <- as.POSIXct(strptime(x_min, format = '%Y-%m-%d %H:%M:%S'))
-  x.max <- as.POSIXct(strptime(x_max, format = '%Y-%m-%d %H:%M:%S'))
+  x.min <- min(new_data$Sampled)
+  x.max <- max(new_data$Sampled)
   x.lim <- c(x.min, x.max) 
   y.min <- if(floor(min(new_data[,result_column]))<=0 & plot_log){
     1 

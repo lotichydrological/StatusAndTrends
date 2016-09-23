@@ -331,7 +331,7 @@ if (is.null(planArea)) {
 } else if (grepl("[0-9].", planArea)) {
   myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
 } else {
-  myHUCs <- URLencode.PTB(paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';'))
+  myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';')
 }
 
 #### Define site types to query ####
@@ -340,7 +340,7 @@ if (is.null(planArea)) {
 
 #Using the wqp.siteTypes enter the values you want to query for in siteType.
 #Separate each value with the URL encoded semi-colon '%3B'. For values with commas use the URL encoded value '%2C+'
-siteType = URLencode.PTB('Estuary;Ocean;Stream;Lake, Reservoir, Impoundment')
+siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
 
 #### Get characteristics ####
 #The entire list of parameters that match to a criteria

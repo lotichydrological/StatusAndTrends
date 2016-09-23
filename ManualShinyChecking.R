@@ -57,16 +57,16 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Bacteria')
-input$select <- "Burnt River"
-input$dates <- c("2000-01-01", "2016-06-01")
-input$db <- c("DEQ")
-input$selectStation <-  "36197 - "
-input$selectParameter <- 'E. Coli'
+input$parms <- c('pH')
+input$select <- "Lower Deschutes"
+input$dates <- c("1996-01-01", "2016-09-23")
+input$db <- c("Water Quality Portal")
+input$selectStation <-  "WARMSPRINGS09-Above Bennys - "
+input$selectParameter <- 'pH'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'January 1-June 15'
 input$selectUse <- 'Cool water species'
-input$selectpHCrit <- 'John Day - All other basin waters'#'John Day - All other basin waters'
+input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
 
 wqpData <- NULL
