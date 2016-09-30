@@ -57,15 +57,15 @@ wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('pH')
-input$select <- "Lower Deschutes"
-input$dates <- c("1996-01-01", "2016-09-23")
+input$parms <- c('Temperature')
+input$select <- "Lower Willamette"
+input$dates <- c("2005-01-01", "2016-09-23")
 input$db <- c("Water Quality Portal")
-input$selectStation <-  "WARMSPRINGS09-Above Bennys - "
-input$selectParameter <- 'pH'
+input$selectStation <-  "USGS-14211400 - "
+input$selectParameter <- 'Temperature'
 input$selectLogScale <- FALSE
-input$selectSpawning <- 'January 1-June 15'
-input$selectUse <- 'Cool water species'
+input$selectSpawning <- 'October 15-May 15'
+input$selectUse <- 'Salmon and Trout Rearing and Migration'
 input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
 
@@ -176,6 +176,9 @@ if (any('Temperature' %in% df.all$Analyte)) {
   sdadm <- NULL
 }
 
+#Perform sufficiency analysis for temperature
+temp_stns_pass <- temp_sufficiency_analysis(df.all)
+
 #Run Seasonal Kendall for pH and Bacteria
 if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
   SeaKen <- run_seaKen(df.all)
@@ -265,4 +268,10 @@ names(lstSummaryDfs)[6] <- "wq_limited"
           plot_trend = input$plotTrend,
           plot_criteria = input$selectpHCrit,
           plan_area = input$select)
+  
+  
+  new_data_temp <- generate_temp_data(new_data = new_data, selectSpawning = input$selectSpawning,
+                     selectUse = input$selectUse, selectMonth = "January")
+  
+  Temp_trends_plot(new_data_temp, input$selectStation, input$selectMonth)
   

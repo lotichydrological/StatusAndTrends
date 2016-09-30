@@ -274,6 +274,9 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
                      ),
                      "stn_nlcd_df" = (
                        lstSummaryDfs[["stn_nlcd_df"]]
+                     ),
+                     "qc.results.3" = (
+                       lstSummaryDfs[["qc.results.3"]]
                      )
   )
   return(reviewDf)
@@ -821,4 +824,318 @@ landUseAnalysis <- function(all.sp, cats, nlcd) {
                                PctWdWet2011Ws,
                                PctHbWet2011Ws))
   return(stn_cat_use_2011)
+}
+
+temp_sufficiency_analysis <- function(df.all, sdadm) {
+  stns <- unique(df.all$Station_ID)
+  qc.results.1 <- NULL
+  qc.results.2 <- NULL
+  qc.results.3 <- NULL
+  for (i in 1:length(stns)) {
+    tmp <- df.all[df.all$Station_ID == stns[i], ]
+    
+    tmp$date <- as.POSIXct(strptime(tmp$Sampled, format = "%Y-%m-%d %H:%M:%OS"))
+    tmp$month <- month(tmp$date)
+    tmp$year <- year(tmp$date)
+    tmp$day <- day(tmp$date)
+    tmp$hour <- hour(tmp$date)
+    
+    # subset to data to the months of interest
+    #tmp <- tmp[tmp$month %in% c(6,7,8,9,10),]
+    
+    # QC Test #1 -------------------------------------------------------------
+    # Must be at least one observation in a minimum of 22 hours during the day
+    
+    # First determine number of hours collected within each day
+    qc.hr <- as.tbl(tmp) %>%
+      group_by(HUC, Station_ID, month, year, day) %>%
+      summarise(n = length(unique(hour)))
+    qc.hr <- as.data.frame(qc.hr)
+    
+    # Isolate to days with 22 or more hours represented
+    qc.hr$n_threshold <- '>= 22 hours'
+    qc.hr$result <- ifelse(qc.hr$n >= 22,'pass','fail')
+    
+    qc.results.1 <- rbind(qc.results.1,qc.hr)
+    
+    qc.hr.p <- qc.hr[qc.hr$result == 'pass',]
+    qc.hr.p$code <- paste(qc.hr.p$Station_ID, qc.hr.p$year, qc.hr.p$month, qc.hr.p$day)
+    tmp$code <- paste(tmp$Station_ID, tmp$year, tmp$month, tmp$day)
+    
+    # subset to just days that pass QC test #1
+    tmp <- tmp[tmp$code %in% qc.hr.p$code,]
+    
+    if (any(qc.hr$result == 'pass')) {
+      # QC Test #2 -------------------------------------------------------------
+      # No more than one day for each monthly period without observations
+      
+      qc.dy <- as.data.frame(as.tbl(qc.hr.p) %>% 
+                               group_by(HUC, Station_ID, year, month) %>% 
+                               summarise(n = n()))
+      qc.dy$n_threshold <- ifelse(qc.dy$month %in% c(1,3,5,7,8,10,12), 30, 
+                                  ifelse(qc.dy$month %in% c(4,6,9,11), 29,
+                                         ifelse(qc.dy$year %in% c(1992, 1996, 
+                                                                  2000, 2004,
+                                                                  2008, 2012, 
+                                                                  2016, 2020), 
+                                                28, 27)))
+      qc.dy$result <- ifelse(qc.dy$n >= qc.dy$n_threshold,'pass','fail')
+      
+      # just redoing this so threshold is clear
+      qc.dy$n_threshold <- ifelse(qc.dy$month %in% c(1,3,5,7,8,10,12), 
+                                  ">= 30 days", 
+                                  ifelse(qc.dy$month %in% c(4,6,9,11), 
+                                         ">= 29 days",
+                                         ifelse(qc.dy$year %in% c(1992, 1996, 
+                                                                  2000, 2004,
+                                                                  2008, 2012, 
+                                                                  2016, 2020), 
+                                                ">= 28 days", ">= 27 days")))
+      
+      qc.results.2 <- rbind(qc.results.2,qc.dy)
+      
+      qc.dy.p <- qc.dy[qc.dy$result == 'pass',]
+      qc.dy.p$code <- paste(qc.dy.p$Station_ID, qc.dy.p$year, qc.dy.p$month)
+      tmp$code <- paste(tmp$Station_ID, tmp$year, tmp$hour)
+      
+      # subset to just months that pass QC test #2
+      tmp <- tmp[tmp$code %in% qc.dy.p$code,]
+      
+      if (any(qc.dy$result == 'pass')) {
+        # QC Test #3 -------------------------------------------------------------
+        # There must be at least eight years of continuous hourly temperature data
+        # for each monthly period
+        
+        qc.yr <- as.data.frame(as.tbl(qc.dy.p) %>% 
+                                 group_by(HUC, Station_ID, month) %>% 
+                                 summarise(n = n()))
+        qc.yr$n_threshold  <- '>= 8 years'
+        qc.yr$result <- ifelse(qc.yr$n >= 8,'pass','fail')
+        qc.results.3 <- rbind(qc.results.3,qc.yr)
+        
+        qc.yr.p <- qc.yr[qc.yr$result == 'pass',]
+        
+        qc.yr.p$code <- paste(qc.yr.p$Station_ID, qc.yr.p$month)
+        tmp$code <- paste(tmp$Station_ID, tmp$month)
+        
+        # subset to just stations that pass QC test #3
+        tmp <- tmp[tmp$code %in% qc.yr.p$code,]
+      }
+    }
+  }
+
+  stns_pass <- unique(qc.results.3[qc.results.3$result == 'pass', "Station_ID"])
+  
+  if (length(stns_pass) > 0) {
+    attr(stns_pass, "day_test") <- qc.results.1
+    attr(stns_pass, "month_test") <- qc.results.2
+    attr(stns_pass, "year_test") <- qc.results.3
+  }
+ 
+  return(stns_pass)
+}
+
+generate_temp_data <- function(new_data, selectSpawning, selectUse, selectMonth) {
+  new_data$year <- year(new_data$date)
+  new_data$month <- month(new_data$date)
+  new_data$day <- day(new_data$date)
+  new_data$hour <- hour(new_data$date)
+  sdadm_sub <- new_data[new_data$month == which(month.name == selectMonth),]
+  sdadm_sub$ZDADM <- suppressMessages(as.numeric(plyr::revalue(selectUse, c(
+    'Bull Trout Spawning and Juvenile Rearing' = 12,
+    'Core Cold Water Habitat' = 16,
+    'Salmon and Trout Rearing and Migration' = 18,
+    'Salmon and Steelhead Migration Corridors' = 20,
+    'Redband and Lanhontan Cutthroat Trout' = 20,
+    'Cool water species' = NA,
+    'No Salmonid Use/Out of State' = NA))))
+  sdadm_sub$ben_use <- selectUse
+  sdadm_sub$spawn_dates <- selectSpawning
+  return(sdadm_sub)
+}
+
+Temp_trends_plot <- function(sdadm, selectStation, selectMonth) {
+  #### Average monthly sdadm ####
+  #Determine average sdadm by year and calcualte trend
+  amean <- tapply(sdadm$sdadm, list(sdadm$year, sdadm$Station_ID), 
+         function(x) {
+           ifelse(all(is.na(x)), NA, mean(x, na.rm = TRUE))
+         })
+  
+  tmean <- mannKen(ts(amean))
+  if(is.na(tmean$p.value)) tmean$p.value <- 0
+  
+  #### Average monthly daily cumulative degree hours > WQS ####
+  #First take the maximum from each hour of data
+  dh <- as.tbl(sdadm) %>%
+    group_by(Station_ID, ZDADM, year, day, hour) %>%
+    summarise(Result = max(sdadm))
+  
+  #Build id for efficient grouping
+  dh$code <- paste(dh$Station_ID, dh$year, dh$day)
+  
+  #Calculate degree difference for each hourly max
+  dh$dd <- as.numeric(dh$Result) - as.numeric(dh$ZDADM)
+  
+  #Set all negative values to 0
+  dh$dd <- ifelse(dh$dd < 0, 0, dh$dd)
+  
+  #Sum the positive degree differences to derive cumulative degree hours > WQS
+  dh_sum <- dh %>% 
+    group_by(Station_ID, ZDADM, year, code) %>% 
+    summarise(dh = sum(dd))
+  
+  #Derive the monthly average of daily degree hours > WQS
+  dh_avg <- dh_sum %>%
+    group_by(Station_ID, ZDADM, year) %>%
+    summarise(dh_avg = mean(dh))
+  
+  #Calculate trend on average daily degree hours > WQS
+  dha_wide <- cast(dh_avg, year ~ Station_ID, value = "dh_avg")
+  tdha <- mannKen(ts(dha_wide[-1]))
+  if(is.na(tdha$p.value)) tdha$p.value <- 0
+  
+  a <- NULL
+  b <- NULL
+  c <- NULL
+  d <- NULL
+  p1 = NULL
+  p2 = NULL
+  sig <- ""
+  
+  p1_btm <- floor(range(sdadm$sdadm, na.rm = TRUE))[1]
+  p1_top <- ceiling(range(sdadm$sdadm, na.rm = TRUE))[2]
+  p2_btm <- floor(range(dh_sum$dh, na.rm = TRUE))[1]
+  p2_top <- ceiling(range(dh_sum$dh, na.rm = TRUE))[2]
+  
+  #Boxplots of 7DADM
+  df <- sdadm
+  df <- df[!is.na(df$sdadm),]
+  df$year <- factor(df$year, levels = min(df$year):max(df$year))
+  zdadm_stn <- unique(sdadm$ZDADM)
+  a <- ggplot(data = df, aes(x=year, y=sdadm)) + 
+    geom_boxplot() + 
+    theme_bw() + 
+    theme(axis.title = element_text(size = 8),
+          plot.title = element_text(size = 8, face = "bold")) +
+    xlab("Year") + 
+    scale_y_continuous(breaks = seq(p1_btm, p1_top, by = 2),
+                       labels = seq(p1_btm, p1_top, by = 2),
+                       lim = c(p1_btm,p1_top)) +
+    scale_x_discrete(drop = FALSE) +
+    ylab("Temperature (degrees C)") +
+    ggtitle("7 Day Average Daily Maximum Temperature") +
+    geom_abline(intercept = zdadm_stn, slope = 0, colour = "red", size = 1.01) + 
+    annotate("text", label = "Water Quality Standard", 
+             x = ifelse(min(df$sdadm) > 14, 7.5, 3.5), 
+             y = ifelse(zdadm_stn > max(df$sdadm), 
+                        zdadm_stn - 0.3, zdadm_stn + 0.3),
+             colour = "red", size = 3.5)
+  
+  
+  df <- as.data.frame(amean)
+  df$year <- row.names(df)
+  df <- melt(df)
+  df$year <- as.numeric(df$year)
+  df <- df[!is.na(df$value),]
+  
+  b <- ggplot(data = df, aes(x = year, y = value)) + 
+    geom_point(aes(size = 2)) +
+    scale_y_continuous(breaks = seq(p1_btm,p1_top, by = 2),
+                       labels = seq(p1_btm,p1_top, by = 2),
+                       lim = c(p1_btm,p1_top)) +
+    scale_x_continuous(breaks = seq(min(df$year),max(df$year),by=1),
+                       labels = seq(min(df$year),max(df$year),by=1),
+                       lim = c(min(df$year),max(df$year))) +
+    xlab("Year") + 
+    ggtitle("Average 7 Day Average Daily Maximum Temperature") +
+    ylab("Temperature (degrees C)") +
+    guides(size = FALSE) +
+    theme_bw() +
+    theme(axis.title = element_text(size = 8),
+          plot.title = element_text(size = 8, face = "bold")) 
+  
+  if (tmean$p.value < 0.1) {
+    sig <- "_sig"
+    #Trend plot with points as average 7DADM
+    slope <- tmean$sen.slope
+    p1 <- tmean$p.value
+    x.delta <- as.numeric((max(df$year) - min(df$year)))/2
+    SK.min <- median(df$value, na.rm = TRUE) - x.delta*slope
+    SK.max <- median(df$value, na.rm = TRUE) + x.delta*slope
+    b <- b + geom_segment(x = min(df$year), y = SK.min,
+                          xend = max(df$year), yend = SK.max,
+                          linetype = 2, size = 1.05)      
+  }
+  
+  b <- b + annotate("text", x = min(df$year) + 3, y = p1_top - 0.5, 
+                    label = ifelse(is.null(p1), "No Trend", 
+                                   ifelse(p1 < 0.1, 
+                                          paste("Significant Trend (p-value",
+                                                ifelse(p1 < 0.05, "< 0.05)", 
+                                                       "< 0.1)")), "")), 
+                    size = 3.5)
+  
+  #Boxplots of daily degree hours > WQS
+  df <- dh_sum
+  df$year <- factor(df$year, levels = min(df$year):max(df$year))
+  c <- ggplot(data = df, aes(x=year, y=dh)) + 
+    geom_boxplot() + 
+    theme_bw() + 
+    theme(axis.title = element_text(size = 8),
+          plot.title = element_text(size = 8, face = "bold")) +
+    xlab("Year") + 
+    scale_y_continuous(breaks = c(seq(p2_btm,p2_top,by=5)),
+                       labels = c(seq(p2_btm,p2_top,by=5)),
+                       lim = c(p2_btm,p2_top)) +
+    scale_x_discrete(drop = FALSE) +
+    ggtitle("Daily Degree Hours Above Water Quality Standard") +
+    ylab("Daily degree hours (degrees C)")
+  
+  
+  df <- dh_avg
+  d <- ggplot(data = df, aes(x = year, y = dh_avg)) + 
+    geom_point(aes(size = 1.01)) +
+    scale_y_continuous(breaks = seq(p2_btm,p2_top, by = 5),
+                       labels = seq(p2_btm,p2_top, by = 5),
+                       lim = c(p2_btm,p2_top)) +
+    scale_x_continuous(breaks = seq(min(df$year),max(df$year),by=1),
+                       labels = seq(min(df$year),max(df$year),by=1),
+                       lim = c(min(df$year),max(df$year))) +
+    xlab("Year") + 
+    ggtitle("Average Daily Degree Hours Above Water Quality Standard") +
+    ylab("Daily degree hours (degrees C)") +
+    guides(size = FALSE) +
+    theme_bw() +
+    theme(axis.title = element_text(size = 8),
+          plot.title = element_text(size = 8, face = "bold")) 
+  
+  if (tdha$p.value < 0.1) {
+    sig = "_sig"
+    #Trend plot with points as average daily degree hours > WQS
+    slope <- tdha$sen.slope
+    p2 <- tdha$p.value
+    x.delta <- as.numeric((max(df$year) - min(df$year)))/2
+    SK.min <- median(df$dh_avg) + 3 - x.delta*slope
+    SK.max <- median(df$dh_avg) + 3 + x.delta*slope
+    d <- d + geom_segment(aes(x = min(df$year), y = SK.min,
+                              xend = max(df$year), yend = SK.max),
+                          linetype = 2, size = 1.01)
+  }
+  
+  d <- d + annotate("text", x = min(df$year) + 3, y = ifelse(p2_top == 1, p2_top, p2_top - 1.5), 
+                    label = ifelse(is.null(p2), "No trend", 
+                                   ifelse(p2 < 0.1, 
+                                          paste("Significant Trend (p-value", 
+                                                ifelse(p2 < 0.05, "< 0.05)", 
+                                                       "< 0.1)")), "")), 
+                    size = 3.5)
+  
+  title_stn <- selectStation
+  
+  mp <- multiplot(a, c, b, d, cols = 2, title = paste(title_stn,
+                                                selectMonth,
+                                                sep = " - "))
+  
+  return(mp)
 }

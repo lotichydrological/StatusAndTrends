@@ -124,7 +124,9 @@ shinyUI(fluidPage(
              br(),
              uiOutput('selectRange'),
              br(),
-             uiOutput('fish_use_link')
+             uiOutput('fish_use_link'),
+             br(),
+             uiOutput('selectMonth')
             ),
       column(9,
              conditionalPanel(condition = "input.selectParameter",
@@ -143,7 +145,10 @@ shinyUI(fluidPage(
                ),
              br(),
              conditionalPanel(condition = "input.selectParameter",
-                              DT::dataTableOutput("exceed_df"))
+                              DT::dataTableOutput("exceed_df")),
+             br(),
+             conditionalPanel(condition = "input.selectMonth",
+                              plotOutput('temp_trend_plot'))
              )
              )
       )

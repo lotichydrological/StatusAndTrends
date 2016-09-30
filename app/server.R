@@ -19,6 +19,7 @@ library(ggplot2)
 library(zoo)
 library(spatialEco)
 library(dplyr)
+library(lubridate)
 #library(xlsx)
 #library(RODBC)
 
@@ -226,6 +227,9 @@ shinyServer(function(input, output, session) {
           #### Calculate trends and adnl data for plotting ####
           incProgress(1/10, detail = "Calculating 7DADM and Trends")
           prog <- prog + 1/10
+          #Perform sufficiency analysis for temperature
+          temp_stns_pass <- temp_sufficiency_analysis(df.all)
+          
           #Generate sdadm once for temperature plotting/exceedance use
           if (any('Temperature' %in% df.all$Analyte)) {
             sdadm <- Calculate.sdadm(df.all, "Result", "Station_ID", "Sampled",
@@ -597,6 +601,29 @@ shinyServer(function(input, output, session) {
              target = "_blank"))
       })
       
+      output$selectMonth <- renderUI({
+        validate(
+          need(unique(
+            strsplit(input$selectStation,
+                     ' - ')[[1]][1]) %in% attr(temp_stns_pass, 
+                                               'year_test')$Station_ID,
+            message = FALSE)
+        )
+        validate(
+          validate(
+            need(input$selectParameter == 'Temperature', message = FALSE)
+          )
+        )
+        selectInput('selectMonth', label = "Select month for trend analysis",
+                    choices = month.name[
+                      attr(temp_stns_pass, "year_test")[
+                        attr(temp_stns_pass, "year_test")$Station_ID == unique(
+                          strsplit(input$selectStation,
+                                   ' - ')[[1]][1]) & 
+                          attr(temp_stns_pass, "year_test")$result == 'pass', 'month']],
+                    selectize = TRUE)
+      })
+      
       #######################
       #### Data Handling ####
       #######################
@@ -655,6 +682,32 @@ shinyServer(function(input, output, session) {
                            input$selectUse, 
                            input$selectSpawning)
         })
+      
+      # This handles the temp trend analysis
+      DataUse_temp <- reactive({
+        generate_temp_data(DataUse(),
+                           input$selectSpawning,
+                           input$selectUse,
+                           input$selectMonth)
+      })
+      
+      #This generate the temp trend plot
+      output$temp_trend_plot <- renderPlot({
+        validate(
+          need(input$selectStation != '', message = FALSE)
+        )
+        validate(
+          need(input$selectParameter == "Temperature", message = FALSE)
+        )
+        validate(
+          need(input$selectMonth != "", message = FALSE)
+        )
+        validate(
+          need(!is.null(input$selectUse), message = FALSE)
+        )
+        Temp_trends_plot(DataUse_temp(), input$selectStation, input$selectMonth)
+      })
+      
       
       # #Make the plot interactive
       #First set up the ranges object
