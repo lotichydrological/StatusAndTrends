@@ -4,6 +4,8 @@ run_seaKen <- function (df.all) {
                             slope="none",
                             pvalue="none",
                             median="none",
+                            S="none",
+                            varS="none",
                             N="none",
                             signif="none",
                             stringsAsFactors=FALSE)
@@ -40,7 +42,7 @@ run_seaKen <- function (df.all) {
                        time.format = "%Y-%m-%d %H:%M:%S")
       # Create time series from water quality data
       tmp.ts <- suppressWarnings(tsMake(tmp.wq, focus = parm, layer = c(0, 5)))
-      if (length(unique(years(tmp.data$date))) < 8) {
+      if (length(unique(year(tmp.data$date))) < 8) {
         sea_ken_int$signif[ii] <- "Years<8"
       }
       if (!length(tmp.ts) > 2 |
@@ -49,9 +51,11 @@ run_seaKen <- function (df.all) {
           frequency(tmp.ts) <= 1
           #| !all(1:12 %in% cycle(tmp.ts))
           ) next
-      tmp.result <- seaKen(tmp.ts)
+      tmp.result <- seaKenPlus(tmp.ts)
       sea_ken_int$pvalue[ii] <- tmp.result$p.value
       sea_ken_int$slope[ii] <- tmp.result$sen.slope
+      sea_ken_int$S[ii] <- tmp.result$S
+      sea_ken_int$varS[ii] <- tmp.result$varS
       sea_ken_int$median[ii] <- suppressWarnings(
         median(as.numeric(tmp.data.raw$Result),na.rm = FALSE))
       
@@ -74,4 +78,53 @@ run_seaKen <- function (df.all) {
                                                       "Not Significant")))))
   
   return(SeaKen)
+}
+
+seaKenPlus <- function (x, plot = FALSE, type = c("slope", "relative"), order = FALSE, 
+          pval = 0.05, mval = 0.5, pchs = c(19, 21), ...) 
+{
+  if (!is.numeric(x) && !is.matrix(x) && !is.data.frame(x)) 
+    stop("'x' must be a vector, matrix, or data.frame")
+  if (!is.null(ncol(x)) && is.null(colnames(x))) 
+    colnames(x) <- paste("series_", 1:ncol(x), sep = "")
+  type <- match.arg(type)
+  sk <- function(x) {
+    if (!is.ts(x)) 
+      stop("'x' must be of class 'ts'")
+    if (identical(frequency(x), 1)) 
+      stop("'x' must be a seasonal time series with frequency > 1")
+    fr <- frequency(x)
+    xmod <- length(x)%%fr
+    if (!identical(xmod, 0)) 
+      x <- ts(c(x, rep(NA, fr - xmod)), start = start(x), 
+              frequency = fr)
+    x1 <- matrix(x, ncol = fr, byrow = TRUE)
+    mk1 <- mannKen(x1)
+    sen.slope <- median(mk1[, "sen.slope"], na.rm = TRUE)
+    sen.slope.rel <- sen.slope/abs(median(x, na.rm = TRUE))
+    S <- sum(mk1[, "S"])
+    varS <- sum(mk1[, "varS"])
+    Z <- (S - sign(S))/sqrt(varS)
+    p.value <- 2 * pnorm(-abs(Z))
+    miss <- round(sum(mk1[, "miss"] >= 0.5)/fr, 3)
+    c(sen.slope = sen.slope, sen.slope.rel = sen.slope.rel, 
+      p.value = p.value, miss = miss, S = S, varS = varS)
+  }
+  if (is.null(dim(x))) 
+    return(as.list(sk(x)))
+  if (ncol(x) == 1) 
+    return(as.list(sk(x[, 1])))
+  ans <- t(sapply(1:ncol(x), function(i) sk(x[, i])))
+  rownames(ans) <- colnames(x)
+  if (!plot) {
+    ans
+  }
+  else {
+    v1 <- switch(type, slope = "sen.slope", relative = "sen.slope.rel")
+    if (order) 
+      ans <- ans[order(ans[, v1]), ]
+    pch <- ifelse(ans[, "miss"] >= mval, NA, ifelse(ans[, 
+                                                        "p.value"] < pval, pchs[1], pchs[2]))
+    dotchart(ans[, v1], pch = pch, ...)
+  }
 }
