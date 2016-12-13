@@ -51,23 +51,26 @@ HUClist <- read.csv('app/data/PlanHUC_LU.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
+wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph_DO2.csv')
 #wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature')
+input$parms <- c('Dissolved Oxygen')
 input$select <- "Lower Willamette"
-input$dates <- c("2005-01-01", "2016-09-23")
+input$dates <- c("2000-01-01", "2016-09-23")
 input$db <- c("Water Quality Portal")
-input$selectStation <-  "USGS-14211400 - "
-input$selectParameter <- 'Temperature'
+input$selectStation <-  "10332"
+input$selectParameter <- 'Dissolved Oxygen'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'October 15-May 15'
 input$selectUse <- 'Salmon and Trout Rearing and Migration'
 input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
+input$selectUseDO<-'Cold-Water Aquatic Life'
+input$checkSpawning<-TRUE
+
 
 wqpData <- NULL
 lasarData <- NULL
@@ -87,7 +90,7 @@ if ('Water Quality Portal' %in% input$db) {
                                endDate = input$dates[2]),
                       error = function(err) {err <- geterrmessage()})
   
-  if (any(c('Temperature', 'pH') %in% input$parms)) {
+  if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
     nwisData <- tryCatch(nwisQuery(planArea = input$select,
                                    HUClist = HUClist,
                                    inParms = input$parms,
@@ -274,4 +277,16 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                      selectUse = input$selectUse, selectMonth = "January")
   
   Temp_trends_plot(new_data_temp, input$selectStation, input$selectMonth)
+  
+  plot.DO<-plot.DO(new_data = df.all,
+                   selectUseDO = input$selectUseDO,
+                   checkSpawning = input$checkSpawning,
+                   analyte_column = 'Analyte',
+                   station_id_column = 'Station_ID',
+                   station_desc_column = 'Station_Description',
+                   datetime_column = 'Sampled',
+                   result_column = 'Result',
+                   datetime_format = '%Y-%m-%d %H:%M:%S',
+                   parm = 'Dissolved Oxygen')
+  plot.DO
   

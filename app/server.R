@@ -49,11 +49,11 @@ ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x 
 parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #Pre-extracted 303(d) with PlanName added
-wq_limited <- read.csv('data/wq_limited_df_temp_bact_ph.csv')
+wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
 
 #Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
-load('data/NLCD2011_OR.Rdata')
-load('data/OR_cats.Rdata')
+#load('data/NLCD2011_OR.Rdata')
+#load('data/OR_cats.Rdata')
 
 shinyServer(function(input, output, session) { 
   ###################################
@@ -300,8 +300,8 @@ shinyServer(function(input, output, session) {
           incProgress(1/10, detail = "Performing Land Use Analysis")
           prog <- prog + 1/10
           #Pull in Stream Cat data for NLCD 2011 land use
-          stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
-          lstSummaryDfs[[7]] <- stn_nlcd_df
+          #stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
+          lstSummaryDfs[[7]] <- data.frame()#stn_nlcd_df
           names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
           }
       })
@@ -624,6 +624,46 @@ shinyServer(function(input, output, session) {
                     selectize = TRUE)
       })
       
+      output$selectUseDO = renderUI({
+        validate(
+          need(input$selectParameter == 'Dissolved Oxygen', message = FALSE)
+        )
+        selectInput('selectUseDO',"Select Aquatic fish use:",
+                    choices = c('Cold-Water Aquatic Life',
+                                'Cool-Water Aquatic Life',
+                                'Warm-Water Aquatic Life',
+                                'Estuarine Waters'),
+                    selectize = TRUE)
+      })
+      
+      output$fish_use_link <- renderUI({
+        validate(
+          need(input$selectParameter == 'Dissolved Oxygen', message = FALSE)
+        )
+        h5(a("Refer to Spawning Use Maps by Basin", 
+             href = "http://www.deq.state.or.us/wq/rules/div041tblsfigs.htm#f1",
+             target = "_blank"))
+      })
+      
+      output$checkSpawning <- renderUI({
+        validate(
+          need(input$selectParameter %in% c('Dissolved Oxygen'), 
+               message = FALSE)
+        )
+        checkboxInput(inputId = "checkSpawning",
+                      label = "Spawning",
+                      value = FALSE)
+      })
+      
+      output$fish_use_link_DO <- renderUI({
+        validate(
+          need(input$selectParameter == 'Dissolved Oxygen', message = FALSE)
+        )
+        h5(a("Refer to Memo for Aquatic Life Designations", 
+             href = "http://www.deq.state.or.us/wq/standards/docs/MemoDOCriteria20100608.pdf",
+             target = "_blank"))
+      })
+      
       #######################
       #### Data Handling ####
       #######################
@@ -810,6 +850,42 @@ shinyServer(function(input, output, session) {
                    g <- g + coord_trans(y = "log10", limx = ranges$x, limy = ranges$y)
                  } else {
                    g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+                 }
+               }),
+               "Dissolved Oxygen" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
+                 if (nrow(df) > 2) {
+                   g <- plot.DO(new_data = df,
+                                 selectUseDO = input$selectUseDO,
+                                 checkSpawning = input$checkSpawning,
+                                 analyte_column = 'Analyte',
+                                 station_id_column = 'Station_ID',
+                                 station_desc_column = 'Station_Description',
+                                 datetime_column = 'Sampled',
+                                 result_column = 'Result',
+                                 datetime_format = '%Y-%m-%d %H:%M:%S',
+                                 parm = 'Dissolved Oxygen')
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
+                 }
+               }),
+               "Dissolved oxygen saturation" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
+                 if (nrow(df) > 2) {
+                   g <- plot.DOsat(new_data = df,
+                                   analyte_column = 'Analyte',
+                                   station_id_column = 'Station_ID',
+                                   station_desc_column = 'Station_Description',
+                                   datetime_column = 'Sampled',
+                                   result_column = 'Result',
+                                   datetime_format = '%Y-%m-%d %H:%M:%S',
+                                   parm = 'Dissolved Oxygen Saturation')
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
                  }
                })
         )

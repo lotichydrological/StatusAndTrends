@@ -860,3 +860,137 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL, title=NULL)
     }
   }
 }
+
+plot.DOsat<-function(new_data,
+                  analyte_column = 'Analyte',
+                  station_id_column = 'Station_ID',
+                  station_desc_column = 'Station_Description',
+                  datetime_column = 'Sampled',
+                  result_column = 'Result',
+                  datetime_format = '%Y-%m-%d %H:%M:%S',
+                  parm) {
+  require(ggplot2)
+  new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
+                                          format = datetime_format))
+  x.min <- min(new_data$Sampled)
+  x.max <- max(new_data$Sampled)
+  x.lim <- c(x.min, x.max)
+  y.min <- floor(min(new_data[, result_column]))
+  y.max <- ceiling(max(new_data[, result_column]))
+  y.lim <- c(y.min, y.max)
+  title <- paste0(min(new_data[, station_desc_column]), ", ID = ",
+                  min(new_data[, station_id_column]))
+  x.lab <- "Date"
+  y.lab <- parm
+  
+  ##Building the plot
+  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+    geom_point() +
+    ggtitle(bquote(atop(.(title)))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
+    xlab(x.lab) +
+    ylab(y.lab) +
+    xlim(x.lim) +
+    ylim(y.lim)
+  g
+}
+
+
+
+plot.DO<-function(new_data,
+                  selectUseDO = input$selectUseDO,
+                  checkSpawning = input$checkSpawning,
+                  analyte_column = 'Analyte',
+                  station_id_column = 'Station_ID',
+                  station_desc_column = 'Station_Description',
+                  datetime_column = 'Sampled',
+                  result_column = 'Result',
+                  datetime_format = '%Y-%m-%d %H:%M:%S',
+                  parm) {
+  require(ggplot2)
+  #new_data<-EvaluateDOWQS(new_data, station_column_name = 'Station_ID')
+  #dataframe that assigns WQS values to Aquatic Life Uses
+  new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
+                                          format = datetime_format))
+  new_data$Result<-as.numeric(new_data$Result)
+  x.min <- min(new_data$Sampled)
+  x.max <- max(new_data$Sampled)
+  x.lim <- c(x.min, x.max)
+  y.min <- floor(min(new_data[, result_column]))
+  y.max <- ceiling(max(new_data[, result_column]))
+  y.lim <- c(y.min, y.max)
+  title <- paste0(min(new_data[, station_desc_column]), ", ID = ",
+                  min(new_data[, station_id_column]))
+  x.lab <- "Date"
+  y.lab <- parm
+ 
+  ##Generate WQS Lines##
+   if (selectUseDO == 'Cold-Water Aquatic Life') {
+    d<-data.frame(x = c(x.min, x.max), y = rep(8, 2),
+                  variable = rep("Cold-Water Aquatic Life", 2))
+  } else if (selectUseDO == 'Cool-Water Aquatic Life') {
+    d<-data.frame(x = c(x.min, x.max), y = rep(6.5, 2),
+                  variable = rep("Cool-Water Aquatic Life", 2))
+  } else if (selectUseDO == 'Warm-Water Aquatic Life') {
+    d<-data.frame(x = c(x.min, x.max), y = rep(5.5, 2),
+                  variable = rep("Warm-Water Aquatic Life", 2))
+  } else (selectUseDO == 'Estuarine Water') 
+    d<-data.frame(x = c(x.min, x.max), y = rep(6.5, 2),
+                  variable = rep("Estuarine Waters", 2))
+  
+  
+  ##Generate Exceedances of WQS##
+  new_data$selectUseDO<-selectUseDO 
+  
+  new_data$aqu_use_des<- if(new_data$selectUseDO == 'Cold-Water Aquatic Life') {
+    8
+  } else if (new_data$selectUseDO == 'Cool-Water Aquatic Life') {
+    6.5
+  } else if (new_data$selectUseDO == 'Warm-Water Aquatic Life') {
+    5.5
+  } else if (new_data$selectUseDO == 'Estuarine Waters') {
+    6.5
+  }
+  
+  new_data$Exceed<-ifelse(new_data$Result > new_data$aqu_use_des, 'Exceeds', 'Meets')
+  
+  new_data$Spwn_Exceed<-ifelse(new_data$Result > 11, 'Exceeds', 'Meets')
+  
+  ##Building the plot##
+  if (checkSpawning) {
+   d_spwn<-data.frame(x = c(x.min, x.max), y = rep(11, 2),
+                       variable = rep("Spawning", 2))
+    g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+      geom_point(aes(color = new_data$Exceed))+
+      geom_point(aes(color = new_data$Spwn_Exceed)) +
+      scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
+      geom_hline(data = d_spwn, aes(yintercept = y), linetype = "dotdash", color = "red") +
+      geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+      ggtitle(bquote(atop(.(title)))) +
+      theme(legend.position = "top",
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
+      xlab(x.lab) +
+      ylab(y.lab) +
+      xlim(x.lim) +
+      ylim(y.lim)
+    g 
+  } else {
+  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+    geom_point(aes(color = Exceed)) +
+    geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+    scale_colour_manual(name = 'Key', values = c('red', 'black')) +
+    ggtitle(bquote(atop(.(title)))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
+    xlab(x.lab) +
+    ylab(y.lab) +
+    xlim(x.lim) +
+    ylim(y.lim)
+  g
+  
+  }
+}

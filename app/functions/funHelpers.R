@@ -628,6 +628,22 @@ EvaluateEnteroWQS <- function(new_data) {
   return(new_data)
 }
 
+# EvaluateDOWQS<-function(new_data) {
+#   new_data$selectUseDO<-input$selectUseDO 
+#   
+#   new_data$aqu_use_des<- if(new_data$selectUseDO == 'Cold-Water Aquatic Life') {
+#     8
+#   } else if (new_data$selectUseDO == 'Cool-Water Aquatic Life') {
+#     6.5
+#   } else if (new_data$selectUseDO == 'Warm-Water Aquatic Life') {
+#     5.5
+#   } else if (new_data$selectUseDO == 'Estuarine Waters') {
+#     6.5
+#   }
+#   
+#   new_data$Exceed<-ifelse(new_data$Result > new_data$aqu_use_des, 0, 1)
+
+
 generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
                                selectStation, selectUse, selectSpawning,
                                station_column_name = 'Station_ID') {
