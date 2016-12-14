@@ -109,11 +109,13 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
     
   df.all <- rbind(E,L,W,N)
   
+  df.all[df.all$Unit == '%',]$Analyte <- 'Dissolved oxygen saturation'
+  
   df.all$Analyte <- mapvalues(df.all$Analyte, 
                               from = c('Temperature, water','Escherichia coli',
-                                       'Fecal coliform','Enterococci','E. coli'),
+                                       'Fecal coliform','Enterococci','E. coli', 'Dissolved Oxygen'),
                               to = c('Temperature','E. Coli','Fecal Coliform',
-                                     'Enterococcus','E. Coli'),
+                                     'Enterococcus','E. Coli', 'Dissolved Oxygen'),
                               warn_missing = FALSE)
   
    return(df.all)
@@ -177,6 +179,9 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
   }
   if (any(inParms == 'Bacteria')) {
     qryParms <- c(qryParms, c('E. Coli','Fecal Coliform','Enterococcus'))
+  }
+  if (any(inParms == 'Dissolved Oxygen')) {
+    qryParms <- c(qryParms, c('Dissolved Oxygen','Dissolved oxygen saturation'))
   }
   qryParms <- paste(qryParms,collapse="','")
   #### Restrict Matrix to surface water ####
@@ -255,7 +260,9 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   if (any(inParms == 'pH')) {
     qryParms <- c(qryParms, 'pH')
   }
-  
+  if(any(inParms == 'Dissolved Oxygen')) {
+    qryParms <-  c(qryParms, 'Dissolved Oxygen')
+  }
   qryParms <- paste(qryParms, collapse = "','")
   
   #### Build the query ####
@@ -345,13 +352,15 @@ siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
 #### Get characteristics ####
 #The entire list of parameters that match to a criteria
 parms <- luParms
-#parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+#parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #Expand bacteria to include fecal and enterococcus
 if(any(inParms == 'Bacteria')) {
   myParms <- c(inParms, c('E. coli','Fecal coliform','Enterococci'))
-  myParms <- myParms[-which(myParms == "Bacteria")]
-} else {
+  myParms <- myParms[-which(myParms == "Bacteria")] 
+} else if (any(inParms == 'Dissolved Oxygen')) {
+  myParms <-c('Dissolved oxygen', 'Dissolved oxygen (DO)')
+  } else {
   myParms <- inParms
 }
 
@@ -443,6 +452,7 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   temp_data_c <- NULL
   temp_data_f <- NULL
   ph_data <- NULL
+  DO_data<-NULL
   #### Define parameters to query ####
   if ('Temperature' %in% inParms) {
     temp_data_c <- readNWISdata(service = "iv",
@@ -482,8 +492,21 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
     }
   }
   
+  if('Dissolved Oxygen' %in% inParms) {
+    DO_data <- readNWISdata(service = "iv",
+                            huc=myHUCs,
+                            siteTypeCd=siteTypeCd,
+                            startDate=startDate,
+                            endDate=endDate,
+                            parameterCd='00300')
+    if (nrow(DO_data) > 0) {
+      DO_data$Analyte <- 'Dissolved Oxygen'
+      DO_data$Unit <- 'mg/l'
+    }
+  }
   
-  df_list <- list(temp_data_c, temp_data_f, ph_data)
+  
+  df_list <- list(temp_data_c, temp_data_f, ph_data, DO_data)
   df_list_rows <- lapply(df_list, nrow)
   
   if (any(unlist(df_list_rows) > 0)) {

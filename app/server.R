@@ -577,6 +577,32 @@ shinyServer(function(input, output, session) {
                     selectize = TRUE)
       })
       
+      output$selectSpawning = renderUI({
+        validate(
+          need(input$selectParameter == 'Dissolved Oxygen', message = FALSE)
+        )
+        selectInput('selectSpawning',"Select applicable spawning time period:",
+                    choices = c('No spawning',
+                                'January 1-June 15',
+                                'January 1-May 15',
+                                'August 1-June 15',
+                                'August 15-June 15',
+                                'August 15-May 15',
+                                'September 1-June 15',
+                                'September 1-May 15',
+                                'September 15-June 15',
+                                'September 15-May 15',
+                                'October 1-June 15',
+                                'October 1-May 15',
+                                'October 15-June 15',
+                                'October 15-May 15',
+                                'October 23-April 15',
+                                'November 1-June 15',
+                                'November 1-May 1',
+                                'November 1-May 15'),
+                    selectize = TRUE)
+      })
+      
       output$selectUse = renderUI({
         validate(
           need(input$selectParameter == 'Temperature', message = FALSE)
@@ -645,15 +671,15 @@ shinyServer(function(input, output, session) {
              target = "_blank"))
       })
       
-      output$checkSpawning <- renderUI({
-        validate(
-          need(input$selectParameter %in% c('Dissolved Oxygen'), 
-               message = FALSE)
-        )
-        checkboxInput(inputId = "checkSpawning",
-                      label = "Spawning",
-                      value = FALSE)
-      })
+      # output$checkSpawning <- renderUI({
+      #   validate(
+      #     need(input$selectParameter %in% c('Dissolved Oxygen'), 
+      #          message = FALSE)
+      #   )
+      #   checkboxInput(inputId = "checkSpawning",
+      #                 label = "Spawning",
+      #                 value = FALSE)
+      # })
       
       output$fish_use_link_DO <- renderUI({
         validate(
@@ -856,8 +882,9 @@ shinyServer(function(input, output, session) {
                  df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
                  if (nrow(df) > 2) {
                    g <- plot.DO(new_data = df,
+                                 df.all = df,
                                  selectUseDO = input$selectUseDO,
-                                 checkSpawning = input$checkSpawning,
+                                 selectSpawning = input$selectSpawning,
                                  analyte_column = 'Analyte',
                                  station_id_column = 'Station_ID',
                                  station_desc_column = 'Station_Description',

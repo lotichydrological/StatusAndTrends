@@ -279,13 +279,14 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   Temp_trends_plot(new_data_temp, input$selectStation, input$selectMonth)
   
   plot.DO<-plot.DO(new_data = df.all,
+                   df.all = df.all,
                    selectUseDO = input$selectUseDO,
-                   checkSpawning = input$checkSpawning,
+                   selectSpawning = input$selectSpawning,
                    analyte_column = 'Analyte',
                    station_id_column = 'Station_ID',
                    station_desc_column = 'Station_Description',
                    datetime_column = 'Sampled',
-                   result_column = 'Result',
+                   result_column = 'Result.x',
                    datetime_format = '%Y-%m-%d %H:%M:%S',
                    parm = 'Dissolved Oxygen')
   plot.DO
