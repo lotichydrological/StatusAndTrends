@@ -286,11 +286,11 @@ shinyServer(function(input, output, session) {
           #Extract 303(d) segments in the plan area for parameters
           #returned in the query
           wq_lim_whole <- extract_303d(df.all, wq_limited, input$select)
-          lstSummaryDfs[[6]] <- wq_lim_whole[,c('Stream_Lak', 'LLID_Strea', 
-                                                'Miles', 'Pollutant', 'Season', 
-                                                'Assessme_1', 'Criteria', 
+          lstSummaryDfs[[6]] <- wq_lim_whole[,c('Stream_Lak', 'LLID_Strea',
+                                                'Miles', 'Pollutant', 'Season',
+                                                'Assessme_1', 'Criteria',
                                                 'Listing_St')]
-          lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]], 
+          lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]],
                                              c('Stream_Lak' = 'Waterbody',
                                                'LLID_Strea' = 'LLID',
                                                'Assessme_1' = 'Year Assessed',

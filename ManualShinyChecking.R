@@ -16,7 +16,7 @@
 # df2 <- df %>% sample_frac(0.6)
 # checkObservations(df2$station, df2$date, df2$temp)
 
-
+#write.csv(df.all, 'df.all.csv')
 
 library(shiny)
 library(RCurl)
@@ -51,7 +51,7 @@ HUClist <- read.csv('app/data/PlanHUC_LU.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph_DO2.csv')
+wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
 #wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For app purposes set up input 

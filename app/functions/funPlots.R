@@ -937,8 +937,10 @@ plot.DO<-function(new_data,
   new_data$id<-paste(new_data$Station_ID, new_data$Sampled, sep=" ")
 
   #Result.y = results from %DO; Result.x = [DO]
-  new_data<-merge(new_data, DOsat[,c('id','Result')], by = 'id')
-
+  new_data_DOsat<-merge(new_data, DOsat[,c('id','Result')], by = 'id')
+  new_data_DOsat<-plyr::rename(new_data_DOsat, c("Result.y" = "Result_DOsat", "Result.x" = "Result_DOconc"))  
+  
+  #new_data_all<-rbind.fill(new_data, new_data_DOsat)
 
   ##Generate WQS Lines##
    if (selectUseDO == 'Cold-Water Aquatic Life') {
@@ -950,9 +952,10 @@ plot.DO<-function(new_data,
   } else if (selectUseDO == 'Warm-Water Aquatic Life') {
     d<-data.frame(x = c(x.min, x.max), y = rep(5.5, 2),
                   variable = rep("Warm-Water Aquatic Life", 2))
-  } else (selectUseDO == 'Estuarine Water')
+  } else if (selectUseDO == 'Estuarine Water') {
     d<-data.frame(x = c(x.min, x.max), y = rep(6.5, 2),
                   variable = rep("Estuarine Waters", 2))
+  }
 
 
   ##Generate Exceedances of WQS##
@@ -969,36 +972,61 @@ plot.DO<-function(new_data,
   }
 
   #Add columns to identify exceedances of WQS for [DO] and %DO
-  new_data$aqu_use_des<-as.numeric(new_data$aqu_use_des)
-  new_data$Result.y<-as.numeric(new_data$Result.y)
-  new_data$Result.x<-as.numeric(new_data$Result.x)
+  # new_data$aqu_use_des<-as.numeric(new_data$aqu_use_des)
+  # new_data_DOsat$Result.y<-as.numeric(new_data$Result.y)
+  # new_data_DOsat$Result.x<-as.numeric(new_data$Result.x)
 
-  new_data$Sat_Exceed<-if (selectSpawning) {
-    ifelse(new_data$Result.y > 95, 'Meets', 'Exceeds')
+  new_data_all$Sat_Exceed<-if (selectSpawning != 'No Spawning') {
+    ifelse(new_data_all$Result_DOsat > 95, 'Meets', 'Exceeds')
   } else if (selectUseDO == 'Cold-Water Aquatic Life') {
-    ifelse(new_data$Result.y > 90, 'Meets', 'Exceeds')
+    ifelse(new_data_all$Result_DOsat > 90, 'Meets', 'Exceeds')
   } else {
     NA
   }
+  
+  new_data_all$Sat_Exceed<-as.factor(new_data_all$Sat_Exceed)
+  
 
-  new_data$Conc_Exceed<-ifelse(new_data$Result.x < new_data$aqu_use_des, 'Exceeds', 'Meets')
+  new_data$Conc_Exceed<-ifelse(new_data$Result < new_data$aqu_use_des, 'Meets', 'Exceeds')
   new_data$Conc_Exceed<-as.factor(new_data$Conc_Exceed)
 
-  new_data$Spwn_Exceed<-ifelse(new_data$Result.x < 11, 'Exceeds', 'Meets')
+  new_data$Spwn_Exceed<-ifelse(new_data$Result < 11, 'Exceeds', 'Meets')
   new_data$Spwn_Exceed<-as.factor(new_data$Spwn_Exceed)
 
+  #merge new_data with new_data_DOsat
+  new_data_all<-full_join(new_data, new_data_DOsat[,c('Station_ID', 'id', 'Result_DOsat', 'Result_DOconc')], by="id")
+  
+  ##FIGURE THIS OUT##
+  # new_data_all$BCsat_Exceed<- if (any(!is.na(new_data_all$Sat_Exceed))) {
+  #   if (any(new_data_all$Conc_Exceed == 'Exceed')) {
+  #     'Exceeds'
+  #   } else {
+  #     if (any(new_data_all$Sat_Exceed == 'Meets')) {
+  #       'Meets'
+  #     } else {
+  #       'Exceeds'
+  #     }
+  #   } else {
+  #     'BLAH'
+  #   }
+  # }
+  #   
+  #   
+  #   ifelse(new_data_all$Conc_Exceed == 'Exceed' & new_data_all$Sat_Exceed == "Meets", "Meets", "Exceeds")
+  # } else {
+  #   NA
+  # }
+  
+  #new_data_all$BCsat_Exceed<- ifelse(new_data$Conc_Exceed == 'Exceeds' & new_data$Sat_Exceed == 'Meets', 'Meets', 'Exceeds')
+  #new_data$BCsat_Exceed <- as.factor(new_data$BCsat_Exceed)
 
-  new_data$BCsat_Exceed<- ifelse(new_data$Conc_Exceed == 'Exceeds' & new_data$Sat_Exceed == 'Meets', 'Meets', 'Exceeds')
-  new_data$BCsat_Exceed <- as.factor(new_data$BCsat_Exceed)
-
-
+# d_spwn<-data.frame(x = c(x.min, x.max), y = rep(11, 2),
+#                        variable = rep("Spawning", 2))
   ##Building the plot##
   #if spawning is present: plot includes input$Spawning (?)
   if (selectSpawning != 'No Spawning') {
-    d_spwn<-data.frame(x = c(x.min, x.max), y = rep(11, 2),
-                       variable = rep("Spawning", 2))
-    g <- ggplot(data = new_data, aes(x = Sampled, y = Result.x)) +
-      geom_point(aes(color = new_data$Conc_Exceed))+
+    g <- ggplot(data = new_data, aes(x = Sampled, y = Result.x, color = Conc_Exceed)) +
+      #geom_point(aes(color = new_data$Conc_Exceed))+
       geom_point(aes(color = new_data$Spwn_Exceed)) +
       scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
       #geom_hline(data = d_spwn, aes(yintercept = y), linetype = "dotdash", color = "red") +
@@ -1012,47 +1040,44 @@ plot.DO<-function(new_data,
       xlim(x.lim) +
       ylim(y.lim)
     g
-    }
+    #}
 
-  # } else if (selectUseDO == 'Cold-Water Aquatic Life') {
-  #   BCsat<-new_data%>%
-  #     filter(BCsat_Exceed == 'Meets')
-  #   BCsat$Result.x<-as.numeric(BCsat$Result.x)
-  #   g <- ggplot(data = new_data, aes(x = Sampled, y = Result.x)) +
-  #     geom_point(aes(color = new_data$Conc_Exceed)) +
-  #     geom_point(data = BCsat, shape = 8)+
-  #     scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
-  #     geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
-  #     ggtitle(bquote(atop(.(title)))) +
-  #     theme(legend.position = "top",
-  #           legend.title = element_blank(),
-  #           legend.direction = 'horizontal') +
-  #     xlab(x.lab) +
-  #     ylab(y.lab) +
-  #     xlim(x.lim) +
-  #     ylim(y.lim)
-  #   g
-  # } else {
-  #   'BLAH'
-  # }
-}	
-#new_data[, result_column] 
-#   } else {
-#   g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
-#     geom_point(aes(color = Exceed)) +
-#     geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
-#     scale_colour_manual(name = 'Key', values = c('red', 'black')) +
-#     ggtitle(bquote(atop(.(title)))) +
-#     theme(legend.position = "top",
-#           legend.title = element_blank(),
-#           legend.direction = 'horizontal') +
-#     xlab(x.lab) +
-#     ylab(y.lab) +
-#     xlim(x.lim) +
-#     ylim(y.lim)
-#   g
-# 
-#   }
-# 
-#  }
-# }
+  } else if (selectUseDO == 'Cold-Water Aquatic Life') {
+    BCsat<-new_data%>%
+      filter(BCsat_Exceed == 'Meets')
+    BCsat$Result.x<-as.numeric(BCsat$Result.x)
+    g <- ggplot(data = new_data, aes(x = Sampled, y = Result.x)) +
+      geom_point(aes(color = new_data$Conc_Exceed)) +
+      geom_point(data = BCsat, shape = 8)+
+      scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
+      geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+      ggtitle(bquote(atop(.(title)))) +
+      theme(legend.position = "top",
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
+      xlab(x.lab) +
+      ylab(y.lab) +
+      xlim(x.lim) +
+      ylim(y.lim)
+    g
+  } else {
+    'BLAH'
+ #  } else {
+ #  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+ #    geom_point(aes(color = Exceed)) +
+ #    geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+ #    scale_colour_manual(name = 'Key', values = c('red', 'black')) +
+ #    ggtitle(bquote(atop(.(title)))) +
+ #    theme(legend.position = "top",
+ #          legend.title = element_blank(),
+ #          legend.direction = 'horizontal') +
+ #    xlab(x.lab) +
+ #    ylab(y.lab) +
+ #    xlim(x.lim) +
+ #    ylim(y.lim)
+ #  g
+ # 
+ #  }
+ # 
+ }
+}
