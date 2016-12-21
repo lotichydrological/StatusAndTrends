@@ -278,7 +278,11 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   
   Temp_trends_plot(new_data_temp, input$selectStation, input$selectMonth)
   
-  plot.DO<-plot.DO(new_data = df.all,
+  
+  DO<-df.all%>%
+    filter(Station_ID == input$selectStation, Analyte == "Dissolved Oxygen")
+  
+  plot.DO<-plot.DO(new_data = DO,
                    df.all = df.all,
                    selectUseDO = input$selectUseDO,
                    selectSpawning = input$selectSpawning,
@@ -286,8 +290,29 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                    station_id_column = 'Station_ID',
                    station_desc_column = 'Station_Description',
                    datetime_column = 'Sampled',
-                   result_column = 'Result.x',
+                   result_column = 'Result',
                    datetime_format = '%Y-%m-%d %H:%M:%S',
                    parm = 'Dissolved Oxygen')
   plot.DO
+  
+  ##
+  DO_test<-df.all%>%
+    filter(Analyte == "Dissolved Oxygen", Station_ID == '11321' )
+  
+  g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
+    geom_point(aes(color = new_data_all$Conc_Exceed)) +
+    geom_point(data = BCsat, shape = 8)+
+    scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
+    scale_fill_manual(name="Meet b/c %DO",values=BCsat) +
+    geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+    ggtitle(bquote(atop(.(title)))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
+    xlab(x.lab) +
+    ylab(y.lab) +
+    xlim(x.lim) +
+    ylim(y.lim)
+  g
+  
   
