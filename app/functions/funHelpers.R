@@ -215,9 +215,9 @@ extract_303d <- function (df.all, wq_limited, selectedPlanArea) {
                                wq_limited$HUC_4th_Co == strsplit(selectedPlanArea, 
                                                                  split = " - ")[[1]][1],]  
   } else {
-  wq_limited <- wq_limited[wq_limited$Pollutant %in% 
-                             unique(df.all$Analyte) & 
-                             wq_limited$PlanName == selectedPlanArea,]
+    wq_limited <- wq_limited[wq_limited$Pollutant %in% 
+                               unique(df.all$Analyte) & 
+                               wq_limited$PlanName == selectedPlanArea,]
   }
   
   if (nrow(wq_limited) >= 1) {
@@ -242,13 +242,13 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
                        df.ex <- lstSummaryDfs[["df.removal"]]
                        if(nrow(df.ex) > 0) {
                          out <- plyr::rename(as.data.frame(table(df.ex[,'Reason'])), 
-                                       c('Var1' = "'Reason for removal'", 
-                                         'Freq' = "'Number of observations removed'"))
+                                             c('Var1' = "'Reason for removal'", 
+                                               'Freq' = "'Number of observations removed'"))
                        }
                        else {
                          out <- data.frame("Message" = "All data met QC requirments")
                        }
-                       }),
+                     }),
                      "df.station.totals" = (
                        lstSummaryDfs[["df.station.totals"]]
                      ),
@@ -506,7 +506,7 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   sdadm_df$summer <- ifelse(sdadm_df$bioc == 13, FALSE, TRUE)
   sdadm_df$spawn <- ifelse(sdadm_df$bioc == 13, TRUE, FALSE)
   
-    ## Calculate total 7DADM obersvations and # of 7DADM observations that exceed the summer spawning critera in those time periods; and 
+  ## Calculate total 7DADM obersvations and # of 7DADM observations that exceed the summer spawning critera in those time periods; and 
   ## number of 7DADM observations that exceed 16 and 18 over the whole time period (not just in the stated periods)
   sdadm_df$exceedsummer <- ifelse(sdadm_df$sdadm >= sdadm_df$bioc & 
                                     sdadm_df$summer == TRUE, 1, 0)
@@ -532,11 +532,11 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   sdadm_df_noNA[is.na(sdadm_df_noNA$Time_Period), 'exceed'] <- FALSE
   sdadm_df_noNA[is.na(sdadm_df_noNA$Time_Period), 'Time_Period'] <- 'Summer'
   result_summary <- ddply(sdadm_df_noNA, .(sdadm_df_noNA[, station_column_name], Time_Period), 
-                                            summarise, 
-                                            Exceedances = sum(exceed),                  
+                          summarise, 
+                          Exceedances = sum(exceed),                  
                           #exceedspawn = sum(exceedspawn),
-                                            #exceedsummer = sum(exceedsummer),
-                                            Obs = sum(daystot), .drop = FALSE)
+                          #exceedsummer = sum(exceedsummer),
+                          Obs = sum(daystot), .drop = FALSE)
   result_summary <- plyr::rename(result_summary, 
                                  c('sdadm_df_noNA[, station_column_name]' = 
                                      station_column_name))
@@ -570,15 +570,15 @@ EvaluatepHWQS <- function(new_data, ph_crit, PlanName, selectpHCrit = NULL) {
     OWRD_basin <- strsplit(selectpHCrit, " - ")[[1]][1]
     crit_selected <- strsplit(selectpHCrit, " - ")[[1]][2]
     ph_crit_min <- unique(ph_crit[ph_crit$ph_standard == crit_selected & 
-                             ph_crit$OWRD_basin == OWRD_basin & 
-                             (ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
-                             strsplit(PlanName, split = " - ")[[1]][1]), 
-                           'ph_low'])
+                                    ph_crit$OWRD_basin == OWRD_basin & 
+                                    (ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
+                                       strsplit(PlanName, split = " - ")[[1]][1]), 
+                                  'ph_low'])
     ph_crit_max <- unique(ph_crit[ph_crit$ph_standard == crit_selected &
-                             ph_crit$OWRD_basin == OWRD_basin & 
-                             (ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
-                             strsplit(PlanName, split = " - ")[[1]][1]), 
-                           'ph_high'])
+                                    ph_crit$OWRD_basin == OWRD_basin & 
+                                    (ph_crit$plan_name == PlanName | ph_crit$HUC8 == 
+                                       strsplit(PlanName, split = " - ")[[1]][1]), 
+                                  'ph_high'])
     new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
                                 new_data[, 'Result'] > ph_crit_max, 
                               1, 0)
@@ -627,22 +627,6 @@ EvaluateEnteroWQS <- function(new_data) {
   attr(new_data, "ex_df") <- ex_df
   return(new_data)
 }
-
-# EvaluateDOWQS<-function(new_data) {
-#   new_data$selectUseDO<-input$selectUseDO 
-#   
-#   new_data$aqu_use_des<- if(new_data$selectUseDO == 'Cold-Water Aquatic Life') {
-#     8
-#   } else if (new_data$selectUseDO == 'Cool-Water Aquatic Life') {
-#     6.5
-#   } else if (new_data$selectUseDO == 'Warm-Water Aquatic Life') {
-#     5.5
-#   } else if (new_data$selectUseDO == 'Estuarine Waters') {
-#     6.5
-#   }
-#   
-#   new_data$Exceed<-ifelse(new_data$Result > new_data$aqu_use_des, 0, 1)
-
 
 generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
                                selectStation, selectUse, selectSpawning,
@@ -939,7 +923,7 @@ temp_sufficiency_analysis <- function(df.all, sdadm) {
       }
     }
   }
-
+  
   stns_pass <- unique(qc.results.3[qc.results.3$result == 'pass', "Station_ID"])
   
   if (length(stns_pass) > 0) {
@@ -947,7 +931,7 @@ temp_sufficiency_analysis <- function(df.all, sdadm) {
     attr(stns_pass, "month_test") <- qc.results.2
     attr(stns_pass, "year_test") <- qc.results.3
   }
- 
+  
   return(stns_pass)
 }
 
@@ -974,9 +958,9 @@ Temp_trends_plot <- function(sdadm, selectStation, selectMonth) {
   #### Average monthly sdadm ####
   #Determine average sdadm by year and calcualte trend
   amean <- tapply(sdadm$sdadm, list(sdadm$year, sdadm$Station_ID), 
-         function(x) {
-           ifelse(all(is.na(x)), NA, mean(x, na.rm = TRUE))
-         })
+                  function(x) {
+                    ifelse(all(is.na(x)), NA, mean(x, na.rm = TRUE))
+                  })
   
   tmean <- mannKen(ts(amean))
   if(is.na(tmean$p.value)) tmean$p.value <- 0
@@ -1150,8 +1134,8 @@ Temp_trends_plot <- function(sdadm, selectStation, selectMonth) {
   title_stn <- selectStation
   
   mp <- multiplot(a, c, b, d, cols = 2, title = paste(title_stn,
-                                                selectMonth,
-                                                sep = " - "))
+                                                      selectMonth,
+                                                      sep = " - "))
   
   return(mp)
 }

@@ -298,21 +298,5 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   ##
   DO_test<-df.all%>%
     filter(Analyte == "Dissolved Oxygen", Station_ID == '11321' )
-  
-  g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
-    geom_point(aes(color = new_data_all$Conc_Exceed)) +
-    geom_point(data = BCsat, shape = 8)+
-    scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
-    scale_fill_manual(name="Meet b/c %DO",values=BCsat) +
-    geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
-    ggtitle(bquote(atop(.(title)))) +
-    theme(legend.position = "top",
-          legend.title = element_blank(),
-          legend.direction = 'horizontal') +
-    xlab(x.lab) +
-    ylab(y.lab) +
-    xlim(x.lim) +
-    ylim(y.lim)
-  g
-  
+
   

@@ -1043,129 +1043,304 @@ plot.DO<-function(new_data,
       ylab(y.lab) +
       xlim(x.lim) +
       ylim(y.lim)
-    g
+   g 
   } else {
     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result, color = Cexceed)) +
       geom_point() +
       geom_point(data = BCsat_spwn, color = 'green')+
       scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
+      #scale_fill_manual(name="Meet b/c %DO",values=BCsat)+
       geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
       ggtitle(bquote(atop(.(title)))) +
       theme(legend.position = "top",
-            legend.title = element_blank(),
-            legend.direction = 'horizontal') +
+          legend.title = element_blank(),
+         legend.direction = 'horizontal') +
       xlab(x.lab) +
       ylab(y.lab) +
       xlim(x.lim) +
       ylim(y.lim)
     g
   }
-}
   
-#   #if spawning is present: plot includes input$Spawning (?)
-#   if (selectSpawning != 'No spawning') {
-#    # d_spwn<-data.frame(x = c(x.min, x.max), y = rep(11, 2),
-#    #                        variable = rep("Spawning", 2))
-# 
-#     spn_index <- which(new_data_all$bioc == 11)
+  ####DRAW WQS SPAWNING LINES
+  data_years <- unique(year(new_data_all$Sampled))
+  whole_range <- seq(min(new_data_all$Sampled), max(new_data_all$Sampled), by = 'day')
+  wr <- data.frame('Sampled' = whole_range, bioc = NA)
+  for (k in 1:length(data_years)) {
+    spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
+    spwn_end_text <- paste(spd_list[[1]][2], data_years[k] + 1)
+    update_vec <- seq(from = as.POSIXlt(strptime(spwn_strt_text, format = "%B %d %Y")), 
+                      to = as.POSIXlt(strptime(spwn_end_text, format = "%B %d %Y")), 
+                      by = "day")
+    #update_vec <- strftime(update_vec, format = "%Y-%m-%d")
+    wr[wr$Sampled %in% update_vec, 'bioc'] <- 11
+  }
+  
+  if (selectSpawning != 'No spawning') {
+    new_data_all <- new_data_all[order(new_data_all$Sampled),]
+    spn_index <- which(new_data_all$bioc == 11)
+    spn_diff <- diff(spn_index)
+
+    if (all(spn_diff == 1)) {
+      if (length(spn_index) > 0) {
+        spn_1 <- max(spn_index)
+
+        #Plot spawn time period
+        df <- data.frame(x1 = new_data_all[spn_index[1],'Sampled'],
+                         x2 = new_data_all[spn_1,'Sampled'],
+                         y1 = 11,
+                         y2 = 11)
+        g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                              data = df, inherit.aes = FALSE)
+      }
+    } else {
+      spn_stop <- spn_index[which(spn_diff > 1)]
+      spn_start <- spn_index[which(spn_diff > 1) + 1]
+
+      for (i in 1:length(spn_start)) {
+        if (i < length(spn_start)) {
+          #Plot next spawn time period
+          df <- data.frame(x1 = new_data_all[spn_start[i], 'Sampled'],
+                           x2 = new_data_all[spn_stop[i + 1], 'Sampled'],
+                           y1 = 11,
+                           y2 = 11)
+          g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                data = df, inherit.aes = FALSE)
+        } else {
+          #Plot last spawn-time period
+          df <- data.frame(x1 = new_data_all[spn_start[i], 'Sampled'],
+                           x2 = new_data_all[max(spn_index), 'Sampled'],
+                           y1 = 11,
+                           y2 = 11)
+          g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+                                data = df, inherit.aes = FALSE)
+        }
+      }
+    }
+    
+    #g
+  
+}
+#     #Plot first spawn time period
+#     df <- data.frame(x1 = new_data_all[spn_index[1],'Sampled'],
+#                      x2 = new_data_all[spn_stop[1],'Sampled'],
+#                      y1 = unique(new_data_all[spn_index[1]:spn_stop[1],
+#                                           'bioc']),
+#                      y2 = unique(new_data_all[spn_index[1]:spn_stop[1],
+#                                           'bioc']))
+#     g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+#                           data = df, inherit.aes = FALSE)
+#   } else {
+#     spn_index <- which(new_data_all$bioc == 13)
 #     spn_diff <- diff(spn_index)
-# 
-# 
-#     spn_stop <- spn_index[which(spn_diff > 1)]
-#     spn_start <- spn_index[which(spn_diff > 1) + 1]
-#     nspn_start <- spn_stop + 1
-#     nspn_stop <- spn_start - 1
 #     
-#     for (i in 1:length(spn_start)) {
-#       if (i < length(spn_start)) {
-#         #Plot next spawn time period
-#         df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
-#                          x2 = new_data[spn_stop[i + 1], 'Sampled'],
-#                          y1 = unique(new_data_all[spn_start[i]:spn_stop[i + 1],
+#     if (all(spn_diff == 1)) {
+#       if (length(spn_index) > 0) {
+#         spn_1 <- max(spn_index)
+#         
+#         if (spn_1 == nrow(new_data_all)) {
+#           #Plot non-spawn time-period
+#           df <- data.frame(x1 = new_data_all[1, 'Sampled'], 
+#                            x2 = new_data_all[spn_index[1] - 1, 'Sampled'],
+#                            y1 = unique(new_data_all[1:(spn_index[1] - 1), 
+#                                                 'bioc']),
+#                            y2 = unique(new_data_all[1:(spn_index[1] - 1), 
+#                                                 'bioc']))
+#           g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
+#                                 data = df, inherit.aes = FALSE)
+#         } else {
+#           #Plot non-spawn time-period
+#           df <- data.frame(x1 = new_data_all[spn_1 + 1, 'Sampled'],
+#                            x2 = new_data_all[nrow(new_data_all), 'Sampled'],
+#                            y1 = unique(new_data_all[(spn_1 + 1):nrow(new_data_all), 
+#                                                 'bioc']),
+#                            y2 = unique(new_data_all[(spn_1 + 1):nrow(new_data_all),
+#                                                 'bioc']))
+#           g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Non-spawning'),
+#                                 data = df, inherit.aes = FALSE)
+#         }
+#         #Plot spawn time period
+#         df <- data.frame(x1 = new_data_all[spn_index[1],'Sampled'],
+#                          x2 = new_data_all[spn_1,'Sampled'],
+#                          y1 = unique(new_data_all[spn_index[1]:spn_1,
 #                                               'bioc']),
-#                          y2 = unique(new_data_all[spn_start[i]:spn_stop[i + 1],
+#                          y2 = unique(new_data_all[spn_index[1]:spn_1,
 #                                               'bioc']))
 #         g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
 #                               data = df, inherit.aes = FALSE)
+#       } else {
+#         df <- data.frame(x1 = new_data_all[1,'Sampled'],
+#                          x2 = new_data_all[nrow(new_data_all), 'Sampled'],
+#                          y1 = unique(new_data_all[1:nrow(new_data_all), 'bioc']),
+#                          y2 = unique(new_data_all[1:nrow(new_data_all), 'bioc']))
+#         g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = "Non-spawning"),
+#                               data = df, inherit.aes = FALSE) 
 #       }
 #     } else {
 #       spn_stop <- spn_index[which(spn_diff > 1)]
 #       spn_start <- spn_index[which(spn_diff > 1) + 1]
 #       nspn_start <- spn_stop + 1
 #       nspn_stop <- spn_start - 1
-# 
+#       
 #       for (i in 1:length(spn_start)) {
 #         if (i < length(spn_start)) {
 #           #Plot next spawn time period
-#           df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
-#                            x2 = new_data[spn_stop[i + 1], 'Sampled'],
-#                            y1 = unique(new_data[spn_start[i]:spn_stop[i + 1],
-#                                                 'criteria_value']),
-#                            y2 = unique(new_data[spn_start[i]:spn_stop[i + 1],
-#                                                 'criteria_value']))
+#           df <- data.frame(x1 = new_data_all[spn_start[i], 'Sampled'],
+#                            x2 = new_data_all[spn_stop[i + 1], 'Sampled'],
+#                            y1 = unique(new_data_all[spn_start[i]:spn_stop[i + 1],
+#                                                 'bioc']),
+#                            y2 = unique(new_data_all[spn_start[i]:spn_stop[i + 1],
+#                                                 'bioc']))
 #           g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+#                                 data = df, inherit.aes = FALSE)
+#           #Plot non-spawn time period
+#           df <- data.frame(x1 = new_data_all[nspn_start[i], 'Sampled'],
+#                            x2 = new_data_all[nspn_stop[i], 'Sampled'],
+#                            y1 = unique(new_data_all[nspn_start[i]:nspn_stop[i],
+#                                                 'bioc']),
+#                            y2 = unique(new_data_all[nspn_start[i]:nspn_stop[i],
+#                                                 'bioc']))
+#           g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
 #                                 data = df, inherit.aes = FALSE)
 #         } else {
 #           #Plot last spawn-time period
-#           df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
-#                            x2 = new_data[max(spn_index), 'Sampled'],
-#                            y1 = unique(new_data[spn_start[i]:max(spn_index),
-#                                                 'criteria_value']),
-#                            y2 = unique(new_data[spn_start[i]:max(spn_index),
-#                                                 'criteria_value']))
+#           df <- data.frame(x1 = new_data_all[spn_start[i], 'Sampled'],
+#                            x2 = new_data_all[max(spn_index), 'Sampled'],
+#                            y1 = unique(new_data_all[spn_start[i]:max(spn_index),
+#                                                 'bioc']),
+#                            y2 = unique(new_data_all[spn_start[i]:max(spn_index),
+#                                                 'bioc']))
 #           g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
 #                                 data = df, inherit.aes = FALSE)
+#           #Plot non-spawn time period
+#           df <- data.frame(x1 = new_data_all[nspn_start[i], 'Sampled'],
+#                            x2 = new_data_all[nspn_stop[i], 'Sampled'],
+#                            y1 = unique(new_data_all[nspn_start[i]:nspn_stop[i],
+#                                                 'bioc']),
+#                            y2 = unique(new_data_all[nspn_start[i]:nspn_stop[i],
+#                                                 'bioc']))
+#           g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+#                                 data = df, inherit.aes = FALSE)
+#           #Plot last non-spawn time period
+#           if (new_data_all[nrow(new_data_all),'bioc'] != 13) {
+#             df <- data.frame(x1 = new_data_all[max(spn_index) + 1, 'Sampled'],
+#                              x2 = new_data_all[nrow(new_data_all), 'Sampled'],
+#                              y1 = unique(new_data_all[(max(spn_index) + 1):nrow(new_data_all),
+#                                                   'bioc']),
+#                              y2 = unique(new_data_all[(max(spn_index) + 1):nrow(new_data_all),
+#                                                   'bioc']))
+#             g <- g + geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, linetype = 'Non-spawning'),
+#                                   data = df, inherit.aes = FALSE)
+#           }
 #         }
 #       }
-#     }
-#     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result, color = Cexceed)) +
-#       #geom_point(data = BCsat, shape = 8)+
-#       geom_point() +
-#       scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
-#       #geom_hline(data = d_spwn, aes(yintercept = y), linetype = "dotdash", color = "red") +
-#       geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
-#       ggtitle(bquote(atop(.(title)))) +
-#       theme(legend.position = "top",
-#             legend.title = element_blank(),
-#             legend.direction = 'horizontal') +
-#       xlab(x.lab) +
-#       ylab(y.lab) +
-#       xlim(x.lim) +
-#       ylim(y.lim)
-#     g
-# 
-#   } else if (selectSpawning = 'No spawning') {
-#     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
-#       geom_point(aes(color = new_data_all$Conc_Exceed)) +
-#       geom_point(data = BCsat, shape = 8)+
-#       scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
-#       geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
-#       ggtitle(bquote(atop(.(title)))) +
-#       theme(legend.position = "top",
-#             legend.title = element_blank(),
-#             legend.direction = 'horizontal') +
-#       xlab(x.lab) +
-#       ylab(y.lab) +
-#       xlim(x.lim) +
-#       ylim(y.lim)
-#     g
 #   
-#      #  } else {
-#  #  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
-#  #    geom_point(aes(color = Exceed)) +
-#  #    geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
-#  #    scale_colour_manual(name = 'Key', values = c('red', 'black')) +
-#  #    ggtitle(bquote(atop(.(title)))) +
-#  #    theme(legend.position = "top",
-#  #          legend.title = element_blank(),
-#  #          legend.direction = 'horizontal') +
-#  #    xlab(x.lab) +
-#  #    ylab(y.lab) +
-#  #    xlim(x.lim) +
-#  #    ylim(y.lim)
-#  #  g
-#  # 
-#  #  }
-#  # 
-# #  }
-# # }
+# }
+#   
+# #   #if spawning is present: plot includes input$Spawning (?)
+# #   if (selectSpawning != 'No spawning') {
+# #    # d_spwn<-data.frame(x = c(x.min, x.max), y = rep(11, 2),
+# #    #                        variable = rep("Spawning", 2))
+# # 
+# #     spn_index <- which(new_data_all$bioc == 11)
+# #     spn_diff <- diff(spn_index)
+# # 
+# # 
+# #     spn_stop <- spn_index[which(spn_diff > 1)]
+# #     spn_start <- spn_index[which(spn_diff > 1) + 1]
+# #     nspn_start <- spn_stop + 1
+# #     nspn_stop <- spn_start - 1
+# #     
+# #     for (i in 1:length(spn_start)) {
+# #       if (i < length(spn_start)) {
+# #         #Plot next spawn time period
+# #         df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+# #                          x2 = new_data[spn_stop[i + 1], 'Sampled'],
+# #                          y1 = unique(new_data_all[spn_start[i]:spn_stop[i + 1],
+# #                                               'bioc']),
+# #                          y2 = unique(new_data_all[spn_start[i]:spn_stop[i + 1],
+# #                                               'bioc']))
+# #         g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+# #                               data = df, inherit.aes = FALSE)
+# #       }
+# #     } else {
+# #       spn_stop <- spn_index[which(spn_diff > 1)]
+# #       spn_start <- spn_index[which(spn_diff > 1) + 1]
+# #       nspn_start <- spn_stop + 1
+# #       nspn_stop <- spn_start - 1
+# # 
+# #       for (i in 1:length(spn_start)) {
+# #         if (i < length(spn_start)) {
+# #           #Plot next spawn time period
+# #           df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+# #                            x2 = new_data[spn_stop[i + 1], 'Sampled'],
+# #                            y1 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+# #                                                 'criteria_value']),
+# #                            y2 = unique(new_data[spn_start[i]:spn_stop[i + 1],
+# #                                                 'criteria_value']))
+# #           g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+# #                                 data = df, inherit.aes = FALSE)
+# #         } else {
+# #           #Plot last spawn-time period
+# #           df <- data.frame(x1 = new_data[spn_start[i], 'Sampled'],
+# #                            x2 = new_data[max(spn_index), 'Sampled'],
+# #                            y1 = unique(new_data[spn_start[i]:max(spn_index),
+# #                                                 'criteria_value']),
+# #                            y2 = unique(new_data[spn_start[i]:max(spn_index),
+# #                                                 'criteria_value']))
+# #           g <- g + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, linetype = 'Spawning'),
+# #                                 data = df, inherit.aes = FALSE)
+# #         }
+# #       }
+# #     }
+# #     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result, color = Cexceed)) +
+# #       #geom_point(data = BCsat, shape = 8)+
+# #       geom_point() +
+# #       scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
+# #       #geom_hline(data = d_spwn, aes(yintercept = y), linetype = "dotdash", color = "red") +
+# #       geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+# #       ggtitle(bquote(atop(.(title)))) +
+# #       theme(legend.position = "top",
+# #             legend.title = element_blank(),
+# #             legend.direction = 'horizontal') +
+# #       xlab(x.lab) +
+# #       ylab(y.lab) +
+# #       xlim(x.lim) +
+# #       ylim(y.lim)
+# #     g
+# # 
+# #   } else if (selectSpawning = 'No spawning') {
+# #     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
+# #       geom_point(aes(color = new_data_all$Conc_Exceed)) +
+# #       geom_point(data = BCsat, shape = 8)+
+# #       scale_colour_manual(name = 'Key', values = c('pink', 'black')) +
+# #       geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+# #       ggtitle(bquote(atop(.(title)))) +
+# #       theme(legend.position = "top",
+# #             legend.title = element_blank(),
+# #             legend.direction = 'horizontal') +
+# #       xlab(x.lab) +
+# #       ylab(y.lab) +
+# #       xlim(x.lim) +
+# #       ylim(y.lim)
+# #     g
+# #   
+# #      #  } else {
+# #  #  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+# #  #    geom_point(aes(color = Exceed)) +
+# #  #    geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+# #  #    scale_colour_manual(name = 'Key', values = c('red', 'black')) +
+# #  #    ggtitle(bquote(atop(.(title)))) +
+# #  #    theme(legend.position = "top",
+# #  #          legend.title = element_blank(),
+# #  #          legend.direction = 'horizontal') +
+# #  #    xlab(x.lab) +
+# #  #    ylab(y.lab) +
+# #  #    xlim(x.lim) +
+# #  #    ylim(y.lim)
+# #  #  g
+# #  # 
+# #  #  }
+# #  # 
+# # #  }
+# # # }
