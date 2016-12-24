@@ -201,7 +201,8 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
   return(myData)
 }
 
-lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
+lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate, 
+                       stations_wbd = stations_huc) {
   library(RODBC)
   
   options(stringsAsFactors = FALSE)
@@ -233,6 +234,10 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   } else {
     myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse="','")
   }
+  
+  # Get all the LASAR stations within each HUC8
+  stationlist <- stations_wbd[stations_wbd$HUC8 %in% myHUCs, 'STATION_KEY']
+  myStations <- paste(stationlist,collapse="','")
   
   #### Define site types to query ####
   siteType <- "'Surface water', 'Bay/Estuary/Ocean', 'Canal', 'Reservoir', 'Lake', 'Ditch/Pond/Culvert/Drain'"
@@ -298,7 +303,7 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
                SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
                PARAMETER_RESULT pr on r.PARAMETER_RESULT = pr.PARAMETER_RESULT_KEY LEFT JOIN
                ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY
-               WHERE a.AREA_ABBREVIATION in ('", myHUCs, "') AND
+               WHERE r.STATION in ('", myStations, "') AND
                r.SAMPLE_DATE_TIME >= '", startDate, "' AND
                r.SAMPLE_DATE_TIME <= '", endDate, "' AND
                st.STATUS in (", myDQL, ") AND
