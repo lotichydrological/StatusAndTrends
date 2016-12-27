@@ -126,7 +126,7 @@ shinyServer(function(input, output, session) {
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
           
-        if (any(c('Temperature', 'pH') %in% input$parms)) {
+        if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
           incProgress(1/10, detail = 'Querying NWIS continuous data')
           prog <- prog + 1/10
           nwisData <- tryCatch(nwisQuery(planArea = input$select,
