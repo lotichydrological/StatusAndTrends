@@ -160,7 +160,7 @@ shinyServer(function(input, output, session) {
                                   startDate = input$dates[1],
                                   endDate = input$dates[2],
                                   stations_wbd = stations_huc
-                                  )
+          )
           odbcCloseAll()
           if (nrow(lasarData) == 0) lasarData <- NULL
           
@@ -172,7 +172,9 @@ shinyServer(function(input, output, session) {
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
-                                  endDate = input$dates[2])
+                                  endDate = input$dates[2],
+                                  stations_wbd = stations_huc
+          )
           odbcCloseAll()
           if (nrow(elmData) == 0) elmData <- NULL
         }

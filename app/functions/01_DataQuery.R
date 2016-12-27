@@ -119,7 +119,8 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
    return(df.all)
 }
 
-elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
+elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
+                         stations_wbd = stations_huc) {
   library(RODBC)
   
   options(stringsAsFactors = FALSE)
@@ -152,17 +153,9 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
     myHUCs <- HUClist[HUClist$PlanName == planArea,'HUC8']
   }
 
-  las <- odbcConnect('LASAR2_GIS')
   elm <- odbcConnect('ELEMENT')
   
-  st <- sqlQuery(las, 'SELECT s.STATION_KEY, 
-                                    m.DATUM, 
-                       xa.AREA_ABBREVIATION 
-                       FROM STATION s 
-                            LEFT JOIN XLU_MAP_DATUM m on s.DATUM = m.DATUM_KEY 
-                            LEFT JOIN STATION_AREA sa on s.STATION_KEY = sa.STATION 
-                            LEFT JOIN XLU_AREA xa on sa.XLU_AREA = xa.AREA_KEY')
-  st <- st[st$AREA_ABBREVIATION %in% myHUCs,]
+  st <- stations_wbd[stations_wbd$HUC8 %in% myHUCs,]
   st <- st[!duplicated(st$STATION_KEY),]
   
   myStations <- paste(st$STATION_KEY,collapse="','")
