@@ -994,6 +994,7 @@ plot.DO<-function(new_data,
   # } else {
   #   ifelse(new_data_all$Result > new_data_all$bioc, 'Meets', 'Exceeds')
   # }
+  
   new_data_all$Cexceed<- ifelse(new_data_all$Result > new_data_all$bioc, 'Meets', 'Exceeds')
   new_data_all$Cexceed<-as.factor(new_data_all$Cexceed)
   new_data_all$Sat_Exceed<-if (selectSpawning != 'No spawning') {
@@ -1046,16 +1047,33 @@ plot.DO<-function(new_data,
     NULL
   }
   
+  
+  
+  BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+  new_data_all[,BCsat_spwn_exceed] <- NA
+  #new_data_all$BCsat_spwn_exceed <- NA
+  
+  new_data_all<-rbind(new_data_all, BCsat_spwn)
+  
  # BCsat_spwn$BCsat_spwn_exceed <- 'Meets b/c %Sat'
   ##PLOT THE TIMESERIES
   if (selectSpawning == 'No spawning') {
-    new_data_all$BCsat <- 'Exceeds'
-    new_data_all<-rbind(new_data_all, BCsat)
-    g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result, color = Cexceed_nspwn)) +
-      geom_point() +
+   
+    if(length(BCsat_spwn$BCsat_spwn) > 0) {
+      BCsat<-c("BCsat")
+      new_data_all[,BCsat] <- NA
+      #new_data_all$BCsat <- 'NULL'
+      new_data_all<-rbind(new_data_all, BCsat)
+   } else(
+     new_data_all<-new_data_all
+   )
+    
+    g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
+      geom_point(aes(color = Cexceed_nspwn)) +
       geom_point(aes(color = BCsat))+
       scale_colour_manual(name = 'Key', 
-                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green')) +
+                          breaks = c('Meets', 'Exceeds', 'Meets b/c %Sat'),
+                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))+
       xlim(x.lim) +
       ylim(y.lim) +
       geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
@@ -1066,14 +1084,31 @@ plot.DO<-function(new_data,
       xlab(x.lab) +
       ylab(y.lab)
    g 
-  } else {
-    new_data_all$BCsat_spwn_exceed <- 'Exceeds'
-    new_data_all<-rbind(new_data_all, BCsat_spwn)
-    g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result, color = Cexceed)) +
-      geom_point() +
-      geom_point(aes(color = BCsat_spwn_exceed))+
+   
+  } else if (length(new_data_all$BCsat_spwn_exceed) > 0) {
+    
+      # for (i in 1:length(new_data_all$Cexceed)){
+      #   if (any(new_data_all$Cexceed[i] == 'Meets')) {
+      #     new_data_all$exceed<- 'Meets'
+      #   } else {
+      #     new_data_all$exceed<- 'Exceeds'
+      #   }
+      #   }
+      # if (any(!is.na(new_data_all$BCsat_spwn_exceed))) {
+      #   new_data_all$exceed<- 'Meets b/c %Sat'
+      #  }
+    
+    new_data_all$exceed<-ifelse(new_data_all$Cexceed == 'Meets', 
+       'Meets', 
+       ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
+              "Meets b/c %Sat", 
+              'Exceeds'))
+    
+    g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
+      geom_point(aes(color = exceed))+
       scale_colour_manual(name = 'Key', 
-                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green')) +
+                          #breaks = c('Meets', 'Exceeds', 'Meets b/c %Sat'),
+                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))+
       xlim(x.lim) +
       ylim(y.lim) +
       #scale_fill_manual(name="Meet b/c %DO",values=BCsat)+
@@ -1084,6 +1119,27 @@ plot.DO<-function(new_data,
          legend.direction = 'horizontal') +
       xlab(x.lab) +
       ylab(y.lab) 
+    g
+    
+    } else {
+      g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
+        geom_point(aes(color = Cexceed)) +
+        scale_colour_manual(name = 'Key', 
+                           breaks = c('Meets', 'Exceeds'),
+                           values = c('Meets' = 'black', 'Exceeds' = 'pink'))+
+        xlim(x.lim) +
+        ylim(y.lim) +
+       #scale_fill_manual(name="Meet b/c %DO",values=BCsat)+
+        geom_hline(data = d, aes(yintercept = y), linetype = "dashed", color = "red") +
+        ggtitle(bquote(atop(.(title)))) +
+        theme(legend.position = "top",
+              legend.title = element_blank(),
+              legend.direction = 'horizontal') +
+        xlab(x.lab) +
+        ylab(y.lab) 
+      g
+    } 
+ 
     ####DRAW WQS SPAWNING LINES
   new_data_all <- new_data_all[order(new_data_all$Sampled),]
   data_years <- unique(year(new_data_all$Sampled))
@@ -1117,8 +1173,8 @@ plot.DO<-function(new_data,
   g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, linetype = 'Spawning'),
                      data = wr, inherit.aes = FALSE, na.rm = TRUE)
   g
+  
   }
   
-  
-}
-  
+
+
