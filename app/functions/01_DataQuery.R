@@ -58,10 +58,9 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                   'dec_lon_va' = 'DECIMAL_LONG',
                   'hucCd' = 'HUC',
                   'srs' = 'DATUM')
-    N <- N[,c(names(name_map),'Analyte','Result','Unit','Status')]
+    N <- N[,c(names(name_map),'Analyte','Result','Unit','Status','SampleType')]
     N <- plyr::rename(N, name_map)
-    N <- cbind(N, data.frame(SampleType = rep("Continuous", nrow(N)),
-                             MRL = rep(NA, nrow(N)),
+    N <- cbind(N, data.frame(MRL = rep(NA, nrow(N)),
                              Database = rep("NWIS", nrow(N)),
                              Detect = rep(NA, nrow(N)), 
                              Comment = rep(NA, nrow(N)), 
@@ -98,7 +97,8 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                      'DQL' = 'Status', 
                      'SampleQualifiers' = 'StatusIdentifier', 
                      'AnalyteQualifiers' = 'Comment',
-                     'AREA_ABBREVIATION' = 'HUC'))
+                     'HUC8' = 'HUC'))
+    E$DATUM <- 'Assumed NAD83'
     E <- E[,c('Client','Analyte','Station_ID','Station_Description',
               'SampleType','Result','MRL','Unit','Status','Sampled','DATUM',
               'DECIMAL_LAT','DECIMAL_LONG','StatusIdentifier','Comment','HUC')]
@@ -186,7 +186,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   #### Pass the query ####
   myData <- sqlQuery(elm, qry)
   
-  myData <- merge(myData, st[,c('STATION_KEY','DATUM','AREA_ABBREVIATION')], 
+  myData <- merge(myData, st[,c('STATION_KEY','HUC8')], 
                   by.x = 'Station_ID', by.y = 'STATION_KEY', all.x = TRUE)
   
   odbcCloseAll()
@@ -439,31 +439,42 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   siteTypeCd <- "LK,ST,ST-CA,ST-DCH,ST-TS,ES"
   
   temp_data_c <- NULL
+  tc_sites <- NULL
   temp_data_f <- NULL
+  tf_sites <- NULL
   ph_data <- NULL
+  ph_sites <- NULL
   #### Define parameters to query ####
   if ('Temperature' %in% inParms) {
-    temp_data_c <- readNWISdata(service = "iv",
+    temp_data_c <- readNWISdata(service = "dv",
                                 huc=myHUCs,
                                 siteTypeCd=siteTypeCd,
                                 startDate=startDate,
                                 endDate=endDate,
                                 parameterCd='00010')
     if (nrow(temp_data_c) > 0) {
+      tc_sites <- attr(temp_data_c, 'siteInfo')
+      temp_data_c <- temp_data_c[, c('agency_cd', 'site_no', 'dateTime', 
+                                     'X_00010_00001', 'X_00010_00001_cd')]
       temp_data_c$Analyte <- 'Temperature'
       temp_data_c$Unit <- 'C'
+      temp_data_c$SampleType <- 'Maximum'
     }
     
     
-    temp_data_f <- readNWISdata(service = "iv",
+    temp_data_f <- readNWISdata(service = "dv",
                                 huc=myHUCs,
                                 siteTypeCd=siteTypeCd,
                                 startDate=startDate,
                                 endDate=endDate,
                                 parameterCd='00011')
     if (nrow(temp_data_f) > 0) {
+      tf_sites <- attr(temp_data_f, 'siteInfo')
+      temp_data_f <- temp_data_f[, c('agency_cd', 'site_no', 'dateTime', 
+                                     'X_00011_00001', 'X_00011_00001_cd')]
       temp_data_f$Analyte <- 'Temperature'
       temp_data_f$Unit <- 'F'
+      temp_data_c$SampleType <- 'Maximum'
     }
   }
   
@@ -475,8 +486,11 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
                             endDate=endDate,
                             parameterCd='00400')
     if (nrow(ph_data) > 0) {
+      ph_sites <- attr(ph_data, 'siteInfo')
+      ph_data <- ph_data[,names(ph_data) != "tz_cd"]
       ph_data$Analyte <- 'pH'
       ph_data$Unit <- 'ph Units'
+      ph_data$SampleType <- 'Continuous'
     }
   }
   
@@ -496,11 +510,8 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
       result_rename <- setNames("Result", result_field)
       x <- plyr::rename(x, result_rename)
     })
-    site_list <- lapply(df_list, function (x) {
-      x_siteInfo <- attr(x, "siteInfo")
-    })
     nwis_data <- as.data.frame(data.table::rbindlist(df_list))
-    siteInfo <- as.data.frame(data.table::rbindlist(site_list))
+    siteInfo <- rbind(tc_sites, tf_sites, ph_sites)
     attr(nwis_data, "siteInfo") <- siteInfo
   } else {
     nwis_data <- NULL
