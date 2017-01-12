@@ -457,7 +457,7 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   spd_list <- strsplit(spd$spwn_dates, split = "-")
   spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
   spd_months <- lapply(spd_chron, months)
-  spd_days <- lapply(spd_chron, days)
+  spd_days <- lapply(spd_chron, chron::days)
   spd_months_num <- lapply(spd_months, as.numeric)
   spd_days_num <- lapply(spd_days, as.numeric)
   SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
@@ -485,7 +485,7 @@ EvaluateTempWQS <- function(sdadm_df, selectUse, selectSpawning, station_column_
   
   ## finds the current date, and spawning start/end date and formats as a numeric in the form mm.dd
   sdadm_df$cdate <- as.numeric(months(as.chron(sdadm_df$date))) + 
-    (as.numeric(days(as.chron(sdadm_df$date))) * .01)
+    (as.numeric(chron::days(as.chron(sdadm_df$date))) * .01)
   sdadm_df$sstr <- as.numeric(sdata$SSTART_MONTH[sdadm_df$sdata]) + 
     (as.numeric(sdata$SSTART_DAY[sdadm_df$sdata]) *.01)
   sdadm_df$send <- as.numeric(sdata$SEND_MONTH[sdadm_df$sdata]) + 
