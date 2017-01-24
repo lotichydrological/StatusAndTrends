@@ -58,17 +58,17 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
 input <- list(action_button = c(0))
 input$action_button <- 1
 input$parms <- c('Dissolved Oxygen')
-input$select <- "Lower Willamette"
-input$dates <- c("2000-01-01", "2016-09-23")
-input$db <- c("Water Quality Portal")
-input$selectStation <-  "10332"
+input$select <- "Willow Creek"
+input$dates <- c("2000-01-01", "2017-01-01")
+input$db <- c("Water Quality Portal", 'DEQ')
+input$selectStation <-  "10719"
 input$selectParameter <- 'Dissolved Oxygen'
 input$selectLogScale <- FALSE
-input$selectSpawning <- 'October 15-May 15'
-input$selectUse <- 'Salmon and Trout Rearing and Migration'
+input$selectSpawning <- 'No spawning'
+input$selectUse <- 'Core Cold Water Habitat'
 input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
-input$selectUseDO<-'Cold-Water Aquatic Life'
+input$selectUseDO<-'Cool-Water Aquatic Life'
 input$checkSpawning<-TRUE
 
 
@@ -180,7 +180,7 @@ if (any('Temperature' %in% df.all$Analyte)) {
 }
 
 #Perform sufficiency analysis for temperature
-temp_stns_pass <- temp_sufficiency_analysis(df.all)
+#temp_stns_pass <- temp_sufficiency_analysis(df.all = df.all)
 
 #Run Seasonal Kendall for pH and Bacteria
 if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
@@ -250,6 +250,7 @@ names(lstSummaryDfs)[6] <- "wq_limited"
     tmp_df <- new_data
   }
   
+  
   generate_exceed_df(tmp_df, input$selectParameter, input$selectpHCrit,
                      ph_crit, input$select, input$selectStation)
 
@@ -278,6 +279,22 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   
   Temp_trends_plot(new_data_temp, input$selectStation, input$selectMonth)
   
+  plot.Temperature(new_data = sdadm, 
+                   all_data = df.all,
+                   selectUse = input$selectUse,
+                   selectSpawning = input$selectSpawning,
+                   station_id_column = 'Station_ID',
+                   station_desc_column = 'Station_Description',
+                   datetime_column = 'date', 
+                   datetime_format = '%Y-%m-%d', 
+                   plot_trend = FALSE)
+  
+  
+  input$selectStation <-  '25196'
+  selectSpawning <- 'No spawning'
+  input$selectSpawning <- selectSpawning
+  selectUseDO<-'Cold-Water Aquatic Life'
+  input$selectUseDO<-selectUseDO
   
   DO<-df.all%>%
     filter(Station_ID == input$selectStation, Analyte == "Dissolved Oxygen")
@@ -291,12 +308,12 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                    station_desc_column = 'Station_Description',
                    datetime_column = 'Sampled',
                    result_column = 'Result',
-                   datetime_format = '%Y-%m-%d %H:%M:%S',
+                   datetime_format = '%Y-%m-%d',
                    parm = 'Dissolved Oxygen')
   plot.DO
   
-  ##
-  DO_test<-df.all%>%
-    filter(Analyte == "Dissolved Oxygen", Station_ID == '11321' )
+  ggsave("g.png", height = 6, width = 6)
+  
+
 
   

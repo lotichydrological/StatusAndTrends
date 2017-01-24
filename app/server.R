@@ -126,7 +126,7 @@ shinyServer(function(input, output, session) {
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
           
-        if (any(c('Temperature', 'pH') %in% input$parms)) {
+        if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
           incProgress(1/10, detail = 'Querying NWIS continuous data')
           prog <- prog + 1/10
           nwisData <- tryCatch(nwisQuery(planArea = input$select,
@@ -228,7 +228,9 @@ shinyServer(function(input, output, session) {
           incProgress(1/10, detail = "Calculating 7DADM and Trends")
           prog <- prog + 1/10
           #Perform sufficiency analysis for temperature
-          temp_stns_pass <- temp_sufficiency_analysis(df.all)
+          if ('Temperature' %in% input$parms) {
+            temp_stns_pass <- temp_sufficiency_analysis(df.all)
+          }
           
           #Generate sdadm once for temperature plotting/exceedance use
           if (any('Temperature' %in% df.all$Analyte)) {
@@ -882,7 +884,7 @@ shinyServer(function(input, output, session) {
                  df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
                  if (nrow(df) > 2) {
                    g <- plot.DO(new_data = df,
-                                 df.all = df,
+                                 df.all = df.all,
                                  selectUseDO = input$selectUseDO,
                                  selectSpawning = input$selectSpawning,
                                  analyte_column = 'Analyte',
@@ -890,7 +892,7 @@ shinyServer(function(input, output, session) {
                                  station_desc_column = 'Station_Description',
                                  datetime_column = 'Sampled',
                                  result_column = 'Result',
-                                 datetime_format = '%Y-%m-%d %H:%M:%S',
+                                 datetime_format = '%Y-%m-%d',
                                  parm = 'Dissolved Oxygen')
                  } else {
                    g <- ggplot(data.frame()) + geom_point() + 
