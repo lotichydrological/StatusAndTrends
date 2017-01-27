@@ -910,7 +910,7 @@ plot.DO<-function(new_data,
                   station_desc_column = 'Station_Description',
                   datetime_column = 'Sampled',
                   result_column = 'Result',
-                  datetime_format = '%Y-%m-%d',
+                  datetime_format = '%Y-%m-%d %H:%M:%S',
                   parm) {
   require(ggplot2)
   require(chron)
@@ -956,7 +956,7 @@ plot.DO<-function(new_data,
   } else if (selectUseDO == 'Estuarine Waters') {
     6.5
   }
-  y.min <- 5 #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
+  y.min <- (min(new_data_all$Result) - 1) #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
   y.max <- ceiling(max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   new_data$sdata <- match(new_data[, 'Station_ID'],
@@ -978,7 +978,8 @@ plot.DO<-function(new_data,
            11, new_data$bioc)))
   #Merge %DO with [DO]##
   DOsat<-df.all%>%
-    filter(Analyte == 'Dissolved oxygen saturation')
+    filter(Analyte == 'Dissolved oxygen saturation') %>%
+    filter(Station_ID == unique(new_data$Station_ID))
   DOsat$Result <- as.numeric(DOsat$Result)
   DOsat$Sampled<-as.POSIXct(strptime(DOsat[, datetime_column],
                                      format = datetime_format))
@@ -988,7 +989,7 @@ plot.DO<-function(new_data,
   new_data_DOsat<-merge(new_data, DOsat[,c('id','Result')], by="id")
   new_data_DOsat<-plyr::rename(new_data_DOsat, c("Result.y" = "Result_DOsat", "Result.x" = "Result_DOconc"))
   #merge new_data with new_data_DOsat
-  new_data_all<-full_join(new_data, new_data_DOsat[,c('id', 'Result_DOsat')], by="id")
+  new_data_all<-dplyr::full_join(new_data, new_data_DOsat[,c('id', 'Result_DOsat')], by="id")
   #Add columns to identify exceedances of WQS for [DO] and %DO
   new_data_all$Result<-as.numeric(new_data_all$Result)
   new_data_all$Result_DOsat<-as.numeric(new_data_all$Result_DOsat)
@@ -1166,10 +1167,10 @@ plot.DO<-function(new_data,
   
   g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, linetype = 'Spawning'),
                      data = wr, inherit.aes = FALSE, na.rm = TRUE)
-  g
+  
   
   }
-  
+  g
 }
 
 ggsave("g.png", height = 6, width = 6)
