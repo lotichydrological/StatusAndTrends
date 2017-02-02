@@ -52,20 +52,21 @@ ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
+stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
 #wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
 input$parms <- c('Temperature')
-input$select <- "Lower Willamette"
-input$dates <- c("2005-01-01", "2016-09-23")
+input$select <- "Clackamas"
+input$dates <- c("2000-01-01", "2017-01-01")
 input$db <- c("Water Quality Portal")
-input$selectStation <-  "USGS-14211400 - "
+input$selectStation <-  "USGS-14209710 - "
 input$selectParameter <- 'Temperature'
 input$selectLogScale <- FALSE
-input$selectSpawning <- 'October 15-May 15'
-input$selectUse <- 'Salmon and Trout Rearing and Migration'
+input$selectSpawning <- 'August 1-June 15'
+input$selectUse <- 'Bull Trout Spawning and Juvenile Rearing'
 input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
 
@@ -235,6 +236,11 @@ names(lstSummaryDfs)[6] <- "wq_limited"
 
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
+  
+  plot.Temperature(new_data = new_data, 
+                   all_data = df.all,
+                   selectUse = input$selectUse,
+                   selectSpawning = input$selectSpawning)
   
   if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
     tmp_df <- new_data

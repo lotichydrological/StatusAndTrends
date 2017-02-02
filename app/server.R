@@ -863,7 +863,7 @@ shinyServer(function(input, output, session) {
           ifelse(is.null(ranges$x[2]), min(DataUse()$date), ranges$x[2]),
           "-timeseries.png", sep = "")},
         content = function(file) {
-          ggsave(plotInput(), file = file)
+          ggsave(plotInput(), file = file, height = 8, width = 8)
         })
     }
   })
