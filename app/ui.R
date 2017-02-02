@@ -31,7 +31,7 @@ shinyUI(fluidPage(
         ),
         column(3,
                checkboxGroupInput("parms",label = h3("Parameter(s) to Query"),
-                                  choices = c('Temperature','pH','Bacteria'),
+                                  choices = c('Temperature','pH','Bacteria', 'Dissolved Oxygen'),
                                   selected = 1)
         ),
         column(5,
@@ -121,10 +121,13 @@ shinyUI(fluidPage(
              uiOutput('selectSpawning'),
              br(),
              uiOutput('selectUse'),
+             uiOutput('selectUseDO'),
+             uiOutput('fish_use_link_DO'),
              br(),
              uiOutput('selectRange'),
              br(),
              uiOutput('fish_use_link'),
+             uiOutput('checkSpawning'),
              br(),
              uiOutput('selectMonth')
             ),
