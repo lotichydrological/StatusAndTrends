@@ -16,7 +16,7 @@
 # df2 <- df %>% sample_frac(0.6)
 # checkObservations(df2$station, df2$date, df2$temp)
 
-
+#write.csv(df.all, 'df.all.csv')
 
 library(shiny)
 library(RCurl)
@@ -51,13 +51,18 @@ HUClist <- read.csv('app/data/PlanHUC_LU.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+<<<<<<< HEAD
 wq_limited <- read.csv('app/data/wq_limited_df_temp_bact_ph.csv')
 stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
+=======
+wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
+>>>>>>> e3db0af152e150e14b3121b147052855e7678ef9
 #wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
+<<<<<<< HEAD
 input$parms <- c('Temperature')
 input$select <- "Clackamas"
 input$dates <- c("2000-01-01", "2017-01-01")
@@ -67,8 +72,22 @@ input$selectParameter <- 'Temperature'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'August 1-June 15'
 input$selectUse <- 'Bull Trout Spawning and Juvenile Rearing'
+=======
+input$parms <- c('Dissolved Oxygen')
+input$select <- "Willow Creek"
+input$dates <- c("2000-01-01", "2017-01-01")
+input$db <- c("Water Quality Portal", 'DEQ')
+input$selectStation <-  "10719"
+input$selectParameter <- 'Dissolved Oxygen'
+input$selectLogScale <- FALSE
+input$selectSpawning <- 'No spawning'
+input$selectUse <- 'Core Cold Water Habitat'
+>>>>>>> e3db0af152e150e14b3121b147052855e7678ef9
 input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
+input$selectUseDO<-'Cool-Water Aquatic Life'
+input$checkSpawning<-TRUE
+
 
 wqpData <- NULL
 lasarData <- NULL
@@ -88,7 +107,7 @@ if ('Water Quality Portal' %in% input$db) {
                                endDate = input$dates[2]),
                       error = function(err) {err <- geterrmessage()})
   
-  if (any(c('Temperature', 'pH') %in% input$parms)) {
+  if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
     nwisData <- tryCatch(nwisQuery(planArea = input$select,
                                    HUClist = HUClist,
                                    inParms = input$parms,
@@ -178,7 +197,7 @@ if (any('Temperature' %in% df.all$Analyte)) {
 }
 
 #Perform sufficiency analysis for temperature
-temp_stns_pass <- temp_sufficiency_analysis(df.all)
+#temp_stns_pass <- temp_sufficiency_analysis(df.all = df.all)
 
 #Run Seasonal Kendall for pH and Bacteria
 if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
@@ -253,6 +272,7 @@ names(lstSummaryDfs)[6] <- "wq_limited"
     tmp_df <- new_data
   }
   
+  
   generate_exceed_df(tmp_df, input$selectParameter, input$selectpHCrit,
                      ph_crit, input$select, input$selectStation)
 
@@ -280,4 +300,42 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                      selectUse = input$selectUse, selectMonth = "January")
   
   Temp_trends_plot(new_data_temp, input$selectStation, input$selectMonth)
+  
+  plot.Temperature(new_data = sdadm, 
+                   all_data = df.all,
+                   selectUse = input$selectUse,
+                   selectSpawning = input$selectSpawning,
+                   station_id_column = 'Station_ID',
+                   station_desc_column = 'Station_Description',
+                   datetime_column = 'date', 
+                   datetime_format = '%Y-%m-%d', 
+                   plot_trend = FALSE)
+  
+  
+  input$selectStation <-  '25196'
+  selectSpawning <- 'No spawning'
+  input$selectSpawning <- selectSpawning
+  selectUseDO<-'Cold-Water Aquatic Life'
+  input$selectUseDO<-selectUseDO
+  
+  DO<-df.all%>%
+    filter(Station_ID == input$selectStation, Analyte == "Dissolved Oxygen")
+  
+  plot.DO<-plot.DO(new_data = DO,
+                   df.all = df.all,
+                   selectUseDO = input$selectUseDO,
+                   selectSpawning = input$selectSpawning,
+                   analyte_column = 'Analyte',
+                   station_id_column = 'Station_ID',
+                   station_desc_column = 'Station_Description',
+                   datetime_column = 'Sampled',
+                   result_column = 'Result',
+                   datetime_format = '%Y-%m-%d',
+                   parm = 'Dissolved Oxygen')
+  plot.DO
+  
+  ggsave("g.png", height = 6, width = 6)
+  
+
+
   
