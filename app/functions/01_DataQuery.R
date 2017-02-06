@@ -1,8 +1,8 @@
 combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
-#   E <- elmData
-#   L <- lasarData
-#   W <- wqpData
-#   W <- wqp.data
+  # E <- elmData
+  # L <- lasarData
+  # W <- wqpData
+  # W <- wqp.data
   
   if (is.data.frame(W)) {
     wqp.map <- c('MonitoringLocationIdentifier' = 'Station_ID',
@@ -109,7 +109,9 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
     
   df.all <- rbind(E,L,W,N)
   
-  df.all[df.all$Unit == '%',]$Analyte <- 'Dissolved oxygen saturation'
+  df.all[df.all$Unit == '%', 'Analyte'] <- 'Dissolved oxygen saturation'
+  
+  df.all[df.all$Analyte == "Dissolved oxygen (DO)", 'Analyte'] <- 'Dissolved Oxygen'
   
   df.all$Analyte <- mapvalues(df.all$Analyte, 
                               from = c('Temperature, water','Escherichia coli',
@@ -329,6 +331,14 @@ library(rgdal)
 library(raster)
 library(rgeos)
 #library(RODBC)
+  
+  # planArea <- input$select
+  # inParms <- input$parms
+  # luParms <- parms
+  # startDate <- input$dates[1]
+  # endDate <- input$dates[2]
+  
+  
 
 options(stringsAsFactors = FALSE)
 
@@ -351,21 +361,24 @@ siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
 
 #### Get characteristics ####
 #The entire list of parameters that match to a criteria
+#luParms<-read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 parms <- luParms
-#parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+#parms <- 
 
 #Expand bacteria to include fecal and enterococcus
 if(any(inParms == 'Bacteria')) {
   myParms <- c(inParms, c('E. coli','Fecal coliform','Enterococci'))
   myParms <- myParms[-which(myParms == "Bacteria")] 
 } else if (any(inParms == 'Dissolved Oxygen')) {
-  myParms <-c('Dissolved oxygen', 'Dissolved oxygen (DO)')
+  myParms <-c(inParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
+  myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
   } else {
   myParms <- inParms
 }
 
 
 #grab just the parameters we want
+#characteristics<- URLencode.PTB(paste(myParms))
 characteristics <- URLencode.PTB(paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';'))
 
 #### Define sample media to query ####
