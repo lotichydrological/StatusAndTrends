@@ -49,7 +49,7 @@ ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x 
 parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #Pre-extracted 303(d) with PlanName added
-wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
+wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 
 #Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
 #load('data/NLCD2011_OR.Rdata')
@@ -892,7 +892,7 @@ shinyServer(function(input, output, session) {
                                  station_desc_column = 'Station_Description',
                                  datetime_column = 'Sampled',
                                  result_column = 'Result',
-                                 datetime_format = '%Y-%m-%d',
+                                 datetime_format = '%Y-%m-%d %H:%M:%S',
                                  parm = 'Dissolved Oxygen')
                  } else {
                    g <- ggplot(data.frame()) + geom_point() + 
@@ -960,7 +960,7 @@ shinyServer(function(input, output, session) {
           ifelse(is.null(ranges$x[2]), min(DataUse()$date), ranges$x[2]),
           "-timeseries.png", sep = "")},
         content = function(file) {
-          ggsave(plotInput(), file = file)
+          ggsave(plotInput(), file = file, height = 8, width = 8)
         })
     }
   })
