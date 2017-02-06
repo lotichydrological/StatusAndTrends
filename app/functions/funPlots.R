@@ -936,7 +936,7 @@ plot.DO<-function(new_data,
   spd_list <- strsplit(selectSpawning, split = "-")
     spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
     spd_months <- lapply(spd_chron, months)
-    spd_days <- lapply(spd_chron, days)
+    spd_days <- lapply(spd_chron, chron::days)
     spd_months_num <- lapply(spd_months, as.numeric)
     spd_days_num <- lapply(spd_days, as.numeric)
     SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
@@ -956,7 +956,7 @@ plot.DO<-function(new_data,
   } else if (selectUseDO == 'Estuarine Waters') {
     6.5
   }
-  y.min <- (min(new_data_all$Result) - 1) #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
+  y.min <- (min(sdata$numcrit) - 1) #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
   y.max <- ceiling(max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   new_data$sdata <- match(new_data[, 'Station_ID'],
@@ -1173,5 +1173,5 @@ plot.DO<-function(new_data,
   g
 }
 
-ggsave("g.png", height = 6, width = 6)
+#ggsave("g.png", height = 6, width = 6)
 
