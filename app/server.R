@@ -1,6 +1,3 @@
-#Use this to make it accessible for other people to access
-#runApp("app",host="0.0.0.0",port=3168)
-
 library(shiny)
 library(RCurl)
 library(XML)
@@ -40,10 +37,6 @@ hucs <- readOGR(dsn = './data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 #When done through the use of intersection and overlay tools provided in the sp and rgdal packages
 #Therefore, a manual identificiation of the desired HUCs for each Ag plan area was completed
 HUClist <- read.csv('data/PlanHUC_LU.csv')
-
-#LASAR Stations don't all have HUC8 values in the Area Abbreviation table so we Ryan
-#did the GIS to get them based on the LASAR database lat/lon for each station
-stations_huc <- read.csv('data/station_wbd_12132016.csv')
 
 #Table of ph criteria for lookup
 ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
@@ -91,14 +84,14 @@ shinyServer(function(input, output, session) {
       "Please select a database to query"
     } else {
       HTML(paste0("You just submitted ", 
-              input$select, 
-              " Geographic Area Query for ", 
-              paste(input$parms,collapse=", "), 
-              " from",
-              "<br/>",
-              input$dates[1], 
-              " to ", 
-              input$dates[2]))
+                  input$select, 
+                  " Geographic Area Query for ", 
+                  paste(input$parms,collapse=", "), 
+                  " from",
+                  "<br/>",
+                  input$dates[1], 
+                  " to ", 
+                  input$dates[2]))
     }
   })
   
@@ -108,21 +101,21 @@ shinyServer(function(input, output, session) {
   observeEvent(input$action_button, {
     if (input$select != "" & !is.null(input$parms) & 
         input$dates[1] != input$dates[2] & !is.null(input$db)) {
-    withProgress(message = "Processing:", value = 0, {
-      #### Query the databases ####
-      wqpData <- NULL
-      lasarData <- NULL
-      elmData <- NULL
-      nwisData <- NULL
-      df.all <- NULL
-      lstSummaryDfs <- list()
-      prog <- 0
-      wqp_message <- ""
-      
-      if ('Water Quality Portal' %in% input$db) {
-        incProgress(1/10, detail = 'Querying the Water Quality Portal')
-        prog <- prog + 1/10
-        wqpData <- tryCatch(wqpQuery(planArea = input$select,
+      withProgress(message = "Processing:", value = 0, {
+        #### Query the databases ####
+        wqpData <- NULL
+        lasarData <- NULL
+        elmData <- NULL
+        nwisData <- NULL
+        df.all <- NULL
+        lstSummaryDfs <- list()
+        prog <- 0
+        wqp_message <- ""
+        
+        if ('Water Quality Portal' %in% input$db) {
+          incProgress(1/10, detail = 'Querying the Water Quality Portal')
+          prog <- prog + 1/10
+          wqpData <- tryCatch(wqpQuery(planArea = input$select,
                                        HUClist = HUClist,
                                        inParms = input$parms,
                                        luParms = parms,
@@ -130,24 +123,24 @@ shinyServer(function(input, output, session) {
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
           
-        if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
-          incProgress(1/10, detail = 'Querying NWIS continuous data')
-          prog <- prog + 1/10
-          nwisData <- tryCatch(nwisQuery(planArea = input$select,
-                                         HUClist = HUClist,
-                                         inParms = input$parms,
-                                         startDate = input$dates[1],
-                                         endDate = input$dates[2]),
-                               error = function(err) {err <- geterrmessage()})
-        }
-        
-        if (is.null(wqpData) & is.null(nwisData)) {
+          if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
+            incProgress(1/10, detail = 'Querying NWIS continuous data')
+            prog <- prog + 1/10
+            nwisData <- tryCatch(nwisQuery(planArea = input$select,
+                                           HUClist = HUClist,
+                                           inParms = input$parms,
+                                           startDate = input$dates[1],
+                                           endDate = input$dates[2]),
+                                 error = function(err) {err <- geterrmessage()})
+          }
+          
+          if (is.null(wqpData) & is.null(nwisData)) {
             wqp_message <- 'Your query returned no results from the Water Quality Portal.'
           } else if (!is.data.frame(wqpData) & !is.null(wqpData)) {
             if (grepl("307", wqpData)) {
-            wqp_message <- 'Water Quality Portal is busy. Please try again in a few minutes.'
+              wqp_message <- 'Water Quality Portal is busy. Please try again in a few minutes.'
+            }
           }
-        }
         }
         
         if ('DEQ' %in% input$db) {
@@ -158,9 +151,7 @@ shinyServer(function(input, output, session) {
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
-                                  endDate = input$dates[2],
-                                  stations_wbd = stations_huc
-          )
+                                  endDate = input$dates[2])
           odbcCloseAll()
           if (nrow(lasarData) == 0) lasarData <- NULL
           
@@ -172,9 +163,7 @@ shinyServer(function(input, output, session) {
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
-                                  endDate = input$dates[2],
-                                  stations_wbd = stations_huc
-          )
+                                  endDate = input$dates[2])
           odbcCloseAll()
           if (nrow(elmData) == 0) elmData <- NULL
         }
@@ -188,7 +177,7 @@ shinyServer(function(input, output, session) {
                              error = function(err) 
                              {err <- geterrmessage()})
         }
-
+        
         if(is.null(df.all)) {
           output$text2 <- renderUI(HTML("<b> Your query returned no data </b>"))
         } else {
@@ -231,7 +220,7 @@ shinyServer(function(input, output, session) {
           if ("Fecal Coliform" %in% df.all$Analyte) {
             df.all <- update_fc2ec(df.all)
           }
-
+          
           #### Calculate trends and adnl data for plotting ####
           incProgress(1/10, detail = "Calculating 7DADM and Trends")
           prog <- prog + 1/10
@@ -249,7 +238,7 @@ shinyServer(function(input, output, session) {
           }
           
           #Run Seasonal Kendall for pH and Bacteria
-          if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
+          if (any(c('pH', 'E. Coli', "Enterococcus", 'Dissolved Oxygen') %in% df.all$Analyte)) {
             SeaKen <- run_seaKen(df.all)
           } else {
             SeaKen <- data.frame()
@@ -313,7 +302,7 @@ shinyServer(function(input, output, session) {
           #stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
           lstSummaryDfs[[7]] <- data.frame()#stn_nlcd_df
           names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
-          }
+        }
       })
       
       #This outputs the table of results returned by parameter
@@ -322,7 +311,7 @@ shinyServer(function(input, output, session) {
           need(try(is.data.frame(df.all)), message = FALSE)
         )
         all.totals
-        })
+      })
       
       #This creates the button for downloading the raw formatted data
       output$downloadData <- renderUI({
@@ -423,7 +412,7 @@ shinyServer(function(input, output, session) {
                                    "QA - Result values modified" = "df.report",
                                    "QA - Data removal information" = "df.removal",
                                    "QA - Unique comment values" = 'df.comment'),
-                                   
+                    
                     selectize = TRUE
         )
       })
@@ -431,10 +420,10 @@ shinyServer(function(input, output, session) {
       #The table is built here
       tbl_disp_input <- reactive({
         validate(
-        need(input$ReviewDf != "", message = FALSE)
-      )
-      tbl_disp <- pickReviewDf(input_reviewDf = input$ReviewDf, 
-                               lstSummaryDfs, df.all)
+          need(input$ReviewDf != "", message = FALSE)
+        )
+        tbl_disp <- pickReviewDf(input_reviewDf = input$ReviewDf, 
+                                 lstSummaryDfs, df.all)
       })
       
       output$display <- DT::renderDataTable({
@@ -445,9 +434,9 @@ shinyServer(function(input, output, session) {
                                 selection = "none") %>% 
             formatDate("Sampled", 'toLocaleString')
         }
-         tbl_disp            
-        }, options = list(processing = FALSE), 
-        filter = 'top', selection = "single", server = FALSE) 
+        tbl_disp            
+      }, options = list(processing = FALSE), 
+      filter = 'top', selection = "single", server = FALSE) 
       
       output$wq_lim_link <- renderUI({
         validate(
@@ -458,8 +447,8 @@ shinyServer(function(input, output, session) {
         
         if (length(s)) {
           link <- paste0('http://www.deq.state.or.us/wq/assessment/rpt2012/results.asp?txtLlid=',
-                       wq_lim_whole[s, "LLID_Strea"], "&cboParameters=",
-                       wq_lim_whole[s, "Pollutant_"], "&Status=10")
+                         wq_lim_whole[s, "LLID_Strea"], "&cboParameters=",
+                         wq_lim_whole[s, "Pollutant_"], "&Status=10")
           h5(a("Click here to view on the WQ Assessment Web Page",
                href = link,
                target = "_blank"))
@@ -478,7 +467,7 @@ shinyServer(function(input, output, session) {
         }
         
       })
-        
+      
       
       # #This creates the button for downloading the raw formatted data
       output$dlReviewTab <- downloadHandler(
@@ -553,12 +542,12 @@ shinyServer(function(input, output, session) {
       
       output$plotTrend <- renderUI({
         validate(
-          need(input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus'), 
+          need(input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen'), 
                message = FALSE)
         )
         checkboxInput("plotTrend", 
                       "Plot Seasonal Kendall trend line 
-                            (Note: May not be significant)")
+                      (Note: May not be significant)")
       })
       
       output$selectSpawning = renderUI({
@@ -738,7 +727,7 @@ shinyServer(function(input, output, session) {
           }
         }
         
-        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
+        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen')) {
           tmp_df <- DataUse()
           tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
           tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
@@ -756,8 +745,9 @@ shinyServer(function(input, output, session) {
                            PlanName = input$select, 
                            input$selectStation, 
                            input$selectUse, 
+                           selectUseDO,
                            input$selectSpawning)
-        })
+      })
       
       # This handles the temp trend analysis
       DataUse_temp <- reactive({
@@ -892,42 +882,28 @@ shinyServer(function(input, output, session) {
                  df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
                  if (nrow(df) > 2) {
                    g <- plot.DO(new_data = df,
-                                 df.all = df.all,
-                                 selectUseDO = input$selectUseDO,
-                                 selectSpawning = input$selectSpawning,
-                                 analyte_column = 'Analyte',
-                                 station_id_column = 'Station_ID',
-                                 station_desc_column = 'Station_Description',
-                                 datetime_column = 'Sampled',
-                                 result_column = 'Result',
-                                 datetime_format = '%Y-%m-%d %H:%M:%S',
-                                 parm = 'Dissolved Oxygen')
-                 } else {
-                   g <- ggplot(data.frame()) + geom_point() + 
-                     annotate("text", label = "Insufficient data for plotting", 
-                              x = 1, y = 1)
-                 }
-               }),
-               "Dissolved oxygen saturation" = ({
-                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
-                 if (nrow(df) > 2) {
-                   g <- plot.DOsat(new_data = df,
-                                   analyte_column = 'Analyte',
-                                   station_id_column = 'Station_ID',
-                                   station_desc_column = 'Station_Description',
-                                   datetime_column = 'Sampled',
-                                   result_column = 'Result',
-                                   datetime_format = '%Y-%m-%d %H:%M:%S',
-                                   parm = 'Dissolved Oxygen Saturation')
+                                df.all = df.all,
+                                sea_ken_table = SeaKen,
+                                plot_trend = input$plotTrend,
+                                selectUseDO = input$selectUseDO,
+                                selectSpawning = input$selectSpawning,
+                                analyte_column = 'Analyte',
+                                station_id_column = 'Station_ID',
+                                station_desc_column = 'Station_Description',
+                                datetime_column = 'Sampled',
+                                result_column = 'Result',
+                                datetime_format = '%Y-%m-%d %H:%M:%S',
+                                parm = 'Dissolved Oxygen')
                  } else {
                    g <- ggplot(data.frame()) + geom_point() + 
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
                  }
                })
+               
         )
         #g <- g + scale_x_datetime(breaks = "1 day") #TODO: Make date labeling better
-
+        
         g
       })
       
@@ -955,6 +931,10 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectLogScale), message = FALSE)
             )
+          } else if (input$selectParameter == 'Dissolved Oxygen') {
+            validate(
+              need(!is.null(input$selectUseDO), message = FALSE)
+            )
           }
         }
         plotInput()
@@ -970,8 +950,8 @@ shinyServer(function(input, output, session) {
         content = function(file) {
           ggsave(plotInput(), file = file, height = 8, width = 8)
         })
-    }
+      }
   })
-})
+  })
 
 options(warn = 0)

@@ -904,6 +904,8 @@ plot.DOsat<-function(new_data,
 plot.DO<-function(new_data,
                   df.all,
                   selectUseDO = input$selectUseDO,
+                  sea_ken_table = SeaKen,
+                  plot_trend = input$plotTrend,
                   selectSpawning = input$selectSpawning,
                   analyte_column = 'Analyte',
                   station_id_column = 'Station_ID',
@@ -1061,9 +1063,45 @@ plot.DO<-function(new_data,
        }
     } 
    
+ 
+  y.median <- median(new_data_all[, result_column])
+  slope <- suppressWarnings(
+    as.numeric(
+      sea_ken_table[sea_ken_table$Station_ID == 
+                      unique(new_data[, station_id_column]) & 
+                      sea_ken_table$analyte == 
+                      unique(new_data[, analyte_column]), 'slope']
+    )
+  )
+  p.value <- suppressWarnings(
+    as.numeric(
+      sea_ken_table[sea_ken_table$Station_ID == 
+                      unique(new_data[,station_id_column]) & 
+                      sea_ken_table$analyte == 
+                      unique(new_data[,analyte_column]),'pvalue']
+    )
+  )
+  p.value.label <- sea_ken_table[sea_ken_table$Station_ID == 
+                                   unique(new_data[,station_id_column]) & 
+                                   sea_ken_table$analyte == 
+                                   unique(new_data[,analyte_column]),'signif']
+  x.delta <- as.numeric((x.max-x.min)/2)####average date
+  SK.min <- y.median - x.delta*slope/365.25#minimum y value for line
+  SK.max <- y.median + x.delta*slope/365.25#maximum y value for line
+  sub.text <- paste0("p value = " ,
+                     round(p.value, digits=3),
+                     ", ",  
+                     p.value.label, 
+                     ", slope = ", 
+                     round(slope, digits=2), 
+                     ", n = ", 
+                     nrow(new_data))
+  df_trend_line <- data.frame(x = c(x.min + 10000, x.max - 10000),
+                              y = c(SK.min, SK.max),
+                              variable = rep('Trend line', 2))
 
-
- #BCsat_spwn$BCsat_spwn_exceed <- 'Meets b/c %Sat'
+ 
+  #BCsat_spwn$BCsat_spwn_exceed <- 'Meets b/c %Sat'
   ##PLOT THE TIMESERIES
   if (selectSpawning == 'No spawning') {
     new_data_all<-rbind(new_data_all, BCsat)
@@ -1078,17 +1116,7 @@ plot.DO<-function(new_data,
       #geom_point(aes(color = BCsat2))+
       scale_colour_manual(name = 'Key', 
                           breaks = c('Meets', 'Exceeds', 'Meets b/c %Sat'),
-                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))+
-      xlim(x.lim) +
-      ylim(y.lim) +
-      geom_hline(data = d, aes(yintercept = y), color = "red") +
-      theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
-      ggtitle(bquote(atop(.(title)))) +
-      theme(legend.position = "top",
-            legend.title = element_blank(),
-            legend.direction = 'horizontal') +
-      xlab(x.lab) +
-      ylab(y.lab)
+                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))
    g 
    
   } else if (length(new_data_all$BCsat_spwn_exceed) > 0 & selectSpawning != 'No spawning') {
@@ -1101,17 +1129,7 @@ plot.DO<-function(new_data,
     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
       geom_point(aes(color = exceed))+
       scale_colour_manual(name = 'Key', 
-                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))+
-      xlim(x.lim) +
-      ylim(y.lim) +
-      geom_hline(data = d, aes(yintercept = y), color = "red") +
-      theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
-      ggtitle(bquote(atop(.(title)))) +
-      theme(legend.position = "top",
-          legend.title = element_blank(),
-         legend.direction = 'horizontal') +
-      xlab(x.lab) +
-      ylab(y.lab) 
+                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))
     g
     
     } else {
@@ -1119,20 +1137,37 @@ plot.DO<-function(new_data,
         geom_point(aes(color = Cexceed)) +
         scale_colour_manual(name = 'Key', 
                            breaks = c('Meets', 'Exceeds'),
-                           values = c('Meets' = 'black', 'Exceeds' = 'pink'))+
-        xlim(x.lim) +
-        ylim(y.lim) +
-        geom_hline(data = d, aes(yintercept = y),  color = "red") +
-        theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
-        ggtitle(bquote(atop(.(title)))) +
-        theme(legend.position = "top",
-              legend.title = element_blank(),
-              legend.direction = 'horizontal') +
-        xlab(x.lab) +
-        ylab(y.lab) 
+                           values = c('Meets' = 'black', 'Exceeds' = 'pink'))
       g
+
     } 
  
+  
+  
+if (plot_trend & !is.na(p.value)) {
+  #cols<-c("Exceeds" = "pink", "Meets" = "black", "Meets b/c %Sat" = "green", "Trend line" = "blue", "variable" = "red")
+  g <- g + geom_line(data = df_trend_line, aes(x = x, y = y, group = variable, 
+                     linetype = 'Trend line'),
+                     inherit.aes = FALSE, na.rm = TRUE)+
+        geom_hline(data = d, aes(yintercept = y, linetype = "Water Quality Standard"), color = "red") +
+        scale_linetype_manual(values = c("solid", "solid", "solid"))
+                              
+                              
+  } else {
+   g <-  g + geom_hline(data = d, aes(yintercept = y, linetype = "Water Quality Standard"), color = "red") +
+      scale_linetype_manual(values=c("solid", "solid", "solid"))
+  }
+  
+  g <- g + xlim(x.lim) +
+    ylim(y.lim) +
+    theme(plot.title = element_text(vjust=1.5, face="bold", size = 10))+
+    ggtitle(bquote(atop(.(title), atop(paste(.(sub.text)))))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
+    xlab(x.lab) +
+    ylab(y.lab) 
+  
     ####DRAW WQS SPAWNING LINES
   if (selectSpawning != 'No spawning'){
   
@@ -1170,6 +1205,7 @@ plot.DO<-function(new_data,
   
   
   }
+                           
   g
 }
 
