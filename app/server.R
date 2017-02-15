@@ -238,6 +238,9 @@ shinyServer(function(input, output, session) {
           #Perform sufficiency analysis for temperature
           if ('Temperature' %in% input$parms) {
             temp_stns_pass <- temp_sufficiency_analysis(df.all)
+          } else {
+            temp_stns_pass <- data.frame()
+            attr(temp_stns_pass, "year_test") <- c()
           }
           
           #Generate sdadm once for temperature plotting/exceedance use
@@ -249,7 +252,7 @@ shinyServer(function(input, output, session) {
           }
           
           #Run Seasonal Kendall for pH and Bacteria
-          if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
+          if (any(c('pH', 'E. Coli', "Enterococcus", "Dissolved Oxygen") %in% df.all$Analyte)) {
             SeaKen <- run_seaKen(df.all)
           } else {
             SeaKen <- data.frame()
@@ -563,33 +566,7 @@ shinyServer(function(input, output, session) {
       
       output$selectSpawning = renderUI({
         validate(
-          need(input$selectParameter == 'Temperature', message = FALSE)
-        )
-        selectInput('selectSpawning',"Select applicable spawning time period:",
-                    choices = c('No spawning',
-                                'January 1-June 15',
-                                'January 1-May 15',
-                                'August 1-June 15',
-                                'August 15-June 15',
-                                'August 15-May 15',
-                                'September 1-June 15',
-                                'September 1-May 15',
-                                'September 15-June 15',
-                                'September 15-May 15',
-                                'October 1-June 15',
-                                'October 1-May 15',
-                                'October 15-June 15',
-                                'October 15-May 15',
-                                'October 23-April 15',
-                                'November 1-June 15',
-                                'November 1-May 1',
-                                'November 1-May 15'),
-                    selectize = TRUE)
-      })
-      
-      output$selectSpawning = renderUI({
-        validate(
-          need(input$selectParameter == 'Dissolved Oxygen', message = FALSE)
+          need(input$selectParameter %in% c('Temperature', 'Dissolved Oxygen'), message = FALSE)
         )
         selectInput('selectSpawning',"Select applicable spawning time period:",
                     choices = c('No spawning',
@@ -902,10 +879,12 @@ shinyServer(function(input, output, session) {
                                  result_column = 'Result',
                                  datetime_format = '%Y-%m-%d',
                                  parm = 'Dissolved Oxygen')
+                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  } else {
                    g <- ggplot(data.frame()) + geom_point() + 
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
+                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
                }),
                "Dissolved oxygen saturation" = ({
@@ -919,10 +898,12 @@ shinyServer(function(input, output, session) {
                                    result_column = 'Result',
                                    datetime_format = '%Y-%m-%d %H:%M:%S',
                                    parm = 'Dissolved Oxygen Saturation')
+                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  } else {
                    g <- ggplot(data.frame()) + geom_point() + 
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
+                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
                })
         )

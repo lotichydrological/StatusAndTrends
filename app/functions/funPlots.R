@@ -910,7 +910,7 @@ plot.DO<-function(new_data,
                   station_desc_column = 'Station_Description',
                   datetime_column = 'Sampled',
                   result_column = 'Result',
-                  datetime_format = '%Y-%m-%d',
+                  datetime_format = '%Y-%m-%d %H:%M:%S',
                   parm) {
   require(ggplot2)
   require(chron)
@@ -934,20 +934,20 @@ plot.DO<-function(new_data,
   new_data$selectUseDO<-selectUseDO
   
   spd_list <- strsplit(selectSpawning, split = "-")
-    spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
-    spd_months <- lapply(spd_chron, months)
-    spd_days <- lapply(spd_chron, days)
-    spd_months_num <- lapply(spd_months, as.numeric)
-    spd_days_num <- lapply(spd_days, as.numeric)
-    SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
-    SEND_MONTH <- unlist(lapply(spd_months_num, function(x) x[2]))
-    SSTART_DAY <- unlist(lapply(spd_days_num, function(x) x[1]))
-    SEND_DAY <- unlist(lapply(spd_days_num, function(x) x[2]))
-    sdata <- as.data.frame(cbind(SSTART_MONTH, SSTART_DAY, SEND_MONTH, SEND_DAY))
+  spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
+  spd_months <- lapply(spd_chron, months)
+  spd_days <- lapply(spd_chron, chron::days)
+  spd_months_num <- lapply(spd_months, as.numeric)
+  spd_days_num <- lapply(spd_days, as.numeric)
+  SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
+  SEND_MONTH <- unlist(lapply(spd_months_num, function(x) x[2]))
+  SSTART_DAY <- unlist(lapply(spd_days_num, function(x) x[1]))
+  SEND_DAY <- unlist(lapply(spd_days_num, function(x) x[2]))
+  sdata <- as.data.frame(cbind(SSTART_MONTH, SSTART_DAY, SEND_MONTH, SEND_DAY))
   
-    sdata$Station_ID <- unique(new_data$Station_ID)
-    sdata$aqu_use_des <- selectUseDO
-    sdata$numcrit<- if(selectUseDO == 'Cold-Water Aquatic Life') {
+  sdata$Station_ID <- unique(new_data$Station_ID)
+  sdata$aqu_use_des <- selectUseDO
+  sdata$numcrit<- if(selectUseDO == 'Cold-Water Aquatic Life') {
     8
   } else if (selectUseDO == 'Cool-Water Aquatic Life') {
     6.5
@@ -956,7 +956,7 @@ plot.DO<-function(new_data,
   } else if (selectUseDO == 'Estuarine Waters') {
     6.5
   }
-  y.min <- 5 #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
+  y.min <- (min(sdata$numcrit) - 1) #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
   y.max <- ceiling(max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   new_data$sdata <- match(new_data[, 'Station_ID'],
@@ -978,7 +978,8 @@ plot.DO<-function(new_data,
            11, new_data$bioc)))
   #Merge %DO with [DO]##
   DOsat<-df.all%>%
-    filter(Analyte == 'Dissolved oxygen saturation')
+    filter(Analyte == 'Dissolved oxygen saturation') %>%
+    filter(Station_ID == unique(new_data$Station_ID))
   DOsat$Result <- as.numeric(DOsat$Result)
   DOsat$Sampled<-as.POSIXct(strptime(DOsat[, datetime_column],
                                      format = datetime_format))
@@ -988,11 +989,11 @@ plot.DO<-function(new_data,
   new_data_DOsat<-merge(new_data, DOsat[,c('id','Result')], by="id")
   new_data_DOsat<-plyr::rename(new_data_DOsat, c("Result.y" = "Result_DOsat", "Result.x" = "Result_DOconc"))
   #merge new_data with new_data_DOsat
-  new_data_all<-full_join(new_data, new_data_DOsat[,c('id', 'Result_DOsat')], by="id")
+  new_data_all<-dplyr::full_join(new_data, new_data_DOsat[,c('id', 'Result_DOsat')], by="id")
   #Add columns to identify exceedances of WQS for [DO] and %DO
   new_data_all$Result<-as.numeric(new_data_all$Result)
   new_data_all$Result_DOsat<-as.numeric(new_data_all$Result_DOsat)
-
+  
   new_data_all$Cexceed<- ifelse(new_data_all$Result > new_data_all$bioc, 'Meets', 'Exceeds')
   new_data_all$Cexceed<-as.factor(new_data_all$Cexceed)
   new_data_all$Sat_Exceed<-if (selectSpawning != 'No spawning') {
@@ -1047,22 +1048,22 @@ plot.DO<-function(new_data,
     BCsat_spwn<-new_data_all%>%
       filter(BCsat_Exceed == "Meets")
     if (nrow(BCsat_spwn) > 0){
-    BCsat_spwn$BCsat_spwn_exceed<- ifelse(length(BCsat_spwn$BCsat_Exceed) > 0, 'Meets b/c %Sat', NA)
-    BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-    new_data_all[,BCsat_spwn_exceed] <- NA
-    new_data_all$BCsat_spwn_exceed <- NA
-    new_data_all<-rbind(new_data_all, BCsat_spwn) 
+      BCsat_spwn$BCsat_spwn_exceed<- ifelse(length(BCsat_spwn$BCsat_Exceed) > 0, 'Meets b/c %Sat', NA)
+      BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+      new_data_all[,BCsat_spwn_exceed] <- NA
+      new_data_all$BCsat_spwn_exceed <- NA
+      new_data_all<-rbind(new_data_all, BCsat_spwn) 
     } else{
       BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
       new_data_all[,BCsat_spwn_exceed] <- NA
       new_data_all$BCsat_spwn_exceed <- NA
       new_data_all<-rbind(new_data_all, BCsat_spwn)
-       }
-    } 
-   
-
-
- #BCsat_spwn$BCsat_spwn_exceed <- 'Meets b/c %Sat'
+    }
+  } 
+  
+  
+  
+  #BCsat_spwn$BCsat_spwn_exceed <- 'Meets b/c %Sat'
   ##PLOT THE TIMESERIES
   if (selectSpawning == 'No spawning') {
     new_data_all<-rbind(new_data_all, BCsat)
@@ -1088,14 +1089,14 @@ plot.DO<-function(new_data,
             legend.direction = 'horizontal') +
       xlab(x.lab) +
       ylab(y.lab)
-   g 
-   
+    g 
+    
   } else if (length(new_data_all$BCsat_spwn_exceed) > 0 & selectSpawning != 'No spawning') {
     new_data_all$exceed<-ifelse(new_data_all$Cexceed == 'Meets', 
-       'Meets', 
-       ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
-              "Meets b/c %Sat", 
-              'Exceeds'))
+                                'Meets', 
+                                ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
+                                       "Meets b/c %Sat", 
+                                       'Exceeds'))
     
     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
       geom_point(aes(color = exceed))+
@@ -1107,69 +1108,69 @@ plot.DO<-function(new_data,
       theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
       ggtitle(bquote(atop(.(title)))) +
       theme(legend.position = "top",
-          legend.title = element_blank(),
-         legend.direction = 'horizontal') +
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
       xlab(x.lab) +
       ylab(y.lab) 
     g
     
-    } else {
-      g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
-        geom_point(aes(color = Cexceed)) +
-        scale_colour_manual(name = 'Key', 
-                           breaks = c('Meets', 'Exceeds'),
-                           values = c('Meets' = 'black', 'Exceeds' = 'pink'))+
-        xlim(x.lim) +
-        ylim(y.lim) +
-        geom_hline(data = d, aes(yintercept = y),  color = "red") +
-        theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
-        ggtitle(bquote(atop(.(title)))) +
-        theme(legend.position = "top",
-              legend.title = element_blank(),
-              legend.direction = 'horizontal') +
-        xlab(x.lab) +
-        ylab(y.lab) 
-      g
-    } 
- 
-    ####DRAW WQS SPAWNING LINES
+  } else {
+    g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
+      geom_point(aes(color = Cexceed)) +
+      scale_colour_manual(name = 'Key', 
+                          breaks = c('Meets', 'Exceeds'),
+                          values = c('Meets' = 'black', 'Exceeds' = 'pink'))+
+      xlim(x.lim) +
+      ylim(y.lim) +
+      geom_hline(data = d, aes(yintercept = y),  color = "red") +
+      theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
+      ggtitle(bquote(atop(.(title)))) +
+      theme(legend.position = "top",
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
+      xlab(x.lab) +
+      ylab(y.lab) 
+    g
+  } 
+  
+  ####DRAW WQS SPAWNING LINES
   if (selectSpawning != 'No spawning'){
-  
-  new_data_all <- new_data_all[order(new_data_all$Sampled),]
-  data_years <- unique(lubridate::year(new_data_all$Sampled))
-  whole_range <- seq(min(new_data_all$Sampled), max(new_data_all$Sampled), by = 'day')
-  wr <- data.frame('Sampled' = whole_range, bioc = NA)
-  
-  if (any(new_data_all$winter)) {
-    #rest of the spawning periods
-    for (k in 1:length(data_years)) {
-      spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
-      spwn_end_text <- paste(spd_list[[1]][2], data_years[k] + 1)
-      spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
+    
+    new_data_all <- new_data_all[order(new_data_all$Sampled),]
+    data_years <- unique(lubridate::year(new_data_all$Sampled))
+    whole_range <- seq(min(new_data_all$Sampled), max(new_data_all$Sampled), by = 'day')
+    wr <- data.frame('Sampled' = whole_range, bioc = NA)
+    
+    if (any(new_data_all$winter)) {
+      #rest of the spawning periods
+      for (k in 1:length(data_years)) {
+        spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
+        spwn_end_text <- paste(spd_list[[1]][2], data_years[k] + 1)
+        spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
+        spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
+        wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
+      }
+      
+      #first spawning period
+      spwn_end_text <- paste(spd_list[[1]][2], data_years[1])
       spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
-      wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
+      wr[wr$Sampled <= spwn_end, 'bioc'] <- 11
+    } else {
+      for (k in 1:length(data_years)) {
+        spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
+        spwn_end_text <- paste(spd_list[[1]][2], data_years[k])
+        spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
+        spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
+        wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
+      }
     }
     
-    #first spawning period
-    spwn_end_text <- paste(spd_list[[1]][2], data_years[1])
-    spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
-    wr[wr$Sampled <= spwn_end, 'bioc'] <- 11
-  } else {
-    for (k in 1:length(data_years)) {
-      spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
-      spwn_end_text <- paste(spd_list[[1]][2], data_years[k])
-      spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
-      spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
-      wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
-    }
+    g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, linetype = 'Spawning'),
+                       data = wr, inherit.aes = FALSE, na.rm = TRUE)
+    
+    
   }
-  
-  g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, linetype = 'Spawning'),
-                     data = wr, inherit.aes = FALSE, na.rm = TRUE)
   g
-  
-  }
-  
 }
 
 ggsave("g.png", height = 6, width = 6)
