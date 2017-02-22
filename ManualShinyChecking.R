@@ -48,21 +48,6 @@ source('app/functions/funPlots.R')
 source('app/functions/funSeaKen.R')
 source('app/functions/funHelpers.R')
 
-# agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-# hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
-# #agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
-# HUClist <- read.csv('app/data/PlanHUC_LU.csv')
-# ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
-# ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
-# parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-# <<<<<<< HEAD
-#wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
-#stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
-# =======
-#wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
-#>>>>>>> e3db0af152e150e14b3121b147052855e7678ef9
-#wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
-
 agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 #agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
@@ -71,7 +56,7 @@ stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO3.csv')
+wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
@@ -256,6 +241,11 @@ lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]],
                                      'Listing_St' = 'Listing Status'))
 names(lstSummaryDfs)[6] <- "wq_limited"
 
+#Pull in Stream Cat data for NLCD 2011 land use
+# stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
+# lstSummaryDfs[[7]] <- data.frame()#stn_nlcd_df
+# names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
+
 
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
@@ -316,10 +306,11 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                    plot_trend = FALSE)
   
   
+
   input$selectStation <-  '10708'
   selectSpawning <- 'January 1-June 15'
   input$selectSpawning <- selectSpawning
-  selectUseDO<-'Cold-Water Aquatic Life'
+  selectUseDO<-'Cool-Water Aquatic Life'
   input$selectUseDO<-selectUseDO
   
   DO<-df.all%>%
@@ -334,7 +325,7 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                    station_desc_column = 'Station_Description',
                    datetime_column = 'Sampled',
                    result_column = 'Result',
-                   datetime_format = '%Y-%m-%d',
+                   datetime_format = '%Y-%m-%d %H:%M:%S',
                    parm = 'Dissolved Oxygen')
   plot.DO
   
