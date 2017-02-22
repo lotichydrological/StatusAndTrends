@@ -33,6 +33,10 @@ library(wq)
 library(chron)
 library(reshape)
 library(ggplot2)
+library(zoo)
+library(spatialEco)
+library(dplyr)
+library(lubridate)
 #library(xlsx)
 #library(RODBC)
 
@@ -44,28 +48,25 @@ source('app/functions/funPlots.R')
 source('app/functions/funSeaKen.R')
 source('app/functions/funHelpers.R')
 
-# load('app/data/NLCD2011_OR.Rdata')
-# load('app/data/OR_cats.Rdata')
-
 agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 #agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
 HUClist <- read.csv('app/data/PlanHUC_LU.csv')
+stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
-#wq_limited <- readOGR(dsn = 'app/data/GIS', layer = 'ORStreamsWaterQuality_2010_WQLimited_V3', verbose = FALSE)
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Dissolved Oxygen')
-input$select <- "Willow Creek"
+input$parms <- c('Temperature')
+input$select <- "Burnt River"
 input$dates <- c("2000-01-01", "2017-01-01")
-input$db <- c("Water Quality Portal", 'DEQ')
-input$selectStation <-  "10708"
-input$selectParameter <- 'Dissolved Oxygen'
+input$db <- c('DEQ')
+input$selectStation <-  "27760 - "
+input$selectParameter <- 'Temperature'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'No spawning'
 input$selectUse <- 'Core Cold Water Habitat'
@@ -117,7 +118,8 @@ if ('DEQ' %in% input$db) {
                           HUClist = HUClist,
                           inParms = input$parms,
                           startDate = input$dates[1],
-                          endDate = input$dates[2])
+                          endDate = input$dates[2],
+                          stations_wbd = stations_huc)
   odbcCloseAll()
   if (nrow(lasarData) == 0) lasarData <- NULL
   
@@ -126,7 +128,8 @@ if ('DEQ' %in% input$db) {
                           HUClist = HUClist,
                           inParms = input$parms,
                           startDate = input$dates[1],
-                          endDate = input$dates[2])
+                          endDate = input$dates[2],
+                          stations_wbd = stations_huc)
   odbcCloseAll()
   if (nrow(elmData) == 0) elmData <- NULL
 }
@@ -247,6 +250,11 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
   
+  plot.Temperature(new_data = new_data, 
+                   all_data = df.all,
+                   selectUse = input$selectUse,
+                   selectSpawning = input$selectSpawning)
+  
   if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
     tmp_df <- new_data
     tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
@@ -298,7 +306,8 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                    plot_trend = FALSE)
   
   
-  input$selectStation <-  '25191'
+
+  input$selectStation <-  '10708'
   selectSpawning <- 'January 1-June 15'
   input$selectSpawning <- selectSpawning
   selectUseDO<-'Cool-Water Aquatic Life'

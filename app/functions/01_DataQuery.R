@@ -3,7 +3,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
   # L <- lasarData
   # W <- wqpData
   # W <- wqp.data
-  
+
   if (is.data.frame(W)) {
     wqp.map <- c('MonitoringLocationIdentifier' = 'Station_ID',
                  'OrganizationFormalName' = 'Client',
@@ -24,7 +24,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                  'ResultCommentText' = 'Comment',
                  'ResultStatusIdentifier' = 'StatusIdentifier',
                  'HUCEightDigitCode' = 'HUC'
-                 )
+    )
     Wx <- attr(W, 'siteInfo')
     W <- merge(W, Wx[,c('MonitoringLocationIdentifier',
                         "MonitoringLocationName",
@@ -48,8 +48,8 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
     siteInfo <- siteInfo[!duplicated(siteInfo$site_no),]
     N <- merge(N, siteInfo[,c('site_no', 'station_nm', 'dec_lat_va', 
                               'dec_lon_va', 'hucCd', 'srs')],
-                       by = 'site_no',
-                       all.x = TRUE)
+               by = 'site_no',
+               all.x = TRUE)
     name_map <- c('agency_cd' = 'Client',
                   'site_no' = 'Station_ID',
                   'dateTime' = 'Sampled',
@@ -94,10 +94,10 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
   
   if (!is.null(E)) {
     E <- plyr::rename(E, c('Units' = 'Unit', 
-                     'DQL' = 'Status', 
-                     'SampleQualifiers' = 'StatusIdentifier', 
-                     'AnalyteQualifiers' = 'Comment',
-                     'HUC8' = 'HUC'))
+                           'DQL' = 'Status', 
+                           'SampleQualifiers' = 'StatusIdentifier', 
+                           'AnalyteQualifiers' = 'Comment',
+                           'HUC8' = 'HUC'))
     E$DATUM <- 'Assumed NAD83'
     E <- E[,c('Client','Analyte','Station_ID','Station_Description',
               'SampleType','Result','MRL','Unit','Status','Sampled','DATUM',
@@ -106,12 +106,13 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
     E$SD <- paste(E$Database, E$Station_ID)
     E <- cbind(E, data.frame(Detect = rep(NA, nrow(E))))
   }
-    
+  
   df.all <- rbind(E,L,W,N)
   
-  df.all[df.all$Unit == '%', 'Analyte'] <- 'Dissolved oxygen saturation'
-  
-  df.all[df.all$Analyte == "Dissolved oxygen (DO)", 'Analyte'] <- 'Dissolved Oxygen'
+  if ('Dissolved Oxygen' %in% df.all$Analyte){
+    df.all[df.all$Unit == '%', 'Analyte'] <- 'Dissolved oxygen saturation'
+    df.all[df.all$Analyte == "Dissolved oxygen (DO)", 'Analyte'] <- 'Dissolved Oxygen'
+  }
   
   df.all$Analyte <- mapvalues(df.all$Analyte, 
                               from = c('Temperature, water','Escherichia coli',
@@ -120,8 +121,9 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
                                      'Enterococcus','E. Coli', 'Dissolved Oxygen'),
                               warn_missing = FALSE)
   
-   return(df.all)
+  return(df.all)
 }
+
 
 elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
                          stations_wbd = stations_huc) {

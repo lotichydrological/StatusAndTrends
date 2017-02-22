@@ -145,7 +145,7 @@ plot.Temperature <- function(new_data,
                              station_desc_column = 'Station_Description',
                              datetime_column = 'date', 
                              datetime_format = '%Y-%m-%d', 
-                             plot_trend = FALSE) {
+                               plot_trend = FALSE) {
   require(ggplot2)
   new_data <- EvaluateTempWQS(new_data, selectUse, selectSpawning, "Station_ID") 
   new_data$Sampled <- as.POSIXct(strptime(new_data[,datetime_column], 
@@ -936,20 +936,20 @@ plot.DO<-function(new_data,
   new_data$selectUseDO<-selectUseDO
   
   spd_list <- strsplit(selectSpawning, split = "-")
-    spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
-    spd_months <- lapply(spd_chron, months)
-    spd_days <- lapply(spd_chron, chron::days)
-    spd_months_num <- lapply(spd_months, as.numeric)
-    spd_days_num <- lapply(spd_days, as.numeric)
-    SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
-    SEND_MONTH <- unlist(lapply(spd_months_num, function(x) x[2]))
-    SSTART_DAY <- unlist(lapply(spd_days_num, function(x) x[1]))
-    SEND_DAY <- unlist(lapply(spd_days_num, function(x) x[2]))
-    sdata <- as.data.frame(cbind(SSTART_MONTH, SSTART_DAY, SEND_MONTH, SEND_DAY))
+  spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
+  spd_months <- lapply(spd_chron, months)
+  spd_days <- lapply(spd_chron, chron::days)
+  spd_months_num <- lapply(spd_months, as.numeric)
+  spd_days_num <- lapply(spd_days, as.numeric)
+  SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
+  SEND_MONTH <- unlist(lapply(spd_months_num, function(x) x[2]))
+  SSTART_DAY <- unlist(lapply(spd_days_num, function(x) x[1]))
+  SEND_DAY <- unlist(lapply(spd_days_num, function(x) x[2]))
+  sdata <- as.data.frame(cbind(SSTART_MONTH, SSTART_DAY, SEND_MONTH, SEND_DAY))
   
-    sdata$Station_ID <- unique(new_data$Station_ID)
-    sdata$aqu_use_des <- selectUseDO
-    sdata$numcrit<- if(selectUseDO == 'Cold-Water Aquatic Life') {
+  sdata$Station_ID <- unique(new_data$Station_ID)
+  sdata$aqu_use_des <- selectUseDO
+  sdata$numcrit<- if(selectUseDO == 'Cold-Water Aquatic Life') {
     8
   } else if (selectUseDO == 'Cool-Water Aquatic Life') {
     6.5
@@ -995,7 +995,7 @@ plot.DO<-function(new_data,
   #Add columns to identify exceedances of WQS for [DO] and %DO
   new_data_all$Result<-as.numeric(new_data_all$Result)
   new_data_all$Result_DOsat<-as.numeric(new_data_all$Result_DOsat)
-
+  
   new_data_all$Cexceed<- ifelse(new_data_all$Result > new_data_all$bioc, 'Meets', 'Exceeds')
   new_data_all$Cexceed<-as.factor(new_data_all$Cexceed)
   new_data_all$Sat_Exceed<-if (selectSpawning != 'No spawning') {
@@ -1050,11 +1050,11 @@ plot.DO<-function(new_data,
     BCsat_spwn<-new_data_all%>%
       filter(BCsat_Exceed == "Meets")
     if (nrow(BCsat_spwn) > 0){
-    BCsat_spwn$BCsat_spwn_exceed<- ifelse(length(BCsat_spwn$BCsat_Exceed) > 0, 'Meets b/c %Sat', NA)
-    BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-    new_data_all[,BCsat_spwn_exceed] <- NA
-    new_data_all$BCsat_spwn_exceed <- NA
-    new_data_all<-rbind(new_data_all, BCsat_spwn) 
+      BCsat_spwn$BCsat_spwn_exceed<- ifelse(length(BCsat_spwn$BCsat_Exceed) > 0, 'Meets b/c %Sat', NA)
+      BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+      new_data_all[,BCsat_spwn_exceed] <- NA
+      new_data_all$BCsat_spwn_exceed <- NA
+      new_data_all<-rbind(new_data_all, BCsat_spwn) 
     } else{
       BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
       new_data_all[,BCsat_spwn_exceed] <- NA
@@ -1100,7 +1100,6 @@ plot.DO<-function(new_data,
                               y = c(SK.min, SK.max),
                               variable = rep('Trend line', 2))
 
- 
   #BCsat_spwn$BCsat_spwn_exceed <- 'Meets b/c %Sat'
   ##PLOT THE TIMESERIES
   if (selectSpawning == 'No spawning') {
@@ -1116,15 +1115,24 @@ plot.DO<-function(new_data,
       #geom_point(aes(color = BCsat2))+
       scale_colour_manual(name = 'Key', 
                           breaks = c('Meets', 'Exceeds', 'Meets b/c %Sat'),
-                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))
-   g 
-   
+                          values = c('Meets' = 'black', 'Exceeds' = 'pink', 'Meets b/c %Sat' = 'green'))+
+      xlim(x.lim) +
+      ylim(y.lim) +
+      geom_hline(data = d, aes(yintercept = y), color = "red") +
+      theme(plot.title = element_text(vjust=1.5, face="bold", size = 8))+
+      ggtitle(bquote(atop(.(title)))) +
+      theme(legend.position = "top",
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
+      xlab(x.lab) +
+      ylab(y.lab)
+    g 
   } else if (length(new_data_all$BCsat_spwn_exceed) > 0 & selectSpawning != 'No spawning') {
     new_data_all$exceed<-ifelse(new_data_all$Cexceed == 'Meets', 
-       'Meets', 
-       ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
-              "Meets b/c %Sat", 
-              'Exceeds'))
+                                'Meets', 
+                                ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
+                                       "Meets b/c %Sat", 
+                                       'Exceeds'))
     
     g <- ggplot(data = new_data_all, aes(x = Sampled, y = Result)) +
       geom_point(aes(color = exceed))+
@@ -1176,36 +1184,47 @@ if (plot_trend & !is.na(p.value)) {
   whole_range <- seq(min(new_data_all$Sampled), max(new_data_all$Sampled), by = 'day')
   wr <- data.frame('Sampled' = whole_range, bioc = NA)
   
-  if (any(new_data_all$winter)) {
-    #rest of the spawning periods
-    for (k in 1:length(data_years)) {
-      spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
-      spwn_end_text <- paste(spd_list[[1]][2], data_years[k] + 1)
-      spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
+  ####DRAW WQS SPAWNING LINES
+  if (selectSpawning != 'No spawning'){
+    
+    new_data_all <- new_data_all[order(new_data_all$Sampled),]
+    data_years <- unique(lubridate::year(new_data_all$Sampled))
+    whole_range <- seq(min(new_data_all$Sampled), max(new_data_all$Sampled), by = 'day')
+    wr <- data.frame('Sampled' = whole_range, bioc = NA)
+    
+    if (any(new_data_all$winter)) {
+      #rest of the spawning periods
+      for (k in 1:length(data_years)) {
+        spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
+        spwn_end_text <- paste(spd_list[[1]][2], data_years[k] + 1)
+        spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
+        spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
+        wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
+      }
+      
+      #first spawning period
+      spwn_end_text <- paste(spd_list[[1]][2], data_years[1])
       spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
-      wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
+      wr[wr$Sampled <= spwn_end, 'bioc'] <- 11
+    } else {
+      for (k in 1:length(data_years)) {
+        spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
+        spwn_end_text <- paste(spd_list[[1]][2], data_years[k])
+        spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
+        spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
+        wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
+      }
     }
     
-    #first spawning period
-    spwn_end_text <- paste(spd_list[[1]][2], data_years[1])
-    spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
-    wr[wr$Sampled <= spwn_end, 'bioc'] <- 11
-  } else {
-    for (k in 1:length(data_years)) {
-      spwn_strt_text <- paste(spd_list[[1]][1], data_years[k])
-      spwn_end_text <- paste(spd_list[[1]][2], data_years[k])
-      spwn_start<-as.POSIXct(strptime(spwn_strt_text, format = "%B %d %Y"))
-      spwn_end<-as.POSIXct(strptime(spwn_end_text, format = "%B %d %Y"))
-      wr[wr$Sampled >= spwn_start & wr$Sampled <= spwn_end, 'bioc'] <- 11
-    }
+    g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, linetype = 'Spawning'),
+                       data = wr, inherit.aes = FALSE, na.rm = TRUE)
+    
+    
   }
-  
   g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, linetype = 'Spawning'),
                      data = wr, inherit.aes = FALSE, na.rm = TRUE)
-  
-  
   }
-                           
+
   g
 }
 
