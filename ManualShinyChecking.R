@@ -61,18 +61,18 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Temperature')
+input$parms <- c('Dissolved Oxygen')
 input$select <- "Burnt River"
 input$dates <- c("2000-01-01", "2017-01-01")
 input$db <- c('DEQ')
-input$selectStation <-  "27760 - "
-input$selectParameter <- 'Temperature'
+input$selectStation <-  "11494 - "
+input$selectParameter <- 'Dissolved Oxygen'
 input$selectLogScale <- FALSE
-input$selectSpawning <- 'No spawning'
+input$selectSpawning <- 'January 1-May 15'
 input$selectUse <- 'Core Cold Water Habitat'
 input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
-input$selectUseDO<-'Cool-Water Aquatic Life'
+input$selectUseDO<-'Cold-Water Aquatic Life'
 input$checkSpawning<-TRUE
 
 
@@ -189,7 +189,7 @@ if (any('Temperature' %in% df.all$Analyte)) {
 #temp_stns_pass <- temp_sufficiency_analysis(df.all = df.all)
 
 #Run Seasonal Kendall for pH and Bacteria
-if (any(c('pH', 'E. Coli', "Enterococcus") %in% df.all$Analyte)) {
+if (any(c('pH', 'E. Coli', "Enterococcus", "Dissolved Oxygen") %in% df.all$Analyte)) {
   SeaKen <- run_seaKen(df.all)
 } else {
   SeaKen <- data.frame()

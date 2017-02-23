@@ -1,4 +1,6 @@
 library(shiny)
+#Use this to make it accessible for other people to access
+#runApp("app",host="0.0.0.0",port=3168)
 library(RCurl)
 library(XML)
 library(dataRetrieval)
@@ -37,6 +39,10 @@ hucs <- readOGR(dsn = './data/GIS', layer = 'WBD_HU8', verbose = FALSE)
 #When done through the use of intersection and overlay tools provided in the sp and rgdal packages
 #Therefore, a manual identificiation of the desired HUCs for each Ag plan area was completed
 HUClist <- read.csv('data/PlanHUC_LU.csv')
+
+#LASAR Stations don't all have HUC8 values in the Area Abbreviation table so we Ryan
+#did the GIS to get them based on the LASAR database lat/lon for each station
+stations_huc <- read.csv('data/station_wbd_12132016.csv')
 
 #Table of ph criteria for lookup
 ph_crit <- read.csv('data/PlanOWRDBasinpH_LU.csv')
@@ -151,7 +157,8 @@ shinyServer(function(input, output, session) {
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
-                                  endDate = input$dates[2])
+                                  endDate = input$dates[2],
+                                  stations_wbd = stations_huc)
           odbcCloseAll()
           if (nrow(lasarData) == 0) lasarData <- NULL
           
@@ -163,7 +170,8 @@ shinyServer(function(input, output, session) {
                                   HUClist = HUClist,
                                   inParms = input$parms,
                                   startDate = input$dates[1],
-                                  endDate = input$dates[2])
+                                  endDate = input$dates[2],
+                                  stations_wbd = stations_huc)
           odbcCloseAll()
           if (nrow(elmData) == 0) elmData <- NULL
         }
