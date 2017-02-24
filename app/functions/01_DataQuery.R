@@ -238,7 +238,8 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   }
   
   # Get all the LASAR stations within each HUC8
-  stationlist <- stations_wbd[stations_wbd$HUC8 %in% myHUCs, 'STATION_KEY']
+  stationlist <- stations_wbd[stations_wbd$HUC8 %in% 
+                                HUClist[HUClist$PlanName == planArea,'HUC8'], 'STATION_KEY']
   myStations <- paste(stationlist,collapse="','")
   
   #### Define site types to query ####
