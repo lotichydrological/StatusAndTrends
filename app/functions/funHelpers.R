@@ -582,7 +582,7 @@ EvaluatepHWQS <- function(new_data, ph_crit, PlanName, selectpHCrit = NULL) {
     new_data$exceed <- ifelse(new_data[, 'Result'] < ph_crit_min |
                                 new_data[, 'Result'] > ph_crit_max, 
                               1, 0)
-    new_data$Year <- as.character(years(new_data$Sampled))
+    new_data$Year <- as.character(chron::years(new_data$Sampled))
     return(new_data)
   }
 }

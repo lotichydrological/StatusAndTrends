@@ -1008,7 +1008,8 @@ plot.DO<-function(new_data,
     g <- g + geom_line(aes(x = x, y = y, color = variable), 
                        data = df_trend_line)  
     if (selectSpawning == 'No spawning') {
-      if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+      if (any('Exceeds' %in% new_data$exceed)) {
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
           g <- g + scale_color_manual("", values = c('black','pink','black',
                                                      'black', 'blue'),
                                       labels = c(unique(d$variable), 
@@ -1037,6 +1038,36 @@ plot.DO<-function(new_data,
                                       nrow = 2))
         g <- g + scale_shape_manual("", values = c(19, 19),
                                     guide = FALSE)
+        }
+      } else {
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black','black',
+                                                     'black', 'blue'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Meets b/c % Sat',
+                                                 'Trend Line'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", 'solid'),
+                                        shape = c(NA, 19, 18, NA)),
+                                        nrow = 2))
+          g <- g + scale_shape_manual("", values = c(19, 18),
+                                      guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black',
+                                                     'black', 'blue'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Trend Line'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", 
+                                                     "blank", 'solid'),
+                                        shape = c(NA, 19, NA)),
+                                        nrow = 2))
+          g <- g + scale_shape_manual("", values = c(19),
+                                      guide = FALSE)
+        }
       }
     } else {
       ####DRAW WQS SPAWNING LINES
@@ -1073,70 +1104,133 @@ plot.DO<-function(new_data,
       g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, color = 'Spawning'),
                          linetype = 'dashed', data = wr, na.rm = TRUE)
       
-      if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-        g <- g + scale_color_manual("", values = c('black','pink','black',
-                                                   'black', 'black', 'blue'),
-                                    labels = c(unique(d$variable), 
-                                               'Exceeds',
-                                               'Meets',
-                                               'Meets b/c % Sat',
-                                               'Trend Line',
-                                               'Spawning'),
-                                    guide = guide_legend(override.aes = list(
-                                      linetype = c("solid", "blank", 
-                                                   "blank", "blank", 'solid',
-                                                   'dashed'),
-                                      shape = c(NA, 19, 19, 18, NA, NA)),
-                                      nrow = 2)) +
-         scale_shape_manual("", values = c(19, 19, 18),
-                                    guide = FALSE)
+      if (any('Exceeds' %in% new_data$exceed)) {
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black','pink','black',
+                                                     'black', 'black', 'blue'),
+                                      labels = c(unique(d$variable), 
+                                                 'Exceeds',
+                                                 'Meets',
+                                                 'Meets b/c % Sat',
+                                                 'Trend Line',
+                                                 'Spawning'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", "blank", 'solid',
+                                                     'dashed'),
+                                        shape = c(NA, 19, 19, 18, NA, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 19, 18),
+                               guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black','pink','black',
+                                                     'black', 'blue'),
+                                      labels = c(unique(d$variable), 
+                                                 'Exceeds',
+                                                 'Meets',
+                                                 'Spawning',
+                                                 'Trend Line'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", 'dashed',
+                                                     'solid'),
+                                        shape = c(NA, 19, 19, NA, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 19),
+                               guide = FALSE)
+        }
       } else {
-        g <- g + scale_color_manual("", values = c('black','pink','black',
-                                                   'black', 'blue'),
-                                    labels = c(unique(d$variable), 
-                                               'Exceeds',
-                                               'Meets',
-                                               'Spawning',
-                                               'Trend Line'),
-                                    guide = guide_legend(override.aes = list(
-                                      linetype = c("solid", "blank", 
-                                                   "blank", 'dashed',
-                                                   'solid'),
-                                      shape = c(NA, 19, 19, NA, NA)),
-                                      nrow = 2)) +
-          scale_shape_manual("", values = c(19, 19),
-                             guide = FALSE)
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black','black',
+                                                     'black', 'black', 'blue'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Meets b/c % Sat',
+                                                 'Trend Line',
+                                                 'Spawning'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", 'solid',
+                                                     'dashed'),
+                                        shape = c(NA, 19, 18, NA, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 18),
+                               guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black','black',
+                                                     'black', 'blue'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Spawning',
+                                                 'Trend Line'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid",  
+                                                     "blank", 'dashed',
+                                                     'solid'),
+                                        shape = c(NA, 19,  NA, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19),
+                               guide = FALSE)
+        }
       }
     }
   } else {
     if (selectSpawning == 'No spawning') {
-      if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-        g <- g + scale_color_manual("", values = c('black', 'pink',
-                                                   'black', 'black'),
-                                    labels = c(unique(d$variable), 
-                                               'Exceeds',
-                                               'Meets',
-                                               'Meets b/c % Sat'),
-                                    guide = guide_legend(override.aes = list(
-                                      linetype = c("solid", "blank", 
-                                                   "blank", "blank"),
-                                      shape = c(NA, 19, 19, 18)),
-                                      nrow = 2)) +
-         scale_shape_manual("", values = c(19, 19, 18),
-                                    guide = FALSE)
+      if (any('Exceeds') %in% new_data$exceed) {
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black', 'pink',
+                                                     'black', 'black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Exceeds',
+                                                 'Meets',
+                                                 'Meets b/c % Sat'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", "blank"),
+                                        shape = c(NA, 19, 19, 18)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 19, 18),
+                               guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black','pink',
+                                                     'black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Exceeds',
+                                                 'Meets'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank"),
+                                        shape = c(NA, 19, 19)),
+                                        nrow = 2)) + 
+            scale_shape_manual("", values = c(19, 19), guide = FALSE)
+        }
       } else {
-        g <- g + scale_color_manual("", values = c('black','pink',
-                                                   'black'),
-                                    labels = c(unique(d$variable), 
-                                               'Exceeds',
-                                               'Meets'),
-                                    guide = guide_legend(override.aes = list(
-                                      linetype = c("solid", "blank", 
-                                                   "blank"),
-                                      shape = c(NA, 19, 19)),
-                                      nrow = 2)) + 
-          scale_shape_manual("", values = c(19, 19), guide = FALSE)
-      }
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black', 
+                                                     'black', 'black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Meets b/c % Sat'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid",  
+                                                     "blank", "blank"),
+                                        shape = c(NA, 19, 18)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 18),
+                               guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black',
+                                                     'black'),
+                                      labels = c(unique(d$variable),
+                                                 'Meets'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid",  
+                                                     "blank"),
+                                        shape = c(NA, 19)),
+                                        nrow = 2)) + 
+            scale_shape_manual("", values = c(19), guide = FALSE)
+        }
+        }      
     } else {
       ####DRAW WQS SPAWNING LINES
       new_data <- new_data[order(new_data$Sampled),]
@@ -1172,37 +1266,70 @@ plot.DO<-function(new_data,
       g <- g + geom_line(aes(x = wr$Sampled,  y = wr$bioc, color = 'Spawning'),
                          linetype = 'dashed', data = wr, na.rm = TRUE)
       
-      if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-        g <- g + scale_color_manual("", values = c('black','pink','black',
-                                                   'black','black'),
-                                    labels = c(unique(d$variable), 
-                                               'Exceeds',
-                                               'Meets',
-                                               'Meets b/c % Sat',
-                                               'Spawning'),
-                                    guide = guide_legend(override.aes = list(
-                                      linetype = c("solid", "blank", 
-                                                   "blank", "blank", 
-                                                   'dashed'),
-                                      shape = c(NA, 19, 19, 18, NA)),
-                                      nrow = 2)) +
-          scale_shape_manual("", values = c(19, 19, 18),
-                             guide = FALSE)
+      if (any('Exceeds' %in% new_data$exceed)) {
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black','pink','black',
+                                                     'black','black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Exceeds',
+                                                 'Meets',
+                                                 'Meets b/c % Sat',
+                                                 'Spawning'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", "blank", 
+                                                     'dashed'),
+                                        shape = c(NA, 19, 19, 18, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 19, 18),
+                               guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black','pink','black',
+                                                     'black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Exceeds',
+                                                 'Meets',
+                                                 'Spawning'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", "blank", 
+                                                     "blank", 'dashed'),
+                                        shape = c(NA, 19, 19, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 19),
+                               guide = FALSE)
+        }
       } else {
-        g <- g + scale_color_manual("", values = c('black','pink','black',
-                                                   'black'),
-                                    labels = c(unique(d$variable), 
-                                               'Exceeds',
-                                               'Meets',
-                                               'Spawning'),
-                                    guide = guide_legend(override.aes = list(
-                                      linetype = c("solid", "blank", 
-                                                   "blank", 'dashed'),
-                                      shape = c(NA, 19, 19, NA)),
-                                      nrow = 2)) +
-          scale_shape_manual("", values = c(19, 19),
-                             guide = FALSE)
+        if (any('Meets b/c %Sat' %in% new_data$exceed)) {
+          g <- g + scale_color_manual("", values = c('black','black',
+                                                     'black','black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Meets b/c % Sat',
+                                                 'Spawning'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid",  
+                                                     "blank", "blank", 
+                                                     'dashed'),
+                                        shape = c(NA, 19, 18, NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19, 18),
+                               guide = FALSE)
+        } else {
+          g <- g + scale_color_manual("", values = c('black','black',
+                                                     'black'),
+                                      labels = c(unique(d$variable), 
+                                                 'Meets',
+                                                 'Spawning'),
+                                      guide = guide_legend(override.aes = list(
+                                        linetype = c("solid", 
+                                                     "blank", 'dashed'),
+                                        shape = c(NA, 19,  NA)),
+                                        nrow = 2)) +
+            scale_shape_manual("", values = c(19),
+                               guide = FALSE)
+        }
       }
+      
     }
   }
   g

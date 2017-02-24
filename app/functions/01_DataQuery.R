@@ -467,8 +467,9 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   temp_data_f <- NULL
   tf_sites <- NULL
   ph_data <- NULL
-  DO_data<-NULL
+  DO_data<- NULL
   ph_sites <- NULL
+  DO_sites <- NULL
 
   #### Define parameters to query ####
   if ('Temperature' %in% inParms) {
@@ -528,8 +529,11 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
                             endDate=endDate,
                             parameterCd='00300')
     if (nrow(DO_data) > 0) {
+      DO_sites <- attr(DO_data, 'siteInfo')
+      DO_data <- DO_data[,names(DO_data) != 'tz_cd']
       DO_data$Analyte <- 'Dissolved Oxygen'
       DO_data$Unit <- 'mg/l'
+      DO_data$SampleType <- 'Continuous'
     }
   }
   
@@ -550,7 +554,7 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
       x <- plyr::rename(x, result_rename)
     })
     nwis_data <- as.data.frame(data.table::rbindlist(df_list))
-    siteInfo <- rbind(tc_sites, tf_sites, ph_sites)
+    siteInfo <- rbind(tc_sites, tf_sites, ph_sites, DO_sites)
     attr(nwis_data, "siteInfo") <- siteInfo
   } else {
     nwis_data <- NULL

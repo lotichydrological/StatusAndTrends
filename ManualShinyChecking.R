@@ -61,16 +61,16 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Dissolved Oxygen')
-input$select <- "Burnt River"
+input$parms <- c('Temperature','Bateria','pH','Dissolved Oxygen')
+input$select <- "Clackamas"
 input$dates <- c("2000-01-01", "2017-01-01")
-input$db <- c('DEQ')
-input$selectStation <-  "11494 - "
-input$selectParameter <- 'Dissolved Oxygen'
+input$db <- c('DEQ','Water Quality Portal')
+input$selectStation <-  "USGS-14209710 - "
+input$selectParameter <- 'Temperature'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'January 1-May 15'
 input$selectUse <- 'Core Cold Water Habitat'
-input$selectpHCrit <- 'Deschutes - All other basin waters'#'John Day - All other basin waters'
+input$selectpHCrit <- 'Willamette - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
 input$selectUseDO<-'Cold-Water Aquatic Life'
 input$checkSpawning<-TRUE
@@ -267,8 +267,15 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   }
   
   
-  generate_exceed_df(tmp_df, input$selectParameter, input$selectpHCrit,
-                     ph_crit, input$select, input$selectStation)
+  generate_exceed_df(new_data = tmp_df, 
+                     parm = input$selectParameter, 
+                     selectpHCrit = input$selectpHCrit,
+                     ph_crit = ph_crit,
+                     PlanName =  input$select,
+                     selectStation =  input$selectStation,
+                     selectSpawning = input$selectSpawning,
+                     selectUse = input$selectUse,
+                     selectUseDO = input$selectUseDO)
 
   sea_ken_table <- SeaKen
   plot_trend <- input$plotTrend
