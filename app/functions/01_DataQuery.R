@@ -110,7 +110,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
   df.all <- rbind(E,L,W,N)
   
   if ('Dissolved Oxygen' %in% df.all$Analyte){
-    df.all[df.all$Unit == '%', 'Analyte'] <- 'Dissolved oxygen saturation'
+    df.all[which(df.all$Unit == '%'), 'Analyte'] <- 'Dissolved oxygen saturation'
     df.all[df.all$Analyte == "Dissolved oxygen (DO)", 'Analyte'] <- 'Dissolved Oxygen'
   }
   

@@ -64,7 +64,7 @@ input$action_button <- 1
 input$parms <- c('Temperature','Bateria','pH','Dissolved Oxygen')
 input$select <- "Clackamas"
 input$dates <- c("2000-01-01", "2017-01-01")
-input$db <- c('DEQ','Water Quality Portal')
+input$db <- c('DEQ')
 input$selectStation <-  "USGS-14209710 - "
 input$selectParameter <- 'Temperature'
 input$selectLogScale <- FALSE
