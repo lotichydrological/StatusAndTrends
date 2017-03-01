@@ -638,6 +638,7 @@ EvaluateDOWQS<-function(new_data,
                         datetime_column = 'Sampled',
                         result_column = 'Result',
                         datetime_format = '%Y-%m-%d %H:%M:%S'){
+#new_data<-DO
 new_data$Result <- as.numeric(new_data$Result)
 new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
                                         format = datetime_format))
@@ -729,14 +730,13 @@ BCsat<-new_data_all%>%
   filter(BCsat_Exceed == "Meets", Cexceed_nspwn == "Exceeds")
 
 if (selectSpawning == 'No spawning'){
-  BCsat<-new_data_all%>%
-    filter(BCsat_Exceed == "Meets", Cexceed_nspwn == "Exceeds")
   BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
   new_data_all[,BCsat_spwn_exceed] <- NA 
-} else if (is.data.frame(BCsat) && nrow(BCsat)>0) {
-  BCsat$BCsat_spwn_exceed<-ifelse((length(BCsat$BCsat_Exceed) > 0), 'Meets b/c %Sat', NA)
-  BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-  new_data_all[,BCsat_spwn_exceed] <- NA 
+  if (is.data.frame(BCsat) && nrow(BCsat)>0) {
+    BCsat$BCsat_spwn_exceed<-ifelse((length(BCsat$BCsat_Exceed) > 0), 'Meets b/c %Sat', NA)
+    BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+    new_data_all[,BCsat_spwn_exceed] <- NA 
+    }
 } else {
   BCsat_spwn<-new_data_all%>%
     filter(BCsat_Exceed == "Meets")

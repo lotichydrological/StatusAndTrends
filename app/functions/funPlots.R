@@ -913,7 +913,7 @@ plot.DO<-function(new_data,
                   datetime_column = 'Sampled',
                   result_column = 'Result',
                   datetime_format = '%Y-%m-%d %H:%M:%S',
-                  parm) {
+                  parm = 'Dissolved Oxygen') {
   require(ggplot2)
   require(chron)
   #dataframe that assigns WQS values to Aquatic Life Uses
@@ -1019,8 +1019,8 @@ plot.DO<-function(new_data,
                                                  'Trend Line'),
                                       guide = guide_legend(override.aes = list(
                                         linetype = c("solid", "blank", 
-                                                     "blank", "blank", 'solid'),
-                                        shape = c(NA, 19, 19, 18, NA)),
+                                                     "blank", 'blank'),
+                                        shape = c(NA, 19, 19, 18)),
                                         nrow = 2))
           g <- g + scale_shape_manual("", values = c(19, 19, 18),
                                       guide = FALSE)
@@ -1176,7 +1176,7 @@ plot.DO<-function(new_data,
     }
   } else {
     if (selectSpawning == 'No spawning') {
-      if (any('Exceeds') %in% new_data$exceed) {
+      if (any('Exceeds' %in% new_data$exceed)) {
         if (any('Meets b/c %Sat' %in% new_data$exceed)) {
           g <- g + scale_color_manual("", values = c('black', 'pink',
                                                      'black', 'black'),
