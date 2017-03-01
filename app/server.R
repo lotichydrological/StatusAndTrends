@@ -601,16 +601,7 @@ shinyServer(function(input, output, session) {
                                 'No Salmonid Use/Out of State'),
                     selectize = TRUE)
       })
-      
-      output$fish_use_link <- renderUI({
-        validate(
-          need(input$selectParameter == 'Temperature', message = FALSE)
-        )
-        h5(a("Refer to Fish Use and Spawning Use Maps by Basin", 
-             href = "http://www.deq.state.or.us/wq/rules/div041tblsfigs.htm#f1",
-             target = "_blank"))
-      })
-      
+
       output$selectMonth <- renderUI({
         validate(
           need(unique(
@@ -648,7 +639,8 @@ shinyServer(function(input, output, session) {
       
       output$fish_use_link <- renderUI({
         validate(
-          need(input$selectParameter == 'Dissolved Oxygen', message = FALSE)
+          need(input$selectParameter %in% c('Temperature','Dissolved Oxygen'), 
+               message = FALSE)
         )
         h5(a("Refer to Spawning Use Maps by Basin", 
              href = "http://www.deq.state.or.us/wq/rules/div041tblsfigs.htm#f1",
@@ -709,6 +701,10 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectLogScale), message = FALSE)
             )
+          } else if (input$selectParameter == 'Dissolved Oxygen') {
+            validate(
+              need(!is.null(input$selectUseDO), message = FALSE)
+            )
           }
         }
         
@@ -723,15 +719,15 @@ shinyServer(function(input, output, session) {
           tmp_df <- DataUse()
         }
         
-        generate_exceed_df(tmp_df, 
-                           input$selectParameter, 
-                           input$selectpHCrit,
-                           ph_crit, 
-                           PlanName = input$select, 
-                           input$selectStation, 
-                           input$selectUse, 
-                           selectUseDO,
-                           input$selectSpawning)
+        generate_exceed_df(new_data = tmp_df, 
+                          parm = input$selectParameter, 
+                          selectpHCrit = input$selectpHCrit,
+                          ph_crit = ph_crit, 
+                          PlanName = input$select, 
+                          selectStation = input$selectStation, 
+                          selectUse = input$selectUse, 
+                          selectUseDO = input$selectUseDO,
+                          selectSpawning = input$selectSpawning)
       })
       
       # This handles the temp trend analysis
