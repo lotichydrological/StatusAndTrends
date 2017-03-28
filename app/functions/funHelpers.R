@@ -688,8 +688,8 @@ new_data$bioc <- ifelse(is.na(new_data$winter), new_data$bioc, ifelse(
          11, new_data$bioc)))
 #Merge %DO with [DO]##
 DOsat<-df.all%>%
-  filter(Analyte == 'Dissolved oxygen saturation') %>%
-  filter(Station_ID == unique(new_data$Station_ID))
+  dplyr::filter(Analyte == 'Dissolved oxygen saturation') %>%
+  dplyr::filter(Station_ID == unique(new_data$Station_ID))
 DOsat$Result <- as.numeric(DOsat$Result)
 DOsat$Sampled<-as.POSIXct(strptime(DOsat[, datetime_column],
                                    format = datetime_format))
@@ -770,13 +770,13 @@ if (selectSpawning == 'No spawning') {
 }
 
 exc<-new_data_all%>%
-  filter(exceed == 'Exceeds')
+  filter(exceed == 'Exceeds' & BCsat_Exceed != 'Meets')
 do_meet<-new_data_all%>%
   filter(exceed == "Meets b/c %Sat")
 
 ex_df <- data.frame("Station_ID" = (unique(new_data_all$Station_ID)),
                     "Station_Description" = (unique(new_data_all$Station_Description)),
-                    "Obs" = c(nrow(new_data_all)),
+                    "Obs" = c(nrow(new_data)),
                    "Exceedances" = c(nrow(exc)),
                    "Meets b/c of Dissolved Oxygen Saturation" = 
                      c(nrow(do_meet)))
@@ -955,6 +955,8 @@ resolveMRLs <- function(ids, dnd, results){
 }
 
 remove.dups <- function(tname, fun_type) {
+  
+  
   #Code should be a concatenation of station, analyte and day (for most parameters)
   no.dups <- aggregate(Result ~ code, data = tname, FUN = fun_type)
   tname <- tname[!duplicated(tname$code),]
