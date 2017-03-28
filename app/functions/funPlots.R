@@ -111,7 +111,7 @@ plot.ph <- function(new_data,
   g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_ph_crit_max, linetype = 'dashed')
   if (plot_trend & !is.na(p.value)) {
     if ('Exceeds' %in% unique(new_data$exceed)) {
-      g <- g + scale_color_manual("", values = c('red', 'black', 'black', 'blue'),
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'blue'),
                                   guide = guide_legend(override.aes = list(
                                     linetype = c("blank", "blank", "dashed", "solid"),
                                     shape = c(19, 19, NA, NA))))
@@ -123,7 +123,7 @@ plot.ph <- function(new_data,
     }
   } else {
     if ('Exceeds' %in% unique(new_data$exceed)) {
-      g <- g + scale_color_manual("", values = c('red', 'black', 'black'),
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
                                     linetype = c("blank", "blank", "dashed"),
                                     shape = c(19, 19, NA))))
@@ -207,11 +207,11 @@ plot.Temperature <- function(new_data,
                                    labels = 'Meets') 
     } else if (all(new_data$exceed == 'Exceeds', na.rm = TRUE)) {
       g <- g +  scale_colour_manual("",
-                                    values = c('red'), 
+                                    values = c('darkorange1'), 
                                     labels = 'Exceeds')
     } else {
       g <- g + scale_colour_manual("",
-                                   values = c('red', 'black'), 
+                                   values = c('darkorange1', 'black'), 
                                    labels = levels(new_data$exceed))
     }
     g <- g + theme(legend.position = "top",
@@ -571,7 +571,7 @@ plot.bacteria <- function(new_data,
         if (all(c('Exceeds Geometric mean','Exceeds Single sample') %in% 
                 unique(plot_data$exceed_type))) {
           if (!"Meets Geometric mean" %in% unique(plot_data$exceed_type)) {
-            g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+            g <- g + scale_color_manual("", values = c('darkorange1', 'darkorange1', 'black', 
                                                        'black', 
                                                        'black', 'blue'),
                                         labels = c('Exceeds Single Sample', 
@@ -589,7 +589,7 @@ plot.bacteria <- function(new_data,
             g <- g + scale_shape_manual("", values = c(NA, 17, 19, 19),
                                         guide = FALSE)
           } else {
-          g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+          g <- g + scale_color_manual("", values = c('darkorange1', 'darkorange1', 'black', 
                                                      'black', 'black', 
                                                      'black', 'blue'),
                                       labels = c('Exceeds Single Sample', 
@@ -609,7 +609,7 @@ plot.bacteria <- function(new_data,
                                       guide = FALSE)
           }
         } else if (!'Exceeds Geometric mean' %in% unique(plot_data$exceed_type)) {
-          g <- g + scale_color_manual("", values = c('red', 'black', 
+          g <- g + scale_color_manual("", values = c('darkorange1', 'black', 
                                                      'black', 'black', 
                                                      'black', 'blue'),
                                       labels = c('Exceeds Single Sample', 
@@ -627,7 +627,7 @@ plot.bacteria <- function(new_data,
           g <- g + scale_shape_manual("", values = c(NA, 19, 17, 19),
                                       guide = FALSE)
         } else {
-          g <- g + scale_color_manual("", values = c('red', 'black', 
+          g <- g + scale_color_manual("", values = c('darkorange1', 'black', 
                                                      'black', 'black', 
                                                      'black', 'blue'),
                                       labels = c('Exceeds Geometric Mean', 
@@ -668,7 +668,7 @@ plot.bacteria <- function(new_data,
         if (all(c('Exceeds Geometric mean','Exceeds Single sample') %in% 
                 unique(plot_data$exceed_type))) {
           if ((!"Meets Geometric mean" %in% unique(plot_data$exceed_type))) {
-            g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+            g <- g + scale_color_manual("", values = c('darkorange1', 'darkorange1', 'black', 
                                                         'black', 'black'),
                                         labels = c('Exceeds Single Sample', 
                                                    'Exceeds Geometric Mean', 
@@ -683,7 +683,7 @@ plot.bacteria <- function(new_data,
             g <- g + scale_shape_manual("", values = c(NA, 17, 19, 19),
                                         guide = FALSE)
           } else {
-            g <- g + scale_color_manual("", values = c('red', 'red', 'black', 
+            g <- g + scale_color_manual("", values = c('darkorange1', 'darkorange1', 'black', 
                                                        'black', 'black', 'black'),
                                         labels = c('Exceeds Single Sample', 
                                                    'Exceeds Geometric Mean', 
@@ -701,7 +701,7 @@ plot.bacteria <- function(new_data,
           }
           
         } else if (!'Exceeds Geometric mean' %in% unique(plot_data$exceed_type)) {
-          g <- g + scale_color_manual("", values = c('red', 'black', 
+          g <- g + scale_color_manual("", values = c('darkorange1', 'black', 
                                                      'black', 'black', 'black'),
                                       labels = c('Exceeds Single Sample',  
                                                  'Geomteric Mean WQS', 
@@ -716,7 +716,7 @@ plot.bacteria <- function(new_data,
           g <- g + scale_shape_manual("", values = c(NA, 19, 17, 19),
                                       guide = FALSE)
         } else {
-          g <- g + scale_color_manual("", values = c('red', 'black', 
+          g <- g + scale_color_manual("", values = c('darkorange1', 'black', 
                                                      'black', 'black', 'black'),
                                       labels = c('Exceeds Geometric Mean', 
                                                  'Geomteric Mean WQS', 
@@ -751,7 +751,7 @@ plot.bacteria <- function(new_data,
   } else {
     if (plot_trend & !is.na(p.value)) {
       if ('Exceeds' %in% unique(plot_data$exceed)) {
-        g <- g + scale_color_manual("", values = c('red', 'black', 
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 
                                                    'black', 'blue'),
                                     labels = c('Exceeds Single Sample', 
                                                'Meets Single Sample',
@@ -778,7 +778,7 @@ plot.bacteria <- function(new_data,
       }
     } else {
       if ('Exceeds' %in% unique(plot_data$exceed)) {
-        g <- g + scale_color_manual("", values = c('red', 'black', 'black'),
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black'),
                                     labels = c('Exceeds Single Sample', 
                                                'Meets Single Sample',
                                                'Single Sample WQS'),
@@ -948,7 +948,7 @@ plot.DO<-function(new_data,
                   variable = rep("Estuarine Waters", 2))
   }
   
-  y.min <- (unique(d$y) - 1) #unique(sdata$numcrit)[1] #floor(min(new_data[, result_column]))
+  y.min <- floor(min(new_data[, result_column])) #(unique(d$y) - 1) #unique(sdata$numcrit)[1] 
   y.max <- ceiling(max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   y.median <- median(new_data[, result_column])
@@ -1010,7 +1010,7 @@ plot.DO<-function(new_data,
     if (selectSpawning == 'No spawning') {
       if (any('Exceeds' %in% new_data$exceed)) {
         if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-          g <- g + scale_color_manual("", values = c('black','pink','black',
+          g <- g + scale_color_manual("", values = c('black','darkorange1','black',
                                                      'black', 'blue'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1025,7 +1025,7 @@ plot.DO<-function(new_data,
           g <- g + scale_shape_manual("", values = c(19, 19, 18),
                                       guide = FALSE)
         } else {
-          g <- g + scale_color_manual("", values = c('black','pink',
+          g <- g + scale_color_manual("", values = c('black','darkorange1',
                                                      'black', 'blue'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1106,7 +1106,7 @@ plot.DO<-function(new_data,
       
       if (any('Exceeds' %in% new_data$exceed)) {
         if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-          g <- g + scale_color_manual("", values = c('black','pink','black',
+          g <- g + scale_color_manual("", values = c('black','darkorange1','black',
                                                      'black', 'black', 'blue'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1123,7 +1123,7 @@ plot.DO<-function(new_data,
             scale_shape_manual("", values = c(19, 19, 18),
                                guide = FALSE)
         } else {
-          g <- g + scale_color_manual("", values = c('black','pink','black',
+          g <- g + scale_color_manual("", values = c('black','darkorange1','black',
                                                      'black', 'blue'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1178,7 +1178,7 @@ plot.DO<-function(new_data,
     if (selectSpawning == 'No spawning') {
       if (any('Exceeds' %in% new_data$exceed)) {
         if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-          g <- g + scale_color_manual("", values = c('black', 'pink',
+          g <- g + scale_color_manual("", values = c('black', 'darkorange1',
                                                      'black', 'black'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1192,7 +1192,7 @@ plot.DO<-function(new_data,
             scale_shape_manual("", values = c(19, 19, 18),
                                guide = FALSE)
         } else {
-          g <- g + scale_color_manual("", values = c('black','pink',
+          g <- g + scale_color_manual("", values = c('black','darkorange1',
                                                      'black'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1268,7 +1268,7 @@ plot.DO<-function(new_data,
       
       if (any('Exceeds' %in% new_data$exceed)) {
         if (any('Meets b/c %Sat' %in% new_data$exceed)) {
-          g <- g + scale_color_manual("", values = c('black','pink','black',
+          g <- g + scale_color_manual("", values = c('black','darkorange1','black',
                                                      'black','black'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
@@ -1284,7 +1284,7 @@ plot.DO<-function(new_data,
             scale_shape_manual("", values = c(19, 19, 18),
                                guide = FALSE)
         } else {
-          g <- g + scale_color_manual("", values = c('black','pink','black',
+          g <- g + scale_color_manual("", values = c('black','darkorange1','black',
                                                      'black'),
                                       labels = c(unique(d$variable), 
                                                  'Exceeds',
