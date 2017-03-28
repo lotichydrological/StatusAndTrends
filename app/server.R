@@ -714,7 +714,11 @@ shinyServer(function(input, output, session) {
           tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
           sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
           tmp_df_MRL <- tmp_df[sub,]
-          tmp_df <- remove.dups(tmp_df_MRL, max)
+          if (input$selectParameter == 'Dissolved Oxygen'){
+            tmp_df <- remove.dups(tmp_df, min)
+          } else {
+            tmp_df <- remove.dups(tmp_df_MRL, max)
+          }
         } else {
           tmp_df <- DataUse()
         }
