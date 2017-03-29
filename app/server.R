@@ -724,6 +724,7 @@ shinyServer(function(input, output, session) {
         }
         
         generate_exceed_df(new_data = tmp_df, 
+                           df.all = df.all,
                           parm = input$selectParameter, 
                           selectpHCrit = input$selectpHCrit,
                           ph_crit = ph_crit, 
@@ -883,8 +884,8 @@ shinyServer(function(input, output, session) {
                    g <- ggplot(data.frame()) + geom_point() + 
                      annotate("text", label = "Insufficient data for plotting", 
                               x = 1, y = 1)
-                   g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                  }
+                 g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                })
                
         )

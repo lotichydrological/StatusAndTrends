@@ -638,158 +638,168 @@ EvaluateDOWQS<-function(new_data,
                         datetime_column = 'Sampled',
                         result_column = 'Result',
                         datetime_format = '%Y-%m-%d %H:%M:%S'){
-#new_data<-DO
-new_data$Result <- as.numeric(new_data$Result)
-new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
-                                        format = datetime_format))
-
-##Generate Exceedances of WQS##
-new_data$selectUseDO<-selectUseDO
-spd_list <- strsplit(selectSpawning, split = "-")
-spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
-spd_months <- lapply(spd_chron, months)
-spd_days <- lapply(spd_chron, chron::days)
-spd_months_num <- lapply(spd_months, as.numeric)
-spd_days_num <- lapply(spd_days, as.numeric)
-SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
-SEND_MONTH <- unlist(lapply(spd_months_num, function(x) x[2]))
-SSTART_DAY <- unlist(lapply(spd_days_num, function(x) x[1]))
-SEND_DAY <- unlist(lapply(spd_days_num, function(x) x[2]))
-sdata <- as.data.frame(cbind(SSTART_MONTH, SSTART_DAY, SEND_MONTH, SEND_DAY))
-
-sdata$Station_ID <- unique(new_data$Station_ID)
-sdata$aqu_use_des <- selectUseDO
-sdata$numcrit<- if(selectUseDO == 'Cold-Water Aquatic Life') {
-  8
-} else if (selectUseDO == 'Cool-Water Aquatic Life') {
-  6.5
-} else if (selectUseDO == 'Warm-Water Aquatic Life') {
-  5.5
-} else if (selectUseDO == 'Estuarine Waters') {
-  6.5
-}
-
-new_data$sdata <- match(new_data[, 'Station_ID'],
-                        sdata[, 'Station_ID'])
-new_data$cdate <- lubridate::month(new_data$Sampled) + lubridate::day(new_data$Sampled)*.01
-new_data$sstr <- as.numeric(sdata$SSTART_MONTH[new_data$sdata]) +
-  (as.numeric(sdata$SSTART_DAY[new_data$sdata]) *.01)
-new_data$send <- as.numeric(sdata$SEND_MONTH[new_data$sdata]) +
-  (as.numeric(sdata$SEND_DAY[new_data$sdata]) *.01)
-new_data$bioc <- as.numeric(sdata$numcrit[new_data$sdata])
-## checks to see if there is an over winter spawning period
-new_data$winter <- ifelse(new_data$send < new_data$sstr, TRUE, FALSE)
-## looks up the summer bio criterion and spawning start end/date and returns TRUE/FALSE if current date is in summer or spawning period
-new_data$bioc <- ifelse(is.na(new_data$winter), new_data$bioc, ifelse(
-  new_data$winter == TRUE,
-  ifelse(new_data$sstr <= new_data$cdate | new_data$send >= new_data$cdate,
-         11, new_data$bioc),
-  ifelse(new_data$sstr <= new_data$cdate & new_data$send >= new_data$cdate,
-         11, new_data$bioc)))
-#Merge %DO with [DO]##
-DOsat<-df.all%>%
-  dplyr::filter(Analyte == 'Dissolved oxygen saturation') %>%
-  dplyr::filter(Station_ID == unique(new_data$Station_ID))
-DOsat$Result <- as.numeric(DOsat$Result)
-DOsat$Sampled<-as.POSIXct(strptime(DOsat[, datetime_column],
-                                   format = datetime_format))
-DOsat$id<-paste(DOsat$Station_ID, DOsat$Sampled, sep=" ")
-new_data$id<-paste(new_data$Station_ID, new_data$Sampled, sep=" ")
-#Result.y = results from %DO; Result.x = [DO]
-new_data_DOsat<-merge(new_data, DOsat[,c('id','Result')], by="id")
-new_data_DOsat<-plyr::rename(new_data_DOsat, c("Result.y" = "Result_DOsat", "Result.x" = "Result_DOconc"))
-#merge new_data with new_data_DOsat
-new_data_all<-dplyr::full_join(new_data, new_data_DOsat[,c('id', 'Result_DOsat')], by="id")
-#Add columns to identify exceedances of WQS for [DO] and %DO
-new_data_all$Result<-as.numeric(new_data_all$Result)
-new_data_all$Result_DOsat<-as.numeric(new_data_all$Result_DOsat)
-
-new_data_all$Cexceed<- ifelse(new_data_all$Result > new_data_all$bioc, 'Meets', 'Exceeds')
-new_data_all$Cexceed<-as.factor(new_data_all$Cexceed)
-new_data_all$Sat_Exceed<-if (selectSpawning != 'No spawning') {
-  ifelse(new_data_all$Result_DOsat < 95, 'Exceeds', 'Meets')
-} else if (selectUseDO == 'Cold-Water Aquatic Life') {
-  ifelse(new_data_all$Result_DOsat < 90, 'Exceeds', 'Meets')
-} else {
-  NA
-}
-
-new_data_all$Sat_Exceed<-as.factor(new_data_all$Sat_Exceed)
-new_data_all$BCsat_Exceed<-ifelse(new_data_all$Cexceed == 'Exceeds' &
-                                    new_data_all$Sat_Exceed == "Meets", "Meets", "Exceeds")
-new_data_all$BCsat_Exceed <- as.factor(new_data_all$BCsat_Exceed)
-
-##IF no spawning##
-new_data_all$numcrit<-sdata$numcrit
-new_data_all$numcrit<-as.numeric(new_data_all$numcrit)
-new_data_all$Cexceed_nspwn<-ifelse(new_data_all$Result > new_data_all$numcrit, 'Meets', 'Exceeds')
-new_data_all$Cexceed_nspwn<-as.factor(new_data_all$Cexceed_nspwn)
-
-##filter points that meet because of the dissolved oxygen saturation##
-BCsat<-new_data_all%>%
-  filter(BCsat_Exceed == "Meets", Cexceed_nspwn == "Exceeds")
-
-if (selectSpawning == 'No spawning'){
-  BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-  new_data_all[,BCsat_spwn_exceed] <- NA 
-  if (is.data.frame(BCsat) && nrow(BCsat)>0) {
-    BCsat$BCsat_spwn_exceed<-ifelse((length(BCsat$BCsat_Exceed) > 0), 'Meets b/c %Sat', NA)
-    BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-    new_data_all[,BCsat_spwn_exceed] <- NA 
-    }
-} else {
-  BCsat_spwn<-new_data_all%>%
-    filter(BCsat_Exceed == "Meets")
-  if (nrow(BCsat_spwn) > 0){
-    BCsat_spwn$BCsat_spwn_exceed<- ifelse(length(BCsat_spwn$BCsat_Exceed) > 0, 'Meets b/c %Sat', NA)
-    BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-    new_data_all[,BCsat_spwn_exceed] <- NA
-    new_data_all$BCsat_spwn_exceed <- NA
-    new_data_all<-rbind(new_data_all, BCsat_spwn) 
-  } else{
-    BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
-    new_data_all[,BCsat_spwn_exceed] <- NA
-    new_data_all$BCsat_spwn_exceed <- NA
-    new_data_all<-rbind(new_data_all, BCsat_spwn)
+  #new_data<-DO
+  new_data$Result <- as.numeric(new_data$Result)
+  new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
+                                          format = datetime_format))
+  
+  ##Generate Exceedances of WQS##
+  new_data$selectUseDO<-selectUseDO
+  spd_list <- strsplit(selectSpawning, split = "-")
+  spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
+  spd_months <- lapply(spd_chron, months)
+  spd_days <- lapply(spd_chron, chron::days)
+  spd_months_num <- lapply(spd_months, as.numeric)
+  spd_days_num <- lapply(spd_days, as.numeric)
+  SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
+  SEND_MONTH <- unlist(lapply(spd_months_num, function(x) x[2]))
+  SSTART_DAY <- unlist(lapply(spd_days_num, function(x) x[1]))
+  SEND_DAY <- unlist(lapply(spd_days_num, function(x) x[2]))
+  sdata <- as.data.frame(cbind(SSTART_MONTH, SSTART_DAY, SEND_MONTH, SEND_DAY))
+  
+  sdata$Station_ID <- unique(new_data$Station_ID)
+  sdata$aqu_use_des <- selectUseDO
+  sdata$numcrit<- if(selectUseDO == 'Cold-Water Aquatic Life') {
+    8
+  } else if (selectUseDO == 'Cool-Water Aquatic Life') {
+    6.5
+  } else if (selectUseDO == 'Warm-Water Aquatic Life') {
+    5.5
+  } else if (selectUseDO == 'Estuarine Waters') {
+    6.5
   }
-} 
-
-if (selectSpawning == 'No spawning') {
-  new_data_all<-rbind(new_data_all, BCsat)
-  new_data_all$exceed<-ifelse(new_data_all$Cexceed_nspwn == 'Meets', 
-                              'Meets', 
-                              ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
-                                     "Meets b/c %Sat", 
-                                     'Exceeds'))
-} else {
-  new_data_all$exceed<-ifelse(new_data_all$Cexceed == 'Meets', 
-                              'Meets', 
-                              ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
-                                     "Meets b/c %Sat", 
-                                     'Exceeds'))
+  
+  new_data$sdata <- match(new_data[, 'Station_ID'],
+                          sdata[, 'Station_ID'])
+  new_data$cdate <- lubridate::month(new_data$Sampled) + lubridate::day(new_data$Sampled)*.01
+  new_data$sstr <- as.numeric(sdata$SSTART_MONTH[new_data$sdata]) +
+    (as.numeric(sdata$SSTART_DAY[new_data$sdata]) *.01)
+  new_data$send <- as.numeric(sdata$SEND_MONTH[new_data$sdata]) +
+    (as.numeric(sdata$SEND_DAY[new_data$sdata]) *.01)
+  new_data$bioc <- as.numeric(sdata$numcrit[new_data$sdata])
+  ## checks to see if there is an over winter spawning period
+  new_data$winter <- ifelse(new_data$send < new_data$sstr, TRUE, FALSE)
+  ## looks up the summer bio criterion and spawning start end/date and returns TRUE/FALSE if current date is in summer or spawning period
+  new_data$bioc <- ifelse(is.na(new_data$winter), new_data$bioc, ifelse(
+    new_data$winter == TRUE,
+    ifelse(new_data$sstr <= new_data$cdate | new_data$send >= new_data$cdate,
+           11, new_data$bioc),
+    ifelse(new_data$sstr <= new_data$cdate & new_data$send >= new_data$cdate,
+           11, new_data$bioc)))
+  #Merge %DO with [DO]##
+  DOsat<-df.all%>%
+    dplyr::filter(Analyte == 'Dissolved oxygen saturation') %>%
+    dplyr::filter(Station_ID == unique(new_data$Station_ID))
+  DOsat$Result <- as.numeric(DOsat$Result)
+  DOsat$Sampled<-as.POSIXct(strptime(DOsat[, datetime_column],
+                                     format = datetime_format))
+  DOsat$id<-paste(DOsat$Station_ID, DOsat$Sampled, sep=" ")
+  new_data$id<-paste(new_data$Station_ID, new_data$Sampled, sep=" ")
+  #Result.y = results from %DO; Result.x = [DO]
+  new_data_DOsat<-merge(new_data, DOsat[,c('id','Result')], by="id")
+  new_data_DOsat<-plyr::rename(new_data_DOsat, c("Result.y" = "Result_DOsat", "Result.x" = "Result_DOconc"))
+  #merge new_data with new_data_DOsat
+  new_data_all<-dplyr::full_join(new_data, new_data_DOsat[,c('id', 'Result_DOsat')], by="id")
+  #Add columns to identify exceedances of WQS for [DO] and %DO
+  new_data_all$Result<-as.numeric(new_data_all$Result)
+  new_data_all$Result_DOsat<-as.numeric(new_data_all$Result_DOsat)
+  
+  new_data_all$Cexceed<- ifelse(new_data_all$Result > new_data_all$bioc, 'Meets', 'Exceeds')
+  new_data_all$Cexceed<-as.factor(new_data_all$Cexceed)
+  new_data_all$Sat_Exceed<-if (selectSpawning != 'No spawning') {
+    ifelse(new_data_all$Result_DOsat < 95, 'Exceeds', 'Meets')
+  } else if (selectUseDO == 'Cold-Water Aquatic Life') {
+    ifelse(new_data_all$Result_DOsat < 90, 'Exceeds', 'Meets')
+  } else {
+    NA
+  }
+  
+  new_data_all$Sat_Exceed<-as.factor(new_data_all$Sat_Exceed)
+  new_data_all$BCsat_Exceed<-ifelse(new_data_all$Cexceed == "Meets", "Meets", 
+                                    ifelse(is.na(new_data_all$Sat_Exceed), as.character(new_data_all$Cexceed),
+                                           ifelse(new_data_all$Sat_Exceed == 'Meets', "Meets b/c %Sat",
+                                                  as.character(new_data_all$Cexceed))))
+  new_data_all$exceed <- as.factor(new_data_all$BCsat_Exceed)
+  
+  # ##IF no spawning##
+  # new_data_all$numcrit<-sdata$numcrit
+  # new_data_all$numcrit<-as.numeric(new_data_all$numcrit)
+  # new_data_all$Cexceed_nspwn<-ifelse(new_data_all$Result > new_data_all$numcrit, 'Meets', 'Exceeds')
+  # new_data_all$Cexceed_nspwn<-as.factor(new_data_all$Cexceed_nspwn)
+  # 
+  # ##filter points that meet because of the dissolved oxygen saturation##
+  # BCsat<-new_data_all%>%
+  #   filter(BCsat_Exceed == "Meets", Cexceed_nspwn == "Exceeds")
+  # 
+  # if (selectSpawning == 'No spawning'){
+  #   BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+  #   new_data_all[,BCsat_spwn_exceed] <- NA 
+  #   if (is.data.frame(BCsat) && nrow(BCsat)>0) {
+  #     BCsat$BCsat_spwn_exceed<-ifelse((length(BCsat$BCsat_Exceed) > 0), 'Meets b/c %Sat', NA)
+  #     BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+  #     new_data_all[,BCsat_spwn_exceed] <- NA 
+  #   }
+  # } else {
+  #   BCsat_spwn<-new_data_all%>%
+  #     filter(BCsat_Exceed == "Meets")
+  #   if (nrow(BCsat_spwn) > 0){
+  #     BCsat_spwn$BCsat_spwn_exceed<- ifelse(length(BCsat_spwn$BCsat_Exceed) > 0, 'Meets b/c %Sat', NA)
+  #     BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+  #     new_data_all[,BCsat_spwn_exceed] <- NA
+  #     new_data_all$BCsat_spwn_exceed <- NA
+  #     new_data_all<-rbind(new_data_all, BCsat_spwn) 
+  #   } else{
+  #     BCsat_spwn_exceed<-c("BCsat_spwn_exceed")
+  #     new_data_all[,BCsat_spwn_exceed] <- NA
+  #     new_data_all$BCsat_spwn_exceed <- NA
+  #     new_data_all<-rbind(new_data_all, BCsat_spwn)
+  #   }
+  # } 
+  # 
+  # if (selectSpawning == 'No spawning') {
+  #   new_data_all<-rbind(new_data_all, BCsat)
+  #   new_data_all$exceed<-ifelse(new_data_all$Cexceed_nspwn == 'Meets', 
+  #                               'Meets', 
+  #                               ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
+  #                                      "Meets b/c %Sat", 
+  #                                      'Exceeds'))
+  # } else {
+  #   new_data_all$exceed<-ifelse(new_data_all$Cexceed == 'Meets', 
+  #                               'Meets', 
+  #                               ifelse(!is.na(new_data_all$BCsat_spwn_exceed), 
+  #                                      "Meets b/c %Sat", 
+  #                                      'Exceeds'))
+  # }
+  # 
+  exc<-new_data_all%>%
+    filter(exceed == 'Exceeds' & BCsat_Exceed != 'Meets')
+  do_meet<-new_data_all%>%
+    filter(exceed == "Meets b/c %Sat")
+  
+  ex_df <- data.frame("Station_ID" = (unique(new_data_all$Station_ID)),
+                      "Station_Description" = (unique(new_data_all$Station_Description)),
+                      "Obs" = c(nrow(new_data)),
+                      "Exceedances" = c(nrow(exc)),
+                      "Meets b/c of Dissolved Oxygen Saturation" = 
+                        c(nrow(do_meet)))
+  
+  new_data<-new_data_all
+  
+  attr(new_data, "ex_df") <- ex_df
+  return(new_data)
+  
 }
 
-exc<-new_data_all%>%
-  filter(exceed == 'Exceeds' & BCsat_Exceed != 'Meets')
-do_meet<-new_data_all%>%
-  filter(exceed == "Meets b/c %Sat")
-
-ex_df <- data.frame("Station_ID" = (unique(new_data_all$Station_ID)),
-                    "Station_Description" = (unique(new_data_all$Station_Description)),
-                    "Obs" = c(nrow(new_data)),
-                   "Exceedances" = c(nrow(exc)),
-                   "Meets b/c of Dissolved Oxygen Saturation" = 
-                     c(nrow(do_meet)))
-                                     
-new_data<-new_data_all
-                                      
-attr(new_data, "ex_df") <- ex_df
-return(new_data)
-
-}
-
-generate_exceed_df <- function(new_data, parm, selectpHCrit, ph_crit, PlanName, 
-                               selectStation, selectUse, selectSpawning, selectUseDO,
+generate_exceed_df <- function(new_data, 
+                               df.all,
+                               parm, 
+                               selectpHCrit, 
+                               ph_crit, 
+                               PlanName, 
+                               selectStation, 
+                               selectUse, 
+                               selectSpawning, 
+                               selectUseDO,
                                station_column_name = 'Station_ID') {
   exceed_df <- switch(
     parm,
