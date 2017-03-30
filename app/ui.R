@@ -92,7 +92,8 @@ shinyUI(fluidPage(
       
       ,
 
-      uiOutput("mymap")
+      #uiOutput("mymap")
+      leafletOutput("mymap", height = 800)
     ),
     tabPanel("Review Data", 
              fluidRow(column(3,

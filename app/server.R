@@ -19,6 +19,7 @@ library(zoo)
 library(spatialEco)
 library(dplyr)
 library(lubridate)
+library(leaflet)
 #library(xlsx)
 #library(RODBC)
 
@@ -352,51 +353,92 @@ shinyServer(function(input, output, session) {
       
       #This builds the map view
       observeEvent(input$action_button_map, {
-        output$mymap <- renderUI({
-          #req(ag_sub | hucs)
-          withProgress(message = "Processing:", value = 0, {
-            incProgress(1/3, detail = 'Plotting stations')
-            prog <- 1/3
-            
-            m <- plotGoogleMaps(all.sp, 
-                                add = TRUE, 
-                                filename = 'myMap2.html', 
-                                openMap = FALSE, 
-                                legend = FALSE, 
-                                layerName = "Sampling stations", 
-                                mapTypeId = "ROADMAP")
-            
-            incProgress(prog, detail = "Plotting Geographic Area")
-            prog <- 2/3
-            
-            if (grepl("[0-9].", input$select)) {
-              m <- plotGoogleMaps(huc_sub, 
-                                  previousMap = m, 
-                                  filename = "myMap2.html", 
-                                  openMap = FALSE, 
-                                  layerName = "Selected 8 digit HUC", 
-                                  legend = FALSE, 
-                                  colPalette = "light green")
-            } else {
-              m <- plotGoogleMaps(ag_sub, 
-                                  previousMap = m, 
-                                  filename = "myMap2.html", 
-                                  openMap = FALSE, 
-                                  layerName = "Ag Plan Areas", 
-                                  legend = FALSE, 
-                                  colPalette = "light green")
-            }
-            
-            
-            incProgress(1 - prog, detail = "Rendering plot")
-            
-            tags$iframe(
-              srcdoc = paste(readLines('myMap2.html'), collapse = '\n'),
-              width = "100%",
-              height = "600px"
-            )
-          })
+        output$mymap <- renderLeaflet({
+          basinMap <- leaflet(options = leafletOptions(maxZoom = 14)) %>% 
+            addProviderTiles(providers$Stamen.Terrain, group = "Terrain") %>%
+            addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
+            addMarkers(data = all.sp, 
+                       lng = all.sp@coords[,1], 
+                       lat = all.sp@coords[,2], 
+                       popup = paste(all.sp@data$Station_ID,
+                                     all.sp@data$Station_Description,
+                                     sep = "--"), #apply(all.sp@data, 
+                                     #1, 
+                                     #function(row) {
+                                      # htmlTable::htmlTable(row, 
+                                       #                     header = c('Stn_ID', 'Stn_Name', 
+                                        #                       names(row)[-c(1,2)]), rnames = FALSE)}), 
+                       group = 'Stations',
+                       clusterOptions = markerClusterOptions())
+          if (grepl("[0-9].", input$select)) {
+            basinMap <- basinMap %>% addPolygons(data = huc_sub, 
+                                                 stroke = FALSE, 
+                                                 fillOpacity = 0.05, 
+                                                 smoothFactor = 0.5, 
+                                                 fillColor = topo.colors(13, alpha = NULL), 
+                                                 popup = huc_sub@data$HU_8_NAME,
+                                                 group = "Area")
+          } else {
+            basinMap <- basinMap %<% addPolygons(data = huc_sub, 
+                                                 stroke = FALSE, 
+                                                 fillOpacity = 0.05, 
+                                                 smoothFactor = 0.5, 
+                                                 fillColor = topo.colors(13, alpha = NULL), 
+                                                 popup = ag_sub@data$PlanName,
+                                                 group = "Area")
+          }
+          basinMap <- basinMap %>% addLayersControl(
+            baseGroups = c('Terrain', 'Satellite'),
+            overlayGroups = c('Stations', 'Area'),
+            options = layersControlOptions(collapsed = FALSE)
+          )
+          basinMap
         })
+        # output$mymap <- renderUI({
+        #   #req(ag_sub | hucs)
+        #   withProgress(message = "Processing:", value = 0, {
+        #     incProgress(1/3, detail = 'Plotting stations')
+        #     prog <- 1/3
+        #     
+        #     m <- plotGoogleMaps(all.sp, 
+        #                         add = TRUE, 
+        #                         filename = 'myMap2.html', 
+        #                         openMap = FALSE, 
+        #                         legend = FALSE, 
+        #                         layerName = "Sampling stations", 
+        #                         mapTypeId = "ROADMAP")
+        #     
+        #     incProgress(prog, detail = "Plotting Geographic Area")
+        #     prog <- 2/3
+        #     
+        #     if (grepl("[0-9].", input$select)) {
+        #       m <- plotGoogleMaps(huc_sub, 
+        #                           previousMap = m, 
+        #                           filename = "myMap2.html", 
+        #                           openMap = FALSE, 
+        #                           layerName = "Selected 8 digit HUC", 
+        #                           legend = FALSE, 
+        #                           colPalette = "light green")
+        #     } else {
+        #       m <- plotGoogleMaps(ag_sub, 
+        #                           previousMap = m, 
+        #                           filename = "myMap2.html", 
+        #                           openMap = FALSE, 
+        #                           layerName = "Ag Plan Areas", 
+        #                           legend = FALSE, 
+        #                           colPalette = "light green")
+        #     }
+        #     
+        #     
+        #     incProgress(1 - prog, detail = "Rendering plot")
+        #     
+        #     tags$iframe(
+        #       srcdoc = paste(readLines('myMap2.html'), collapse = '\n'),
+        #       width = "100%",
+        #       height = "600px"
+        #     )
+        #   })
+        # })
       })
       
       ###################################
