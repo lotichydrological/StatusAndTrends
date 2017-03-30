@@ -357,7 +357,7 @@ shinyServer(function(input, output, session) {
       #This builds the map view
       observeEvent(input$action_button_map, {
         output$mymap <- renderLeaflet({
-          basinMap <- leaflet(options = leafletOptions(maxZoom = 14)) %>% 
+          basinMap <- leaflet(options = leafletOptions(maxZoom = 18)) %>% 
             addProviderTiles(providers$Stamen.Terrain, group = "Terrain") %>%
             addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
             addMarkers(data = all.sp, 
@@ -382,7 +382,7 @@ shinyServer(function(input, output, session) {
                                                  popup = huc_sub@data$HU_8_NAME,
                                                  group = "Area")
           } else {
-            basinMap <- basinMap %<% addPolygons(data = huc_sub, 
+            basinMap <- basinMap %>% addPolygons(data = ag_sub, 
                                                  stroke = FALSE, 
                                                  fillOpacity = 0.05, 
                                                  smoothFactor = 0.5, 

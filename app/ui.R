@@ -8,6 +8,7 @@ library(rgdal)
 library(raster)
 library(rgeos)
 library(plotGoogleMaps)
+library(leaflet)
 #library(xlsx)
 #library(RODBC)
 
