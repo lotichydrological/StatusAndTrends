@@ -364,23 +364,26 @@ siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
 #The entire list of parameters that match to a criteria
 #luParms<-read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 parms <- luParms
-#parms <- 
+
+#Take the inputs and write them to another vector for editing
+myParms <- inParms
 
 #Expand bacteria to include fecal and enterococcus
 if(any(inParms == 'Bacteria')) {
-  myParms <- c(inParms, c('E. coli','Fecal coliform','Enterococci'))
+  myParms <- c(myParms, c('E. coli','Fecal coliform','Enterococci'))
   myParms <- myParms[-which(myParms == "Bacteria")] 
-} else if (any(inParms == 'Dissolved Oxygen')) {
-  myParms <-c(inParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
-  myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
-  } else {
-  myParms <- inParms
 }
 
+#Expand DO to match database domain values
+if (any(inParms == 'Dissolved Oxygen')) {
+  myParms <-c(myParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
+  myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
+} 
 
 #grab just the parameters we want
 #characteristics<- URLencode.PTB(paste(myParms))
-characteristics <- URLencode.PTB(paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';'))
+#characteristics <- URLencode.PTB(paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';'))
+characteristics <- paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';')
 
 #### Define sample media to query ####
 #wqp.sampleMedia <- WQP.domain.get('Samplemedia')
@@ -519,6 +522,9 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
       ph_data$Analyte <- 'pH'
       ph_data$Unit <- 'ph Units'
       ph_data$SampleType <- 'Continuous'
+      if (any(grepl('Mid|Lower', names(ph_data)))) {
+        ph_data <- ph_data[,-grep('Mid|Lower', names(ph_data))]
+      }
     }
   }
   
@@ -535,6 +541,9 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
       DO_data$Analyte <- 'Dissolved Oxygen'
       DO_data$Unit <- 'mg/l'
       DO_data$SampleType <- 'Continuous'
+      if (any(grepl('Mid|Lower', names(DO_data)))) {
+        DO_data <- DO_data[,-grep('Mid|Lower', names(DO_data))]
+      }
     }
   }
   

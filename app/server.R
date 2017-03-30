@@ -643,7 +643,7 @@ shinyServer(function(input, output, session) {
                message = FALSE)
         )
         h5(a("Refer to Spawning Use Maps by Basin", 
-             href = "http://www.deq.state.or.us/wq/rules/div041tblsfigs.htm#f1",
+             href = "https://www.oregon.gov/deq/Regulations/Pages/Administrative-Rules.aspx",
              target = "_blank"))
       })
       

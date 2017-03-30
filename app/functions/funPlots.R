@@ -1019,8 +1019,8 @@ plot.DO<-function(new_data,
                                                  'Trend Line'),
                                       guide = guide_legend(override.aes = list(
                                         linetype = c("solid", "blank", 
-                                                     "blank", 'blank'),
-                                        shape = c(NA, 19, 19, 18)),
+                                                     "blank", 'blank', "solid"),
+                                        shape = c(NA, 19, 19, 18, NA)),
                                         nrow = 2))
           g <- g + scale_shape_manual("", values = c(19, 19, 18),
                                       guide = FALSE)
