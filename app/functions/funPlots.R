@@ -1449,23 +1449,23 @@ if(selectWQSTSS != 0){ #Allocation
   #allocation, trend line 
   if (plot_trend & !is.na(p.value)) {
     if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
-      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
                                     guide = guide_legend(override.aes = list(
-                                    linetype = c("dashed", 'dashed', 'solid', 'solid'))))
+                                    linetype = c('solid', 'solid', 'solid', 'solid'))))
     } else { #without exceedances
-      g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
+      g <- g + scale_color_manual("", values = c('black', 'black', 'blue', 'black'),
                                   guide = guide_legend(override.aes = list(
-                                    linetype = c("dashed", 'dashed', 'solid', 'solid'))))
+                                    linetype = c('solid', 'solid', 'solid', 'solid'))))
     }
   } else {
     if ('Exceeds' %in% unique(new_data$exceed)) {
       g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
-                                    linetype = c("dashed", 'dashed', 'solid'))))
+                                    linetype = c('solid', 'solid', 'dashed'))))
     } else {
       g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
-                                    linetype = c("dashed", 'dashed', 'solid'))))
+                                    linetype = c('solid', 'solid', 'solid'))))
     }
   } 
   g 
