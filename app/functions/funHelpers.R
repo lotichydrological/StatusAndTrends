@@ -324,7 +324,10 @@ Stations_Trend<-function(df.all){
    }
   lstoutput[]
   trend<-ldply(lstoutput, data.frame, .id = NULL)
-  trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+ if(length(trend) != 0){
+    trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+  }
+  
   #trend<-lstoutput[]
   #trend<-plyr::rbind.fill(lstoutput[[1]], lstoutput[[2]], lstoutput[[3]], lstoutput[[4]])
   # } else{

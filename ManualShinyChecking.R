@@ -61,12 +61,12 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Dissolved Oxygen', 'Temperature', 'Bacteria', 'pH')
-input$select <- "Clackamas"
-input$dates <- c("2006-01-01", "2017-03-01")
+input$parms <- c('Total Suspended Solids')
+input$select <- "South Santiam"
+input$dates <- c("2000-01-01", "2017-03-01")
 input$db <- c('Water Quality Portal', 'DEQ')
-input$selectStation <-  "10359 - "
-input$selectParameter <- 'Dissolved Oxygen'
+input$selectStation <-  "10352 - "
+input$selectParameter <- 'Total Suspended Solids'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'No spawning'#'January 1-May 15'
 input$selectUse <- 'Core Cold Water Habitat'
@@ -74,6 +74,7 @@ input$selectpHCrit <- 'Willamette - All other basin waters'#'John Day - All othe
 input$plotTrend <- TRUE
 input$selectUseDO<-'Cold-Water Aquatic Life'
 input$checkSpawning<-TRUE
+input$selectWQSTSS<- 4
 
 
 wqpData <- NULL
@@ -189,7 +190,7 @@ if (any('Temperature' %in% df.all$Analyte)) {
 #temp_stns_pass <- temp_sufficiency_analysis(df.all = df.all)
 
 #Run Seasonal Kendall for pH and Bacteria
-if (any(c('pH', 'E. Coli', "Enterococcus", "Dissolved Oxygen") %in% df.all$Analyte)) {
+if (any(c('pH', 'E. Coli', "Enterococcus", "Dissolved Oxygen", 'Total Suspended Solids') %in% df.all$Analyte)) {
   SeaKen <- run_seaKen(df.all)
 } else {
   SeaKen <- data.frame()
@@ -247,7 +248,7 @@ names(lstSummaryDfs)[7] <- "Stations_Status"
 lstSummaryDfs[[8]] <- Stations_Trend(df.all)
 names(lstSummaryDfs)[8] <- "Stations_Trend"
 
-lstSummaryDfs[[9]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[8]], status = lstSummaryDfs[[7]])
+lstSummaryDfs[[9]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[8]], status = lstSummaryDfs[[7]], df.all = df.all)
 names(lstSummaryDfs)[9] <- "stns"
 
 #Pull in Stream Cat data for NLCD 2011 land use
@@ -255,9 +256,9 @@ names(lstSummaryDfs)[9] <- "stns"
 # lstSummaryDfs[[7]] <- data.frame()#stn_nlcd_df
 # names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
 
-status<-Stations_Status(df.all)
-trend<-Stations_Trend(df.all)
-stns<-All_stns_fit_Criteria(status, trend)
+# status<-Stations_Status(df.all)
+# trend<-Stations_Trend(df.all)
+# stns<-All_stns_fit_Criteria(status, trend)
 
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
@@ -267,7 +268,7 @@ stns<-All_stns_fit_Criteria(status, trend)
   #                  selectUse = input$selectUse,
   #                  selectSpawning = input$selectSpawning)
   # 
-  if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen')) {
+  if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen', 'Total Suspended Solids')) {
     tmp_df <- new_data
     tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
     tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
@@ -292,7 +293,22 @@ stns<-All_stns_fit_Criteria(status, trend)
                      selectSpawning = input$selectSpawning,
                      selectUse = input$selectUse,
                      selectUseDO = input$selectUseDO)
-  # 
+  
+  
+  plot.TSS<-plot.TSS(new_data = new_data,
+                     df.all = df.all,
+                     selectWQSTSS = input$selectWQSTSS,
+                     sea_ken_table = SeaKen,
+                     plot_trend = input$plotTrend,
+                     analyte_column = 'Analyte',
+                     station_id_column = 'Station_ID',
+                     station_desc_column = 'Station_Description',
+                     datetime_column = 'Sampled',
+                     result_column = 'Result',
+                     datetime_format = '%Y-%m-%d %H:%M:%S',
+                     parm = 'Total Suspended Solids (mg/l)')
+  
+  
   # sea_ken_table <- SeaKen
   # plot_trend <- input$plotTrend
   # plot_criteria <- input$selectpHCrit

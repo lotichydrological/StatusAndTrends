@@ -32,7 +32,7 @@ shinyUI(fluidPage(
         ),
         column(3,
                checkboxGroupInput("parms",label = h3("Parameter(s) to Query"),
-                                  choices = c('Temperature','pH','Bacteria', 'Dissolved Oxygen'),
+                                  choices = c('Temperature','pH','Bacteria', 'Dissolved Oxygen', 'Total Suspended Solids'),
                                   selected = 1)
         ),
         column(5,
@@ -117,6 +117,8 @@ shinyUI(fluidPage(
              br(),
              uiOutput('selectParameter'),
              br(),
+             numericInput("selectWQSTSS", "TSS Allocation:", 0, min = 0, max = 100),
+             verbatimTextOutput("value"),
              uiOutput('selectLogScale'),
              uiOutput('plotTrend'),
              uiOutput('selectpHCrit'),

@@ -251,7 +251,7 @@ shinyServer(function(input, output, session) {
           }
           
           #Run Seasonal Kendall for pH and Bacteria
-          if (any(c('pH', 'E. Coli', "Enterococcus", 'Dissolved Oxygen') %in% df.all$Analyte)) {
+          if (any(c('pH', 'E. Coli', "Enterococcus", 'Dissolved Oxygen', 'Total Suspended Solids') %in% df.all$Analyte)) {
             SeaKen <- run_seaKen(df.all)
           } else {
             SeaKen <- data.frame()
@@ -552,6 +552,16 @@ shinyServer(function(input, output, session) {
                     c("Choose one"="",mydata))
       })
       
+      
+      ##TSS INPUT ALLOCATION VALUE
+      output$value <- renderText({ 
+        validate(
+          need(input$selectParameter %in% c('Total Suspended Solids'),
+               message = FALSE)
+        )
+         numericInput(input$selectWQSTSS)
+      })
+      
       output$selectLogScale = renderUI({
         validate(
           need(input$selectParameter %in% c('E. Coli','Enterococcus'),
@@ -584,7 +594,7 @@ shinyServer(function(input, output, session) {
       
       output$plotTrend <- renderUI({
         validate(
-          need(input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen'), 
+          need(input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Total Suspended Solids', 'Dissolved Oxygen'), 
                message = FALSE)
         )
         checkboxInput("plotTrend", 
@@ -739,7 +749,7 @@ shinyServer(function(input, output, session) {
           }
         }
         
-        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen')) {
+        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Total Suspended Solids', 'Dissolved Oxygen')) {
           tmp_df <- DataUse()
           tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
           tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
@@ -917,6 +927,28 @@ shinyServer(function(input, output, session) {
                               x = 1, y = 1)
                  }
                  g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+               }),
+               "Total Suspended Solids" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
+                 if (nrow(df) > 2) {
+                   g <- plot.TSS(new_data = df,
+                                 df.all = df.all,
+                                 selectWQSTSS = input$selectWQSTSS,
+                                 sea_ken_table = SeaKen,
+                                 plot_trend = input$plotTrend,
+                                 analyte_column = 'Analyte',
+                                 station_id_column = 'Station_ID',
+                                 station_desc_column = 'Station_Description',
+                                 datetime_column = 'Sampled',
+                                 result_column = 'Result',
+                                 datetime_format = '%Y-%m-%d %H:%M:%S',
+                                 parm = 'Total Suspended Solids (mg/l)')
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
+                 }
+                 g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                })
                
         )
@@ -952,6 +984,10 @@ shinyServer(function(input, output, session) {
           } else if (input$selectParameter == 'Dissolved Oxygen') {
             validate(
               need(!is.null(input$selectUseDO), message = FALSE)
+            )
+          } else if (input$selectParameter == 'Total Suspended Solids') {
+            validate(
+              need(!is.null(input$selectWQSTSS), message = FALSE)
             )
           }
         }

@@ -1337,3 +1337,138 @@ plot.DO<-function(new_data,
 
 #ggsave("g.png", height = 6, width = 6)
 
+plot.TSS<-function(new_data,
+                  df.all,
+                  selectWQSTSS = input$selectWQSTSS,
+                  sea_ken_table = SeaKen,
+                  plot_trend = input$plotTrend,
+                  analyte_column = 'Analyte',
+                  station_id_column = 'Station_ID',
+                  station_desc_column = 'Station_Description',
+                  datetime_column = 'Sampled',
+                  result_column = 'Result',
+                  datetime_format = '%Y-%m-%d %H:%M:%S',
+                  parm = 'Total Suspended Solids (mg/l)') {
+  require(ggplot2)
+  require(chron)
+  #dataframe that assigns WQS values to Aquatic Life Uses
+ 
+  # new_data <- EvaluateDOWQS(new_data = new_data,
+  #                           df.all = df.all,
+  #                           selectUseDO = selectUseDO,
+  #                           selectSpawning = selectSpawning)
+  
+  #Move to evaluateTSSWQS function in funHelpers 
+  new_data$exceed<- ifelse(new_data$Result > selectWQSTSS, 'Exceeds', "Meets")
+  
+  x.min <- min(new_data$Sampled) 
+  x.max <- max(new_data$Sampled) 
+  x.lim <- c(x.min, x.max)
+  title <- paste0(min(new_data[, station_desc_column]), ", ID = ",
+                  min(new_data[, station_id_column]))
+  x.lab <- "Date"
+  y.lab <- parm
+
+  y.min <- floor(min(new_data[, result_column])) #(unique(d$y) - 1) #unique(sdata$numcrit)[1] 
+  y.max <- ceiling(max(new_data[, result_column]))
+  y.lim <- c(y.min, y.max)
+  y.median <- median(new_data[, result_column])
+  slope <- suppressWarnings(
+    as.numeric(
+      sea_ken_table[sea_ken_table$Station_ID == 
+                      unique(new_data[, station_id_column]) & 
+                      sea_ken_table$analyte == 
+                      unique(new_data[, analyte_column]), 'slope']
+    )
+  )
+  p.value <- suppressWarnings(
+    as.numeric(
+      sea_ken_table[sea_ken_table$Station_ID == 
+                      unique(new_data[,station_id_column]) & 
+                      sea_ken_table$analyte == 
+                      unique(new_data[,analyte_column]),'pvalue']
+    )
+  )
+  p.value.label <- sea_ken_table[sea_ken_table$Station_ID == 
+                                   unique(new_data[,station_id_column]) & 
+                                   sea_ken_table$analyte == 
+                                   unique(new_data[,analyte_column]),'signif']
+  x.delta <- as.numeric((x.max-x.min)/2)####average date
+  SK.min <- y.median - x.delta*slope/365.25#minimum y value for line
+  SK.max <- y.median + x.delta*slope/365.25#maximum y value for line
+  sub.text <- paste0("p value = " ,
+                     round(p.value, digits=3),
+                     ", ",  
+                     p.value.label, 
+                     ", slope = ", 
+                     round(slope, digits=2), 
+                     ", n = ", 
+                     nrow(new_data))
+  
+  df_trend_line <- data.frame(x = c(x.min + 10000, x.max - 10000),
+                              y = c(SK.min, SK.max),
+                              variable = rep('Trend line', 2))
+  
+  d<-data.frame(x = c(x.min, x.max), y = rep(selectWQSTSS, 2),
+                variable = rep("TSS Allocation", 2))
+  
+
+   ##PLOT THE TIMESERIES
+if(selectWQSTSS != 0){ #Allocation
+  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+    geom_point(aes(color = exceed)) +
+    xlim(x.lim) +
+    ylim(y.lim) +
+    theme(plot.title = element_text(vjust=1.5, face="bold", size = 10))+
+    ggtitle(bquote(atop(.(title), atop(paste(.(sub.text)))))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
+    xlab(x.lab) +
+    ylab(y.lab)
+  g <- g + geom_line(aes(x = x, y = y, color = variable), data = d)
+} else { #no allocation 
+  g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+    geom_point() +
+    xlim(x.lim) +
+    ylim(y.lim) +
+    theme(plot.title = element_text(vjust=1.5, face="bold", size = 10))+
+    ggtitle(bquote(atop(.(title), atop(paste(.(sub.text)))))) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.direction = 'horizontal') +
+    xlab(x.lab) +
+    ylab(y.lab)
+}
+  
+  #trend line 
+  if (plot_trend & !is.na(p.value)) {
+    g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_trend_line)  
+  }
+  
+  #allocation, trend line 
+  if (plot_trend & !is.na(p.value)) {
+    if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+                                    guide = guide_legend(override.aes = list(
+                                    linetype = c("dashed", 'dashed', 'solid', 'solid'))))
+    } else { #without exceedances
+      g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("dashed", 'dashed', 'solid', 'solid'))))
+    }
+  } else {
+    if ('Exceeds' %in% unique(new_data$exceed)) {
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("dashed", 'dashed', 'solid'))))
+    } else {
+      g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c("dashed", 'dashed', 'solid'))))
+    }
+  } 
+  g 
+  
+  }
+    

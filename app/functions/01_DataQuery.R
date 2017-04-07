@@ -132,22 +132,22 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   options(stringsAsFactors = FALSE)
   
   #   #For testing
-#     library(sp)
-#     library(rgdal)
-#     library(rgeos)
-#     agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-#     agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
-#     HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
-#     HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
-#     HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
-#     names(HUClist) <- agwqma$PlanName
-#     
-#     planArea <- 'Inland Rogue'
-#     startDate <- "2011-03-01 00:00:00.000"
-#     endDate <- "2013-03-01 00:00:00.000"
-#     inParms <- c('Temperature')
-#     input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
-#     parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+    # library(sp)
+    # library(rgdal)
+    # library(rgeos)
+    # agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+    # agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
+    # HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
+    # HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
+    # HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
+    # names(HUClist) <- agwqma$PlanName
+    # 
+    # planArea <- 'South Santiam'
+    # startDate <- "2000-03-01 00:00:00.000"
+    # endDate <- "2000-03-01 00:00:00.000"
+    # inParms <- c('Total Suspended Solids')
+    # input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
+    # parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
   
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
   
@@ -180,6 +180,9 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   if (any(inParms == 'Dissolved Oxygen')) {
     qryParms <- c(qryParms, c('Dissolved Oxygen','Dissolved oxygen saturation'))
   }
+  if(any(inParms == 'Total Suspended Solids')) {
+    qryParms<- c(qryParms, c('Total Suspended Solids'))
+  }
   qryParms <- paste(qryParms,collapse="','")
   #### Restrict Matrix to surface water ####
   siteType <- c("'River/Stream','Estuary','Ocean','Lake'")
@@ -210,20 +213,20 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   options(stringsAsFactors = FALSE)
   
 #   #For testing
-#   library(sp)
-#   library(rgdal)
-#   library(rgeos)
-#   agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-#   agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
-#   HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
-#   HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
-#   HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
-#   names(HUClist) <- agwqma$PlanName
-#   
-#   planArea <- 'Inland Rogue'
-#   startDate <- "2010-01-01 00:00:00.000"
-#   endDate <- "2010-03-01 00:00:00.000"
-#   inParms <- c('Temperature','pH','Bacteria')
+# library(sp)
+# library(rgdal)
+# library(rgeos)
+# agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+# agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
+# HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
+# HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
+# HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
+# names(HUClist) <- agwqma$PlanName
+# 
+# planArea <- 'South Santiam'
+# startDate <- "2000-01-01 00:00:00.000"
+# endDate <- "2010-03-01 00:00:00.000"
+# inParms <- c('Total Suspended Solids')
   
   #### Establish connection to database ####
   channel <- odbcConnect('LASAR2_GIS')
@@ -266,11 +269,22 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   if(any(inParms == 'Dissolved Oxygen')) {
     qryParms <-  c(qryParms, 'Dissolved Oxygen')
   }
+  if(any(inParms == "Total Suspended Solids")) {
+    qryParms <- c(qryParms, 'Total Suspended Solids')
+  }
   qryParms <- paste(qryParms, collapse = "','")
   
   #### Build the query ####
   
-  qry <- paste0("SELECT r.RESULT_KEY,
+  # qry <- paste0("SELECT DISTINCT
+  #               pm1.ABBREVIATION as PARAMETER_PREFIX_1,
+  #               pm2.ABBREVIATION as PARAMETER_PREFIX_2,
+  #               p.PARAMETER_NM,
+  #               pm3.ABBREVIATION as PARAMETER_SUFFIX_1,
+  #               pm4.ABBREVIATION as PARAMETER_SUFFIX_2")
+  # qry <- gsub('\n','',qry)  
+
+qry <- paste0("SELECT r.RESULT_KEY,
                      r.STATION,
                s.LOCATION_DESCRIPTION,
                s.DECIMAL_LAT,
@@ -292,9 +306,9 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
                sm.SAMPLE_MATRIX_NAME,
                pr.METHOD_DETECTION_LIMIT,
                pr.METHOD_REPORTING_LIMIT
-               FROM Result r LEFT JOIN 
+               FROM Result r LEFT JOIN
                STATION s on r.STATION = s.STATION_KEY LEFT JOIN
-               (SELECT DISTINCT a.AREA_ABBREVIATION, sa.STATION FROM STATION_AREA sa LEFT JOIN 
+               (SELECT DISTINCT a.AREA_ABBREVIATION, sa.STATION FROM STATION_AREA sa LEFT JOIN
                XLU_AREA a on sa.XLU_AREA = a.AREA_KEY WHERE AREA_CLASS = 18) a on r.STATION = a.STATION  LEFT JOIN
                XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
                XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
@@ -390,6 +404,10 @@ characteristics <- paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],col
 
 #Separate each value you want to query with the URL encoded semi-colon '%3B'.
 sampleMedia <- 'Water'
+
+if (any(myParms == "Total Suspended Solids")) {
+  sampleMedia <- 'Sediment'
+}
 
 #### Pass the query to WQP ####
 wqp.data <- readWQPdata(#stateCode = myArea,
@@ -547,8 +565,28 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
     }
   }
   
+  if('Total Suspended Solids' %in% inParms) {
+    parmatercode<-c('00530', '70293', '70299')
+    TSS_data <- readNWISdata(service = "iv",
+                            huc=myHUCs,
+                            siteTypeCd=siteTypeCd,
+                            startDate=startDate,
+                            endDate=endDate,
+                            parameterCd = parmatercode)
+    if (nrow(TSS_data) > 0) {
+      TSS_sites <- attr(TSS_data, 'siteInfo')
+      TSS_data <- TSS_data[,names(TSS_data) != 'tz_cd']
+      TSS_data$Analyte <- 'Total Suspended Solids'
+      TSS_data$Unit <- 'mg/l'
+      TSS_data$SampleType <- 'grab'
+      if (any(grepl('Mid|Lower', names(TSS_data)))) {
+        TSS_data <- TSS_data[,-grep('Mid|Lower', names(TSS_data))]
+      }
+    }
+  }
   
-  df_list <- list(temp_data_c, temp_data_f, ph_data, DO_data)
+  
+  df_list <- list(temp_data_c, temp_data_f, ph_data, DO_data, TSS_data)
   df_list_rows <- lapply(df_list, nrow)
   
   if (any(unlist(df_list_rows) > 0)) {
