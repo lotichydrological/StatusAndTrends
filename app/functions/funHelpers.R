@@ -227,6 +227,139 @@ extract_303d <- function (df.all, wq_limited, selectedPlanArea) {
   return(wq_limited)
 }
 
+Stations_Status<-function(df.all) {
+  
+  dta<-df.all
+  
+  dta<-dta %>%
+    filter(!Analyte == "Dissolved oxygen saturation")
+  
+  #remove data from Tribal land
+  #dta<-dta[!grep("TRIBES", dta$Station_ID),]
+  
+  dta$Sampled <- as.POSIXct(strptime(dta$Sampled, format = '%Y-%m-%d')) 
+  dta$Sampled<-as.Date(dta$Sampled)
+  dta$year<-as.numeric(format(dta$Sampled, format="%Y"))
+  
+  maxyear <- max(dta$year)
+  statyear<-seq(maxyear-3, maxyear, by = 1)
+  # statyear<-c('2014', '2015', '2016', '2017')
+  
+  if(any(dta$year %in% statyear)){
+    lst_stat <- list()
+    for (j in 1 : as.character(length(unique(dta$Analyte)))) {
+    sub_data <- dta[dta$Analyte == unique(dta$Analyte)[j],]
+    status<-sub_data%>%
+      filter(year %in% statyear) %>%
+      group_by(Station_ID)%>%
+      dplyr::summarise(n_years=length(unique(year))) %>%
+      filter(n_years>2)
+    stns<-c(as.character(unique(status$Station_ID)))
+    #trend[trend$Station_ID %in% stns, ]
+    dta_stns<-dta%>%
+      dplyr::filter(Station_ID %in% stns) %>%
+      filter(year %in% statyear)
+    
+    if (nrow(status) == 0) {
+      lst_stat[[j]] <- NULL
+    } else {
+      lst_stat[[j]] <- dcast(dta_stns, Station_ID ~ year)
+      lst_stat[[j]]$Analyte<-dta$Analyte[j]
+    }
+    
+    dta_stns$Analyte<-as.character(dta_stns$Analyte)
+    names(lst_stat)[j]<-unique(dta_stns$Analyte)[j]
+  }
+    lst_stat[]
+    #status<-lst_stat[]
+    status<-ldply(lst_stat, data.frame, .id = NULL)
+    status<-status[,c('Station_ID', sort(names(status)[!names(status) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+    #status<-plyr::rbind.fill(lst_stat[[1]], lst_stat[[2]], lst_stat[[3]], lst_stat[[4]])
+    #status<-status[c("Station_ID", "2014", "2015", "2016", "2017", "Analyte")]
+  # } else {
+  #   status<-"No stations meet Status criteria"
+  # }
+  }
+  return(status)
+}
+
+Stations_Trend<-function(df.all){
+  dta<-df.all
+  
+  #remove data from Tribal land
+  #dta<-dta[- grep("TRIBES", dta$Station_ID),]
+  
+  
+  dta$Sampled <- as.POSIXct(strptime(dta$Sampled, format = '%Y-%m-%d')) 
+  dta$Sampled<-as.Date(dta$Sampled)
+  dta$year<-as.numeric(format(dta$Sampled, format="%Y"))
+  
+  trendyear<-c("2000", "2001", "2002", "2003", '2004', "2005", "2006", "2007", '2008',
+              '2009', '2010', '2011', '2012', '2013', '2014', "2015", "2016", "2017")
+  
+  if(any(dta$year %in% trendyear)){
+    lstoutput <- list()
+    for (i in 1 : as.character(length(unique(dta$Analyte)))) {
+      sub_data <- dta[dta$Analyte == unique(dta$Analyte)[i],]
+      trend<-sub_data%>%
+        group_by(Station_ID)%>%
+        dplyr::summarise(n_years=length(unique(year))) %>%
+        filter(n_years>8)
+      stns<-c(as.character(unique(trend$Station_ID)))
+      #trend[trend$Station_ID %in% stns, ]
+      dta_stns<-dta%>%
+        dplyr::filter(Station_ID %in% stns)
+      
+      if (nrow(trend) == 0) {
+        lstoutput[[i]] <- NULL
+      } else {
+        lstoutput[[i]] <- dcast(dta_stns, Station_ID ~ year)
+        lstoutput[[i]]$Analyte<-as.character(dta$Analyte[i])
+        #lstoutput[i]$Analyte<-as.character(unique(dta$Analyte[i]))
+      }
+    
+    #dta_stns$Analyte<-as.character(dta_stns$Analyte)
+    #names(lstoutput)[i]<-unique(dta_stns$Analyte[i])
+   
+   }
+  lstoutput[]
+  trend<-ldply(lstoutput, data.frame, .id = NULL)
+  trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+  #trend<-lstoutput[]
+  #trend<-plyr::rbind.fill(lstoutput[[1]], lstoutput[[2]], lstoutput[[3]], lstoutput[[4]])
+  # } else{
+  #   trend<-'No Stations Meet Trend Criteria'
+ }
+  #trend<-trend[c("Station_ID", "2000", "2001", "2002", "2003", '2004', "2005", "2006", "2007", '2008',
+          #'2009', '2010', '2011', '2012', '2013', '2014', "2015", "2016", "2017", "Analyte")]
+  return(trend)
+}
+
+All_stns_fit_Criteria<-function(status, trend, df.all) {
+  status_stns<-unique(status$Station_ID)
+  trend_stns<-unique(trend$Station_ID)
+  
+  # status_stns<-unique(c(as.character(lst_stat[[1]]$Station_ID), 
+  #                       as.character(lst_stat[[2]]$Station_ID),
+  #                       as.character(lst_stat[[3]]$Station_ID),
+  #                       as.character(lst_stat[[4]]$Station_ID)))
+  # 
+  # trend_stns<-unique(c(as.character(lstoutput[[1]]$Station_ID),
+  #                      as.character(lstoutput[[2]]$Station_ID),
+  #                      as.character(lstoutput[[3]]$Station_ID),
+  #                      as.character(lstoutput[[4]]$Station_ID)))
+  
+  
+  
+  unique_stns<-unique(c(status_stns, trend_stns))
+  
+  stns<-df.all[,c('Station_ID', 'Station_Description', 'DECIMAL_LAT', 'DECIMAL_LONG')]
+  stns<-stns %>%
+    filter(Station_ID %in% unique_stns)
+  stns<-unique(stns)
+  return(stns)
+}
+
 pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
   reviewDf <- switch(input_reviewDf,
                      "df.org" = (
@@ -277,8 +410,18 @@ pickReviewDf <- function(input_reviewDf, lstSummaryDfs, df.all) {
                      ),
                      "qc.results.3" = (
                        lstSummaryDfs[["qc.results.3"]]
+                     ),
+                     "Stations_Status" = (
+                       lstSummaryDfs[['Stations_Status']]
+                     ),
+                     "Stations_Trend" = (
+                       lstSummaryDfs[['Stations_Trend']]
+                     ),
+                     'stns' = (
+                       lstSummaryDfs[['stns']]
                      )
-  )
+                       
+                       )
   return(reviewDf)
 }
 

@@ -14,6 +14,7 @@ library(DT)
 library(wq)
 library(chron)
 library(reshape)
+library(reshape2)
 library(ggplot2)
 library(zoo)
 library(spatialEco)
@@ -56,8 +57,8 @@ parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 
 # Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
-load('data/NLCD2011_OR.Rdata')
-load('data/OR_cats.Rdata')
+# load('data/NLCD2011_OR.Rdata')
+# load('data/OR_cats.Rdata')
 
 shinyServer(function(input, output, session) { 
   ###################################
@@ -255,6 +256,7 @@ shinyServer(function(input, output, session) {
           } else {
             SeaKen <- data.frame()
           }
+          
           lstSummaryDfs[[4]] <- SeaKen
           names(lstSummaryDfs)[4] <- "sea_ken_table"
           
@@ -312,11 +314,37 @@ shinyServer(function(input, output, session) {
           prog <- prog + 1/10
           #Pull in Stream Cat data for NLCD 2011 land use
           #these two lines cannot be commented if you want the land use analysis to run
-          stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
-          lstSummaryDfs[[7]] <-stn_nlcd_df
+          # stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
+          # lstSummaryDfs[[7]] <-stn_nlcd_df
           #This line has to be commented out if you want the land use analysis to run
-          # lstSummaryDfs[[7]] <- data.frame()
+          
+          lstSummaryDfs[[7]] <- data.frame()
           names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
+          
+          lstSummaryDfs[[8]] <- Stations_Status(df.all)
+          names(lstSummaryDfs)[8] <- "Stations_Status"
+          
+          if(nrow(lstSummaryDfs[[8]]) == 0) {
+            lstSummaryDfs[[8]] <- as.data.frame('No stations meet criteria to assess status')
+          } else {
+            lstSummaryDfs[[8]] <- lstSummaryDfs[[8]]
+          }
+          
+          lstSummaryDfs[[9]] <- Stations_Trend(df.all)
+          names(lstSummaryDfs)[9] <- "Stations_Trend"
+          
+          if(nrow(lstSummaryDfs[[9]]) == 0) {
+            lstSummaryDfs[[9]] <- as.data.frame('No stations meet criteria to assess trends')
+          } else {
+            lstSummaryDfs[[9]] <- lstSummaryDfs[[9]]
+          }
+          
+          lstSummaryDfs[[10]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[9]], 
+                                                       status = lstSummaryDfs[[8]],
+                                                       df.all = df.all)
+          names(lstSummaryDfs)[10] <- "stns"
+          
+          
         }
       })
       
@@ -363,14 +391,13 @@ shinyServer(function(input, output, session) {
             addMarkers(data = all.sp, 
                        lng = all.sp@coords[,1], 
                        lat = all.sp@coords[,2], 
-                       popup = paste(all.sp@data$Station_ID,
-                                     all.sp@data$Station_Description,
-                                     sep = "--"), #apply(all.sp@data, 
-                                     #1, 
-                                     #function(row) {
-                                      # htmlTable::htmlTable(row, 
-                                       #                     header = c('Stn_ID', 'Stn_Name', 
-                                        #                       names(row)[-c(1,2)]), rnames = FALSE)}), 
+                       popup = lapply(rownames(all.sp@data), 
+                                      function(row) {
+                                        htmlTable::htmlTable(all.sp@data[row,],
+                                                             header = c('Stn_ID', 'Stn_Name',
+                                                                        names(all.sp@data)[-c(1,2)]),
+                                                             rnames = FALSE)
+                                        }),
                        group = 'Stations',
                        clusterOptions = markerClusterOptions())
           if (grepl("[0-9].", input$select)) {
@@ -397,51 +424,6 @@ shinyServer(function(input, output, session) {
           )
           basinMap
         })
-        # output$mymap <- renderUI({
-        #   #req(ag_sub | hucs)
-        #   withProgress(message = "Processing:", value = 0, {
-        #     incProgress(1/3, detail = 'Plotting stations')
-        #     prog <- 1/3
-        #     
-        #     m <- plotGoogleMaps(all.sp, 
-        #                         add = TRUE, 
-        #                         filename = 'myMap2.html', 
-        #                         openMap = FALSE, 
-        #                         legend = FALSE, 
-        #                         layerName = "Sampling stations", 
-        #                         mapTypeId = "ROADMAP")
-        #     
-        #     incProgress(prog, detail = "Plotting Geographic Area")
-        #     prog <- 2/3
-        #     
-        #     if (grepl("[0-9].", input$select)) {
-        #       m <- plotGoogleMaps(huc_sub, 
-        #                           previousMap = m, 
-        #                           filename = "myMap2.html", 
-        #                           openMap = FALSE, 
-        #                           layerName = "Selected 8 digit HUC", 
-        #                           legend = FALSE, 
-        #                           colPalette = "light green")
-        #     } else {
-        #       m <- plotGoogleMaps(ag_sub, 
-        #                           previousMap = m, 
-        #                           filename = "myMap2.html", 
-        #                           openMap = FALSE, 
-        #                           layerName = "Ag Plan Areas", 
-        #                           legend = FALSE, 
-        #                           colPalette = "light green")
-        #     }
-        #     
-        #     
-        #     incProgress(1 - prog, detail = "Rendering plot")
-        #     
-        #     tags$iframe(
-        #       srcdoc = paste(readLines('myMap2.html'), collapse = '\n'),
-        #       width = "100%",
-        #       height = "600px"
-        #     )
-        #   })
-        # })
       })
       
       ###################################
@@ -463,6 +445,10 @@ shinyServer(function(input, output, session) {
                                    "WQ Limited Waters within Geographic Area" = 
                                      'wq_limited',
                                    'Land Use Breakdown' = 'stn_nlcd_df',
+                                   'Stations that Meet Status' = 'Stations_Status',
+                                   'Stations that Meet Trend' = 'Stations_Trend',
+                                   'All Stations that Meet Criteria' = 'stns',
+                                   'Summary of All Stations by Year' = NULL,
                                    "Seasonal Kendall Results" = 'sea_ken_table',
                                    "QA - Summary by organization" = 'df.org',
                                    "QA - Result values modified" = "df.report",
@@ -472,7 +458,7 @@ shinyServer(function(input, output, session) {
                     selectize = TRUE
         )
       })
-      
+    
       #The table is built here
       tbl_disp_input <- reactive({
         validate(

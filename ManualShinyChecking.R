@@ -61,17 +61,17 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Dissolved Oxygen')
-input$select <- "South Santiam"
-input$dates <- c("2000-01-01", "2017-01-01")
-input$db <- c('DEQ')
-input$selectStation <-  "11180 - "
+input$parms <- c('Dissolved Oxygen', 'Temperature', 'Bacteria', 'pH')
+input$select <- "Clackamas"
+input$dates <- c("2006-01-01", "2017-03-01")
+input$db <- c('Water Quality Portal', 'DEQ')
+input$selectStation <-  "10359 - "
 input$selectParameter <- 'Dissolved Oxygen'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'No spawning'#'January 1-May 15'
 input$selectUse <- 'Core Cold Water Habitat'
 input$selectpHCrit <- 'Willamette - All other basin waters'#'John Day - All other basin waters'
-input$plotTrend <- FALSE
+input$plotTrend <- TRUE
 input$selectUseDO<-'Cold-Water Aquatic Life'
 input$checkSpawning<-TRUE
 
@@ -241,11 +241,23 @@ lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]],
                                      'Listing_St' = 'Listing Status'))
 names(lstSummaryDfs)[6] <- "wq_limited"
 
+lstSummaryDfs[[7]] <- Stations_Status(df.all)
+names(lstSummaryDfs)[7] <- "Stations_Status"
+
+lstSummaryDfs[[8]] <- Stations_Trend(df.all)
+names(lstSummaryDfs)[8] <- "Stations_Trend"
+
+lstSummaryDfs[[9]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[8]], status = lstSummaryDfs[[7]])
+names(lstSummaryDfs)[9] <- "stns"
+
 #Pull in Stream Cat data for NLCD 2011 land use
 # stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
 # lstSummaryDfs[[7]] <- data.frame()#stn_nlcd_df
 # names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
 
+status<-Stations_Status(df.all)
+trend<-Stations_Trend(df.all)
+stns<-All_stns_fit_Criteria(status, trend)
 
   new_data <- generate_new_data(df.all, sdadm, input$selectStation, input$selectParameter,
                     input$selectUse, input$selectSpawning)
@@ -255,27 +267,31 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   #                  selectUse = input$selectUse,
   #                  selectSpawning = input$selectSpawning)
   # 
-  # if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus')) {
-  #   tmp_df <- new_data
-  #   tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
-  #   tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
-  #   sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
-  #   tmp_df_MRL <- tmp_df[sub,]
-  #   tmp_df <- remove.dups(tmp_df_MRL, max)
-  # } else {
-  #   tmp_df <- new_data
-  # }
+  if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Dissolved Oxygen')) {
+    tmp_df <- new_data
+    tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
+    tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
+    sub <- with(tmp_df, resolveMRLs(code, Detect, Result))
+    tmp_df_MRL <- tmp_df[sub,]
+    if (input$selectParameter == 'Dissolved Oxygen'){
+      tmp_df <- remove.dups(tmp_df, min)
+    } else {
+      tmp_df <- remove.dups(tmp_df_MRL, max)
+    }
+  } else {
+    tmp_df <- new_data
+  }
   # 
   # 
-  # generate_exceed_df(new_data = tmp_df,
-  #                    parm = input$selectParameter,
-  #                    selectpHCrit = input$selectpHCrit,
-  #                    ph_crit = ph_crit,
-  #                    PlanName =  input$select,
-  #                    selectStation =  input$selectStation,
-  #                    selectSpawning = input$selectSpawning,
-  #                    selectUse = input$selectUse,
-  #                    selectUseDO = input$selectUseDO)
+  exc<-generate_exceed_df(new_data = tmp_df,
+                     parm = input$selectParameter,
+                     selectpHCrit = input$selectpHCrit,
+                     ph_crit = ph_crit,
+                     PlanName =  input$select,
+                     selectStation =  input$selectStation,
+                     selectSpawning = input$selectSpawning,
+                     selectUse = input$selectUse,
+                     selectUseDO = input$selectUseDO)
   # 
   # sea_ken_table <- SeaKen
   # plot_trend <- input$plotTrend
@@ -314,8 +330,8 @@ names(lstSummaryDfs)[6] <- "wq_limited"
   
   
 
-  # input$selectStation <-  '10708'
-  # selectSpawning <- 'January 1-June 15'
+  # input$selectStation <-  'USGS-421015121471800 - '
+  # selectSpawning <- 'No spawning'
   # input$selectSpawning <- selectSpawning
   # selectUseDO<-'Cool-Water Aquatic Life'
   # input$selectUseDO<-selectUseDO
@@ -327,6 +343,21 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                     sdadm, 
                     input$selectStation, 
                     input$selectParameter)
+  
+  DO_exc<-EvaluateDOWQS(new_data = DO, 
+                          df.all = df.all, 
+                          selectUseDO = input$selectUseDO,
+                          selectSpawning = input$selectSpawning,
+                          analyte_column = 'Analyte',
+                          station_id_column = 'Station_ID',
+                          station_desc_column = 'Station_Description',
+                          datetime_column = 'Sampled',
+                          result_column = 'Result',
+                          datetime_format = '%Y-%m-%d %H:%M:%S')
+  
+  table(DO_exc$exceed)
+ 
+  
   
   plot.DO<-plot.DO(new_data = DO,
                    df.all = df.all,
@@ -341,7 +372,7 @@ names(lstSummaryDfs)[6] <- "wq_limited"
                    parm = 'Dissolved Oxygen')
   plot.DO
   
-  ggsave("g.png", height = 6, width = 6)
+  #ggsave("g.png", height = 6, width = 6)
   
 
 
