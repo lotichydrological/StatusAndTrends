@@ -1353,13 +1353,8 @@ plot.TSS<-function(new_data,
   require(chron)
   #dataframe that assigns WQS values to Aquatic Life Uses
  
-  # new_data <- EvaluateDOWQS(new_data = new_data,
-  #                           df.all = df.all,
-  #                           selectUseDO = selectUseDO,
-  #                           selectSpawning = selectSpawning)
-  
-  #Move to evaluateTSSWQS function in funHelpers 
-  new_data$exceed<- ifelse(new_data$Result > selectWQSTSS, 'Exceeds', "Meets")
+  new_data<-EvaluateTSSWQS(new_data = new_data, 
+                           selectWQSTSS = selectWQSTSS)
   
   x.min <- min(new_data$Sampled) 
   x.max <- max(new_data$Sampled) 
@@ -1369,7 +1364,7 @@ plot.TSS<-function(new_data,
   x.lab <- "Date"
   y.lab <- parm
 
-  y.min <- floor(min(new_data[, result_column])) #(unique(d$y) - 1) #unique(sdata$numcrit)[1] 
+  y.min <- floor(min(new_data[, result_column])) 
   y.max <- ceiling(max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   y.median <- median(new_data[, result_column])
@@ -1453,9 +1448,9 @@ if(selectWQSTSS != 0){ #Allocation
                                     guide = guide_legend(override.aes = list(
                                     linetype = c('solid', 'solid', 'solid', 'solid'))))
     } else { #without exceedances
-      g <- g + scale_color_manual("", values = c('black', 'black', 'blue', 'black'),
+      g <- g + scale_color_manual("", values = c('blue'),
                                   guide = guide_legend(override.aes = list(
-                                    linetype = c('solid', 'solid', 'solid', 'solid'))))
+                                    linetype = c('solid'))))
     }
   } else {
     if ('Exceeds' %in% unique(new_data$exceed)) {

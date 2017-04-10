@@ -746,6 +746,10 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectUseDO), message = FALSE)
             )
+          } else if (input$selectParameter == "Total Suspended Solids") {
+            validate(
+              need(!is.null(input$selectWQSTSS), message = FALSE)
+            )
           }
         }
         
@@ -764,16 +768,16 @@ shinyServer(function(input, output, session) {
           tmp_df <- DataUse()
         }
         
-        generate_exceed_df(new_data = tmp_df, 
-                           df.all = df.all,
-                          parm = input$selectParameter, 
-                          selectpHCrit = input$selectpHCrit,
-                          ph_crit = ph_crit, 
-                          PlanName = input$select, 
-                          selectStation = input$selectStation, 
-                          selectUse = input$selectUse, 
-                          selectUseDO = input$selectUseDO,
-                          selectSpawning = input$selectSpawning)
+        generate_exceed_df(new_data = tmp_df,
+                           parm = input$selectParameter,
+                           selectpHCrit = input$selectpHCrit,
+                           ph_crit = ph_crit,
+                           PlanName =  input$select,
+                           selectStation =  input$selectStation,
+                           selectSpawning = input$selectSpawning,
+                           selectUse = input$selectUse,
+                           selectUseDO = input$selectUseDO,
+                           selectWQSTSS = input$selectWQSTSS)
       })
       
       # This handles the temp trend analysis
@@ -985,14 +989,12 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectUseDO), message = FALSE)
             )
-          } else if (input$selectParameter == 'Total Suspended Solids') {
-            validate(
-              need(!is.null(input$selectWQSTSS), message = FALSE)
-            )
-          }
+          } 
         }
-        plotInput()
+         plotInput()
       })
+      
+     
       
       output$downloadPlot <- downloadHandler(filename = function () {
         paste(

@@ -926,7 +926,7 @@ EvaluateDOWQS<-function(new_data,
                       "Station_Description" = (unique(new_data_all$Station_Description)),
                       "Obs" = c(nrow(new_data)),
                       "Exceedances" = c(nrow(exc)),
-                      "Meets b/c of Dissolved Oxygen Saturation" = 
+                      "Meets_b/c_of_DO_Saturation" = 
                         c(nrow(do_meet)))
   
   new_data<-new_data_all
@@ -936,10 +936,36 @@ EvaluateDOWQS<-function(new_data,
   
 }
 
+EvaluateTSSWQS<-function(new_data, 
+                         selectWQSTSS = input$selectWQSTSS) {
+  
+  
+  if(selectWQSTSS != 0) {
+    new_data$exceed<- ifelse(new_data$Result > selectWQSTSS, 'Exceeds', "Meets")
+  } else {
+    new_data$exceed<-'Meets'
+  }
+  
+  exc<-new_data%>%
+    filter(exceed == 'Exceeds')
+  
+  ex_df <- data.frame("Station_ID" = (unique(new_data$Station_ID)),
+                      "Station_Description" = (unique(new_data$Station_Description)),
+                      "Min_Date" = min(new_data$Sampled),
+                      "Max_Date" = max(new_data$Sampled),
+                      "Obs" = c(nrow(new_data)),
+                      "Exceedances" = c(nrow(exc)))
+  
+  attr(new_data, "ex_df") <-ex_df
+  return(new_data)
+  
+}
+
 generate_exceed_df <- function(new_data, 
                                df.all,
                                parm, 
                                selectpHCrit, 
+                               selectWQSTSS,
                                ph_crit, 
                                PlanName, 
                                selectStation, 
@@ -994,6 +1020,11 @@ generate_exceed_df <- function(new_data,
                                     datetime_column = 'Sampled',
                                     result_column = 'Result',
                                     datetime_format = '%Y-%m-%d %H:%M:%S')  
+      attr(new_data, "ex_df")
+    }),
+    "Total Suspended Solids" = ({
+      new_data = EvaluateTSSWQS(new_data, 
+                                selectWQSTSS = selectWQSTSS)
       attr(new_data, "ex_df")
     }))
   exceed_df$Percent_Exceed <- exceed_df$Exceedances/exceed_df$Obs * 100
