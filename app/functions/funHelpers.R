@@ -245,6 +245,9 @@ Stations_Status<-function(df.all) {
   statyear<-seq(maxyear-3, maxyear, by = 1)
   # statyear<-c('2014', '2015', '2016', '2017')
   
+  # dta<-dta%>%
+  #   filter(Analyte == parm)
+  
   if(any(dta$year %in% statyear)){
     lst_stat <- list()
     for (j in 1 : as.character(length(unique(dta$Analyte)))) {
@@ -263,7 +266,8 @@ Stations_Status<-function(df.all) {
     if (nrow(status) == 0) {
       lst_stat[[j]] <- NULL
     } else {
-      lst_stat[[j]] <- dcast(dta_stns, Station_ID ~ year)
+      lst_stat[[j]] <- dcast(dta_stns, Station_ID ~ year, value.var = 'year',
+                             fun.aggregate = length)
       lst_stat[[j]]$Analyte<-dta$Analyte[j]
     }
     
@@ -289,52 +293,36 @@ Stations_Trend<-function(df.all){
   #remove data from Tribal land
   #dta<-dta[- grep("TRIBES", dta$Station_ID),]
   
-  
   dta$Sampled <- as.POSIXct(strptime(dta$Sampled, format = '%Y-%m-%d')) 
   dta$Sampled<-as.Date(dta$Sampled)
   dta$year<-as.numeric(format(dta$Sampled, format="%Y"))
   
-  trendyear<-c("2000", "2001", "2002", "2003", '2004', "2005", "2006", "2007", '2008',
-              '2009', '2010', '2011', '2012', '2013', '2014', "2015", "2016", "2017")
-  
-  if(any(dta$year %in% trendyear)){
-    lstoutput <- list()
-    for (i in 1 : as.character(length(unique(dta$Analyte)))) {
-      sub_data <- dta[dta$Analyte == unique(dta$Analyte)[i],]
-      trend<-sub_data%>%
-        group_by(Station_ID)%>%
-        dplyr::summarise(n_years=length(unique(year))) %>%
-        filter(n_years>8)
-      stns<-c(as.character(unique(trend$Station_ID)))
-      #trend[trend$Station_ID %in% stns, ]
-      dta_stns<-dta%>%
-        dplyr::filter(Station_ID %in% stns)
-      
-      if (nrow(trend) == 0) {
-        lstoutput[[i]] <- NULL
-      } else {
-        lstoutput[[i]] <- dcast(dta_stns, Station_ID ~ year)
-        lstoutput[[i]]$Analyte<-as.character(dta$Analyte[i])
-        #lstoutput[i]$Analyte<-as.character(unique(dta$Analyte[i]))
-      }
+  lstoutput <- list()
+  for (i in 1 : as.character(length(unique(dta$Analyte)))) {
+    sub_data <- dta[dta$Analyte == unique(dta$Analyte)[i],]
+    trend<-sub_data%>%
+      group_by(Station_ID)%>%
+      dplyr::summarise(n_years=length(unique(year))) %>%
+      filter(n_years>8)
+    stns<-c(as.character(unique(trend$Station_ID)))
+    dta_stns<-dta%>%
+      dplyr::filter(Station_ID %in% stns)
     
-    #dta_stns$Analyte<-as.character(dta_stns$Analyte)
-    #names(lstoutput)[i]<-unique(dta_stns$Analyte[i])
-   
-   }
-  lstoutput[]
+    if (nrow(trend) == 0) {
+      lstoutput[[i]] <- NULL
+    } else {
+      lstoutput[[i]] <- dcast(dta_stns, Station_ID ~ year, value.var = 'year',
+                              fun.aggregate = length)
+      lstoutput[[i]]$Analyte<-as.character(dta$Analyte[i])
+    }
+  }
+  
   trend<-ldply(lstoutput, data.frame, .id = NULL)
- if(length(trend) != 0){
+  
+  if(length(trend) != 0){
     trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
   }
   
-  #trend<-lstoutput[]
-  #trend<-plyr::rbind.fill(lstoutput[[1]], lstoutput[[2]], lstoutput[[3]], lstoutput[[4]])
-  # } else{
-  #   trend<-'No Stations Meet Trend Criteria'
- }
-  #trend<-trend[c("Station_ID", "2000", "2001", "2002", "2003", '2004', "2005", "2006", "2007", '2008',
-          #'2009', '2010', '2011', '2012', '2013', '2014', "2015", "2016", "2017", "Analyte")]
   return(trend)
 }
 
@@ -784,7 +772,8 @@ EvaluateDOWQS<-function(new_data,
                         datetime_column = 'Sampled',
                         result_column = 'Result',
                         datetime_format = '%Y-%m-%d %H:%M:%S'){
-  #new_data<-DO
+  require(dplyr)
+ 
   new_data$Result <- as.numeric(new_data$Result)
   new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
                                           format = datetime_format))
@@ -927,7 +916,9 @@ EvaluateDOWQS<-function(new_data,
                       "Obs" = c(nrow(new_data)),
                       "Exceedances" = c(nrow(exc)),
                       "Meets_b/c_of_DO_Saturation" = 
-                        c(nrow(do_meet)))
+                        c(nrow(do_meet)),
+                      "Min_Date" = min(new_data$Sampled),
+                      "Max_Date" = max(new_data$Sampled))
   
   new_data<-new_data_all
   
@@ -937,7 +928,7 @@ EvaluateDOWQS<-function(new_data,
 }
 
 EvaluateTSSWQS<-function(new_data, 
-                         selectWQSTSS = input$selectWQSTSS) {
+                         selectWQSTSS) {
   
   
   if(selectWQSTSS != 0) {
@@ -980,8 +971,11 @@ generate_exceed_df <- function(new_data,
         NULL
       } else {
         new_data <- EvaluatepHWQS(new_data, ph_crit, PlanName, selectpHCrit)
-        ddply(new_data, .(Station_ID, Station_Description, Year), #, Month), 
-              summarize, Obs = length(exceed), Exceedances = sum(exceed)) 
+        ddply(new_data, .(Station_ID, Station_Description), #, Month), 
+              summarize, min_date = min(Sampled), 
+              max_date = max(Sampled),
+              Obs = length(exceed), 
+              Exceedances = sum(exceed)) 
       }
     }),
     "Temperature" = ({
@@ -1500,4 +1494,8 @@ Temp_trends_plot <- function(sdadm, selectStation, selectMonth) {
                                                       sep = " - "))
   
   return(mp)
+}
+
+GetURL <- function(service, host = "basemap.nationalmap.gov") {
+  sprintf("https://%s/arcgis/services/%s/MapServer/WmsServer", host, service)
 }

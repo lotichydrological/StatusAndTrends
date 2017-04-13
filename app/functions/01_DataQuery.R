@@ -388,11 +388,11 @@ if(any(inParms == 'Bacteria')) {
   myParms <- myParms[-which(myParms == "Bacteria")] 
 }
 
-#Expand DO to match database domain values
-if (any(inParms == 'Dissolved Oxygen')) {
-  myParms <-c(myParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
-  myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
-} 
+# #Expand DO to match database domain values
+# if (any(inParms == 'Dissolved Oxygen')) {
+#   myParms <-c(myParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
+#   myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
+# } 
 
 #grab just the parameters we want
 #characteristics<- URLencode.PTB(paste(myParms))
@@ -492,7 +492,9 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   DO_data<- NULL
   ph_sites <- NULL
   DO_sites <- NULL
-
+  TSS_sites<-NULL
+  TSS_data<-NULL
+  
   #### Define parameters to query ####
   if ('Temperature' %in% inParms) {
     temp_data_c <- readNWISdata(service = "dv",
@@ -582,6 +584,8 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
       if (any(grepl('Mid|Lower', names(TSS_data)))) {
         TSS_data <- TSS_data[,-grep('Mid|Lower', names(TSS_data))]
       }
+    } else {
+      TSS_data <- NULL 
     }
   }
   

@@ -131,7 +131,7 @@ shinyServer(function(input, output, session) {
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
           
-          if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
+          if (any(c('Temperature', 'pH', 'Dissolved Oxygen', 'Total Suspended Solids') %in% input$parms)) {
             incProgress(1/10, detail = 'Querying NWIS continuous data')
             prog <- prog + 1/10
             nwisData <- tryCatch(nwisQuery(planArea = input$select,
@@ -239,7 +239,7 @@ shinyServer(function(input, output, session) {
             temp_stns_pass <- temp_sufficiency_analysis(df.all)
           } else {
             temp_stns_pass <- data.frame()
-            attr(temp_stns_pass, "year_test") <- c()
+            attr(temp_stns_pass, "year_test") <- data.frame(Station_ID="none")
           }
           
           #Generate sdadm once for temperature plotting/exceedance use
@@ -388,6 +388,18 @@ shinyServer(function(input, output, session) {
           basinMap <- leaflet(options = leafletOptions(maxZoom = 18)) %>% 
             addProviderTiles(providers$Stamen.Terrain, group = "Terrain") %>%
             addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
+            addWMSTiles(GetURL("USGSTopo"), 
+                        attribution = paste0("<a href='https://www.usgs.gov/'>",
+                                             "U.S. Geological Survey</a> | ",
+                                             "<a href='https://www.usgs.gov/laws/policies_notices.html'>",
+                                             "Policies</a>"),
+                        group = "USGS Topo", layers = "0") %>%
+            addWMSTiles(GetURL("USGSHydroCached"), 
+                        group = "Hydrography", 
+                        options = WMSTileOptions(format = "image/png", 
+                                                 transparent = TRUE),
+                        layers = "0") %>%
+            hideGroup("Hydropgraphy") %>%
             addMarkers(data = all.sp, 
                        lng = all.sp@coords[,1], 
                        lat = all.sp@coords[,2], 
@@ -418,8 +430,8 @@ shinyServer(function(input, output, session) {
                                                  group = "Area")
           }
           basinMap <- basinMap %>% addLayersControl(
-            baseGroups = c('Terrain', 'Satellite'),
-            overlayGroups = c('Stations', 'Area'),
+            baseGroups = c('Terrain', 'Satellite', "USGS Topo"),
+            overlayGroups = c('Stations', 'Area', 'Hydrography'),
             options = layersControlOptions(collapsed = FALSE)
           )
           basinMap
@@ -554,12 +566,12 @@ shinyServer(function(input, output, session) {
       
       
       ##TSS INPUT ALLOCATION VALUE
-      output$value <- renderText({ 
+      output$value <- renderUI({ 
         validate(
           need(input$selectParameter %in% c('Total Suspended Solids'),
                message = FALSE)
         )
-         numericInput(input$selectWQSTSS)
+         numericInput("selectWQSTSS", "TSS Allocation:", 0, min = 0, max = 100)
       })
       
       output$selectLogScale = renderUI({
@@ -645,17 +657,16 @@ shinyServer(function(input, output, session) {
 
       output$selectMonth <- renderUI({
         validate(
+          need(input$selectParameter == 'Temperature', message = FALSE)
+        )
+        validate(
           need(unique(
             strsplit(input$selectStation,
                      ' - ')[[1]][1]) %in% attr(temp_stns_pass, 
                                                'year_test')$Station_ID,
             message = FALSE)
         )
-        validate(
-          validate(
-            need(input$selectParameter == 'Temperature', message = FALSE)
-          )
-        )
+        
         selectInput('selectMonth', label = "Select month for trend analysis",
                     choices = month.name[
                       attr(temp_stns_pass, "year_test")[
@@ -769,6 +780,7 @@ shinyServer(function(input, output, session) {
         }
         
         generate_exceed_df(new_data = tmp_df,
+                           df.all = df.all,
                            parm = input$selectParameter,
                            selectpHCrit = input$selectpHCrit,
                            ph_crit = ph_crit,

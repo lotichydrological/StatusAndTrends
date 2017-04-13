@@ -61,12 +61,12 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Total Suspended Solids')
-input$select <- "South Santiam"
-input$dates <- c("2000-01-01", "2017-03-01")
-input$db <- c('Water Quality Portal', 'DEQ')
-input$selectStation <-  "10352 - "
-input$selectParameter <- 'Total Suspended Solids'
+input$parms <- c('Dissolved Oxygen')
+input$select <- "Klamath Headwaters"
+input$dates <- c("2010-01-01", "2017-03-01")
+input$db <- c('DEQ', 'Water Quality Portal')
+input$selectStation <-  "USGS-421401121480900 - "
+input$selectParameter <- 'Dissolved Oxygen'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'No spawning'#'January 1-May 15'
 input$selectUse <- 'Core Cold Water Habitat'
@@ -74,7 +74,7 @@ input$selectpHCrit <- 'Willamette - All other basin waters'#'John Day - All othe
 input$plotTrend <- TRUE
 input$selectUseDO<-'Cold-Water Aquatic Life'
 input$checkSpawning<-TRUE
-input$selectWQSTSS<- 4
+input$selectWQSTSS<- 0
 
 
 wqpData <- NULL
@@ -95,7 +95,7 @@ if ('Water Quality Portal' %in% input$db) {
                                endDate = input$dates[2]),
                       error = function(err) {err <- geterrmessage()})
   
-  if (any(c('Temperature', 'pH', 'Dissolved Oxygen') %in% input$parms)) {
+  if (any(c('Temperature', 'pH', 'Dissolved Oxygen', 'Total Suspended Solids') %in% input$parms)) {
     nwisData <- tryCatch(nwisQuery(planArea = input$select,
                                    HUClist = HUClist,
                                    inParms = input$parms,
@@ -285,6 +285,7 @@ names(lstSummaryDfs)[9] <- "stns"
   # 
   # 
   exc<-generate_exceed_df(new_data = tmp_df,
+                          df.all = df.all,
                      parm = input$selectParameter,
                      selectpHCrit = input$selectpHCrit,
                      ph_crit = ph_crit,
@@ -292,7 +293,8 @@ names(lstSummaryDfs)[9] <- "stns"
                      selectStation =  input$selectStation,
                      selectSpawning = input$selectSpawning,
                      selectUse = input$selectUse,
-                     selectUseDO = input$selectUseDO)
+                     selectUseDO = input$selectUseDO,
+                     selectWQSTSS = input$selectWQSTSS)
   
   
   plot.TSS<-plot.TSS(new_data = new_data,
