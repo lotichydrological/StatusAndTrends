@@ -403,13 +403,14 @@ shinyServer(function(input, output, session) {
             addMarkers(data = all.sp, 
                        lng = all.sp@coords[,1], 
                        lat = all.sp@coords[,2], 
-                       popup = lapply(rownames(all.sp@data), 
+                       popup = paste("<style> div.leaflet-popup-content {width:auto !important;}</style>",
+                                     lapply(rownames(all.sp@data), 
                                       function(row) {
                                         htmlTable::htmlTable(all.sp@data[row,],
                                                              header = c('Stn_ID', 'Stn_Name',
                                                                         names(all.sp@data)[-c(1,2)]),
                                                              rnames = FALSE)
-                                        }),
+                                        })),
                        group = 'Stations',
                        clusterOptions = markerClusterOptions())
           if (grepl("[0-9].", input$select)) {
