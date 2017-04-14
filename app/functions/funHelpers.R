@@ -278,6 +278,7 @@ Stations_Status<-function(df.all) {
     #status<-lst_stat[]
     status<-ldply(lst_stat, data.frame, .id = NULL)
     status<-status[,c('Station_ID', sort(names(status)[!names(status) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+    status<-distinct(status)
     #status<-plyr::rbind.fill(lst_stat[[1]], lst_stat[[2]], lst_stat[[3]], lst_stat[[4]])
     #status<-status[c("Station_ID", "2014", "2015", "2016", "2017", "Analyte")]
   # } else {
@@ -323,6 +324,7 @@ Stations_Trend<-function(df.all){
     trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
   }
   
+  trend<-distinct(trend)
   return(trend)
 }
 
@@ -778,6 +780,11 @@ EvaluateDOWQS<-function(new_data,
   new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
                                           format = datetime_format))
   
+  #new_data$Sampled2 <- as.POSIXct(strptime(new_data$Sampled, format = '%Y-%m-%d')) 
+  new_data$Sampled<-as.Date(new_data$Sampled)
+  new_data$year<-as.numeric(format(new_data$Sampled, format="%Y"))
+  
+  
   ##Generate Exceedances of WQS##
   new_data$selectUseDO<-selectUseDO
   spd_list <- strsplit(selectSpawning, split = "-")
@@ -906,6 +913,7 @@ EvaluateDOWQS<-function(new_data,
   #                                      'Exceeds'))
   # }
   # 
+  
   exc<-new_data_all%>%
     filter(exceed == 'Exceeds' & BCsat_Exceed != 'Meets')
   do_meet<-new_data_all%>%
@@ -915,10 +923,10 @@ EvaluateDOWQS<-function(new_data,
                       "Station_Description" = (unique(new_data_all$Station_Description)),
                       "Obs" = c(nrow(new_data)),
                       "Exceedances" = c(nrow(exc)),
-                      "Meets_b/c_of_DO_Saturation" = 
+                      "Meets_b_c_perc_Sat" = 
                         c(nrow(do_meet)),
-                      "Min_Date" = min(new_data$Sampled),
-                      "Max_Date" = max(new_data$Sampled))
+                      "Min_Date" = min(new_data$year),
+                      "Max_Date" = max(new_data$year))
   
   new_data<-new_data_all
   
@@ -931,6 +939,10 @@ EvaluateTSSWQS<-function(new_data,
                          selectWQSTSS) {
   
   
+  new_data$Sampled <- as.POSIXct(strptime(new_data$Sampled, format = '%Y-%m-%d')) 
+  new_data$Sampled<-as.Date(new_data$Sampled)
+  new_data$year<-as.numeric(format(new_data$Sampled, format="%Y"))
+  
   if(selectWQSTSS != 0) {
     new_data$exceed<- ifelse(new_data$Result > selectWQSTSS, 'Exceeds', "Meets")
   } else {
@@ -942,8 +954,8 @@ EvaluateTSSWQS<-function(new_data,
   
   ex_df <- data.frame("Station_ID" = (unique(new_data$Station_ID)),
                       "Station_Description" = (unique(new_data$Station_Description)),
-                      "Min_Date" = min(new_data$Sampled),
-                      "Max_Date" = max(new_data$Sampled),
+                      "Min_Date" = min(new_data$year),
+                      "Max_Date" = max(new_data$year),
                       "Obs" = c(nrow(new_data)),
                       "Exceedances" = c(nrow(exc)))
   
@@ -972,8 +984,8 @@ generate_exceed_df <- function(new_data,
       } else {
         new_data <- EvaluatepHWQS(new_data, ph_crit, PlanName, selectpHCrit)
         ddply(new_data, .(Station_ID, Station_Description), #, Month), 
-              summarize, min_date = min(Sampled), 
-              max_date = max(Sampled),
+              summarize, min_date = min(Year), 
+              max_date = max(Year),
               Obs = length(exceed), 
               Exceedances = sum(exceed)) 
       }
