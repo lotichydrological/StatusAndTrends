@@ -32,7 +32,7 @@ shinyUI(fluidPage(
         ),
         column(3,
                checkboxGroupInput("parms",label = h3("Parameter(s) to Query"),
-                                  choices = c('Temperature','pH','Bacteria', 'Dissolved Oxygen', 'Total Suspended Solids'),
+                                  choices = c('Temperature','pH','Bacteria', 'Dissolved Oxygen', 'Total Suspended Solids', 'Total Phosphorus'),
                                   selected = 1)
         ),
         column(5,

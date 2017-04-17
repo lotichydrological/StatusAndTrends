@@ -269,22 +269,22 @@ Stations_Status<-function(df.all) {
       lst_stat[[j]] <- dcast(dta_stns, Station_ID ~ year, value.var = 'year',
                              fun.aggregate = length)
       lst_stat[[j]]$Analyte<-dta$Analyte[j]
+      dta_stns$Analyte<-as.character(dta_stns$Analyte)
+      names(lst_stat)[j]<-unique(dta_stns$Analyte)[j]
+          }
     }
-    
-    dta_stns$Analyte<-as.character(dta_stns$Analyte)
-    names(lst_stat)[j]<-unique(dta_stns$Analyte)[j]
-  }
     lst_stat[]
     #status<-lst_stat[]
-    status<-ldply(lst_stat, data.frame, .id = NULL)
-    status<-status[,c('Station_ID', sort(names(status)[!names(status) %in% c('Station_ID', 'Analyte')]),'Analyte')]
-    status<-distinct(status)
-    #status<-plyr::rbind.fill(lst_stat[[1]], lst_stat[[2]], lst_stat[[3]], lst_stat[[4]])
-    #status<-status[c("Station_ID", "2014", "2015", "2016", "2017", "Analyte")]
-  # } else {
-  #   status<-"No stations meet Status criteria"
-  # }
+    if(!is.null(names(lst_stat[]))) {
+      status<-ldply(lst_stat, data.frame, .id = NULL)
+      status<-status[,c('Station_ID', sort(names(status)[!names(status) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+      status<-distinct(status)
+    } else {
+      status<-"No stations meet Status criteria"
+    }
   }
+  
+  #status<-distinct(status)
   return(status)
 }
 
@@ -322,6 +322,8 @@ Stations_Trend<-function(df.all){
   
   if(length(trend) != 0){
     trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
+  } else {
+    trend<-'No Stations Meet Trend Criteria'
   }
   
   trend<-distinct(trend)
@@ -329,6 +331,13 @@ Stations_Trend<-function(df.all){
 }
 
 All_stns_fit_Criteria<-function(status, trend, df.all) {
+  
+  if(status == "No stations meet Status criteria") {
+    status <- NULL
+  } else {
+    status = status
+  }
+  
   status_stns<-unique(status$Station_ID)
   trend_stns<-unique(trend$Station_ID)
   
@@ -779,8 +788,6 @@ EvaluateDOWQS<-function(new_data,
   new_data$Result <- as.numeric(new_data$Result)
   new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
                                           format = datetime_format))
-  
-  #new_data$Sampled2 <- as.POSIXct(strptime(new_data$Sampled, format = '%Y-%m-%d')) 
   new_data$Sampled<-as.Date(new_data$Sampled)
   new_data$year<-as.numeric(format(new_data$Sampled, format="%Y"))
   

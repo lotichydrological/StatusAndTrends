@@ -131,7 +131,7 @@ shinyServer(function(input, output, session) {
                                        endDate = input$dates[2]),
                               error = function(err) {err <- geterrmessage()})
           
-          if (any(c('Temperature', 'pH', 'Dissolved Oxygen', 'Total Suspended Solids') %in% input$parms)) {
+          if (any(c('Temperature', 'pH', 'Dissolved Oxygen', 'Total Suspended Solids', 'Total Phosphorus') %in% input$parms)) {
             incProgress(1/10, detail = 'Querying NWIS continuous data')
             prog <- prog + 1/10
             nwisData <- tryCatch(nwisQuery(planArea = input$select,
@@ -251,7 +251,7 @@ shinyServer(function(input, output, session) {
           }
           
           #Run Seasonal Kendall for pH and Bacteria
-          if (any(c('pH', 'E. Coli', "Enterococcus", 'Dissolved Oxygen', 'Total Suspended Solids') %in% df.all$Analyte)) {
+          if (any(c('pH', 'E. Coli', "Enterococcus", 'Dissolved Oxygen', 'Total Suspended Solids', 'Total Phosphorus') %in% df.all$Analyte)) {
             SeaKen <- run_seaKen(df.all)
           } else {
             SeaKen <- data.frame()
@@ -324,10 +324,10 @@ shinyServer(function(input, output, session) {
           lstSummaryDfs[[8]] <- Stations_Status(df.all)
           names(lstSummaryDfs)[8] <- "Stations_Status"
           
-          if(nrow(lstSummaryDfs[[8]]) == 0) {
-            lstSummaryDfs[[8]] <- as.data.frame('No stations meet criteria to assess status')
-          } else {
+          if(lstSummaryDfs[8] != 'No stations meet Status criteria') {
             lstSummaryDfs[[8]] <- lstSummaryDfs[[8]]
+          } else {
+            as.data.frame('No stations meet Status criteria')
           }
           
           lstSummaryDfs[[9]] <- Stations_Trend(df.all)

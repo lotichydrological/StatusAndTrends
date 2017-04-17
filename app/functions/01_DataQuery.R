@@ -114,6 +114,10 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
     df.all[df.all$Analyte == "Dissolved oxygen (DO)", 'Analyte'] <- 'Dissolved Oxygen'
   }
   
+  if('Total Phosphorus' %in% df.all$Analyte) {
+    df.all[df.all$Analyte == 'Phosphorus', 'Analyte'] <- 'Total Phosphorus'
+   }
+  
   df.all$Analyte <- mapvalues(df.all$Analyte, 
                               from = c('Temperature, water','Escherichia coli',
                                        'Fecal coliform','Enterococci','E. coli', 'Dissolved Oxygen'),
@@ -131,7 +135,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   
   options(stringsAsFactors = FALSE)
   
-  #   #For testing
+    #For testing
     # library(sp)
     # library(rgdal)
     # library(rgeos)
@@ -145,7 +149,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
     # planArea <- 'South Santiam'
     # startDate <- "2000-03-01 00:00:00.000"
     # endDate <- "2000-03-01 00:00:00.000"
-    # inParms <- c('Total Suspended Solids')
+    # inParms <- c('Total Phosphorus')
     # input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
     # parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
   
@@ -183,6 +187,9 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   if(any(inParms == 'Total Suspended Solids')) {
     qryParms<- c(qryParms, c('Total Suspended Solids'))
   }
+  if(any(inParms == 'Total Phosphorus')) {
+    qryParms <- c(qryParms, c('Phosphorus, Total'))
+  }
   qryParms <- paste(qryParms,collapse="','")
   #### Restrict Matrix to surface water ####
   siteType <- c("'River/Stream','Estuary','Ocean','Lake'")
@@ -216,17 +223,14 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
 # library(sp)
 # library(rgdal)
 # library(rgeos)
-# agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-# agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
-# HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
-# HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
-# HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
-# names(HUClist) <- agwqma$PlanName
-# 
+# agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+# hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
+# HUClist <- read.csv('app/data/PlanHUC_LU.csv')
+# stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
 # planArea <- 'South Santiam'
 # startDate <- "2000-01-01 00:00:00.000"
 # endDate <- "2010-03-01 00:00:00.000"
-# inParms <- c('Total Suspended Solids')
+# inParms <- c('Total Phosphorus')
   
   #### Establish connection to database ####
   channel <- odbcConnect('LASAR2_GIS')
@@ -271,6 +275,9 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   }
   if(any(inParms == "Total Suspended Solids")) {
     qryParms <- c(qryParms, 'Total Suspended Solids')
+  }
+  if(any(inParms =='Total Phosphorus')) {
+    qryParms <- c(qryParms, 'Total Phosphorus', 'Total Total Phosphorus')
   }
   qryParms <- paste(qryParms, collapse = "','")
   
@@ -418,6 +425,14 @@ wqp.data <- readWQPdata(#stateCode = myArea,
   endDate = endDate,
   sampleMedia = sampleMedia,
   siteType = siteType)
+
+##REMOVE dissolved P##
+if(any('Total Phosphorus' %in% c(myParms))) {
+wqp.data<-wqp.data %>%
+  filter(ResultSampleFractionText == 'Total') 
+}
+
+
 #wqp.stations <- attr(wqp.data, 'siteInfo')
 
 # #Write query output to .csv
@@ -494,6 +509,8 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   DO_sites <- NULL
   TSS_sites<-NULL
   TSS_data<-NULL
+  TP_sites<-NULL
+  TP_data<-NULL
   
   #### Define parameters to query ####
   if ('Temperature' %in% inParms) {
@@ -586,6 +603,28 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
       }
     } else {
       TSS_data <- NULL 
+    }
+  }
+  
+  if('Total Phosphorus' %in% inParms) {
+    parmatercode<-c('99891', '99893')
+    TP_data <- readNWISdata(service = "iv",
+                             huc=myHUCs,
+                             siteTypeCd=siteTypeCd,
+                             startDate=startDate,
+                             endDate=endDate,
+                             parameterCd = parmatercode)
+    if (nrow(TP_data) > 0) {
+      TP_sites <- attr(TP_data, 'siteInfo')
+      TP_data <- TP_data[,names(TP_data) != 'tz_cd']
+      TP_data$Analyte <- 'Total Phosphorus'
+      TP_data$Unit <- 'mg/l'
+      TP_data$SampleType <- 'grab'
+      if (any(grepl('Mid|Lower', names(TP_data)))) {
+        TP_data <- TP_data[,-grep('Mid|Lower', names(TP_data))]
+      }
+    } else {
+      TP_data <- NULL 
     }
   }
   
