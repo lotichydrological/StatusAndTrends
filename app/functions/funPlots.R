@@ -1400,7 +1400,7 @@ plot.TSS<-function(new_data,
                      ", n = ", 
                      nrow(new_data))
   
-  df_trend_line <- data.frame(x = c(x.min + 10000, x.max - 10000),
+  df_trend_line <- data.frame(x = c(x.min, x.max),
                               y = c(SK.min, SK.max),
                               variable = rep('Trend line', 2))
   
@@ -1444,19 +1444,33 @@ if(selectWQSTSS != 0){ #Allocation
   #allocation, trend line 
   if (plot_trend & !is.na(p.value)) {
     if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
-      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
-                                    guide = guide_legend(override.aes = list(
-                                    linetype = c('solid', 'solid', 'solid', 'solid'))))
-    } else { #without exceedances
+      meet<-new_data %>% filter(exceed == 'Meets') 
+      if (nrow(meet) < 1) {
+        g <-g + scale_color_manual("", values = c('darkorange1','blue', 'black'),
+                                     guide = guide_legend(override.aes = list(
+                                     linetype = c('solid')))) 
+       } else {
+         g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
+                                       guide = guide_legend(override.aes = list(
+                                       linetype = c('solid', 'solid', 'solid', 'solid'))))
+        }
+      } else { #without exceedances
       g <- g + scale_color_manual("", values = c('blue'),
-                                  guide = guide_legend(override.aes = list(
+                                    guide = guide_legend(override.aes = list(
                                     linetype = c('solid'))))
     }
   } else {
     if ('Exceeds' %in% unique(new_data$exceed)) {
-      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
-                                  guide = guide_legend(override.aes = list(
-                                    linetype = c('solid', 'solid', 'dashed'))))
+      meet<-new_data %>% filter(exceed == 'Meets')
+      if(nrow(meet) < 1) {
+          g <-g + scale_color_manual("", values = c('darkorange1', 'black'),
+                                     guide = guide_legend(override.aes = list(
+                                       linetype = c('solid'))))
+      } else {
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+                                    guide = guide_legend(override.aes = list(
+                                      linetype = c('solid', 'solid', 'dashed'))))
+        }
     } else {
       g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
@@ -1467,3 +1481,141 @@ if(selectWQSTSS != 0){ #Allocation
   
   }
     
+
+plot.TP<-function(new_data,
+                   df.all,
+                   selectWQSTP = input$selectWQSTP,
+                   sea_ken_table = SeaKen,
+                   plot_trend = input$plotTrend,
+                   analyte_column = 'Analyte',
+                   station_id_column = 'Station_ID',
+                   station_desc_column = 'Station_Description',
+                   datetime_column = 'Sampled',
+                   result_column = 'Result',
+                   datetime_format = '%Y-%m-%d %H:%M:%S',
+                   parm = 'Total Phosphorus (mg/l)') {
+  require(ggplot2)
+  require(chron)
+  #dataframe that assigns WQS values to Aquatic Life Uses
+  
+  new_data<-EvaluateTPWQS(new_data = new_data,
+                           selectWQSTP = selectWQSTP)
+  
+  x.min <- min(new_data$Sampled) 
+  x.max <- max(new_data$Sampled) 
+  x.lim <- c(x.min, x.max)
+  title <- paste0(min(new_data[, station_desc_column]), ", ID = ",
+                  min(new_data[, station_id_column]))
+  x.lab <- "Date"
+  y.lab <- parm
+  
+  y.min <- floor(min(new_data[, result_column])) 
+  
+  if(selectWQSTP != 0){
+    if(max(new_data$Result) > selectWQSTP) {
+      y.max<-(as.numeric(selectWQSTP) + 0.1)
+    } else {
+      y.max <- (max(new_data[, result_column]))
+    }
+  } else {
+      y.max <- (max(new_data[, result_column]))
+  }
+  
+  y.lim <- c(y.min, y.max)
+  y.median <- median(new_data[, result_column])
+  slope <- suppressWarnings(
+    as.numeric(
+      sea_ken_table[sea_ken_table$Station_ID == 
+                      unique(new_data[, station_id_column]) & 
+                      sea_ken_table$analyte == 
+                      unique(new_data[, analyte_column]), 'slope']
+    )
+  )
+  p.value <- suppressWarnings(
+    as.numeric(
+      sea_ken_table[sea_ken_table$Station_ID == 
+                      unique(new_data[,station_id_column]) & 
+                      sea_ken_table$analyte == 
+                      unique(new_data[,analyte_column]),'pvalue']
+    )
+  )
+  p.value.label <- sea_ken_table[sea_ken_table$Station_ID == 
+                                   unique(new_data[,station_id_column]) & 
+                                   sea_ken_table$analyte == 
+                                   unique(new_data[,analyte_column]),'signif']
+  x.delta <- as.numeric((x.max-x.min)/2)####average date
+  SK.min <- y.median - x.delta*slope/365.25#minimum y value for line
+  SK.max <- y.median + x.delta*slope/365.25#maximum y value for line
+  sub.text <- paste0("p value = " ,
+                     round(p.value, digits=3),
+                     ", ",  
+                     p.value.label, 
+                     ", slope = ", 
+                     round(slope, digits=2), 
+                     ", n = ", 
+                     nrow(new_data))
+  
+  df_trend_line <- data.frame(x = c(x.min, x.max),
+                              y = c(SK.min, SK.max),
+                              variable = rep('Trend line', 2))
+  
+  d<-data.frame(x = c(x.min, x.max), y = rep(selectWQSTP, 2),
+                variable = rep("Total Phosphorus Allocation", 2))
+  
+  if(selectWQSTP != 0){ #Allocation
+    g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+      geom_point(aes(color = exceed)) +
+      xlim(x.lim) +
+      ylim(y.lim) +
+      theme(plot.title = element_text(vjust=1.5, face="bold", size = 10))+
+      ggtitle(bquote(atop(.(title), atop(paste(.(sub.text)))))) +
+      theme(legend.position = "top",
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
+      xlab(x.lab) +
+      ylab(y.lab)
+    g <- g + geom_line(aes(x = x, y = y, color = variable), data = d)
+  } else { #no allocation 
+    g <- ggplot(data = new_data, aes(x = Sampled, y = Result)) +
+      geom_point() +
+      xlim(x.lim) +
+      ylim(y.lim) +
+      theme(plot.title = element_text(vjust=1.5, face="bold", size = 10))+
+      ggtitle(bquote(atop(.(title), atop(paste(.(sub.text)))))) +
+      theme(legend.position = "top",
+            legend.title = element_blank(),
+            legend.direction = 'horizontal') +
+      xlab(x.lab) +
+      ylab(y.lab)
+  }
+  
+  #trend line 
+  if (plot_trend & !is.na(p.value)) {
+    g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_trend_line)  
+  }
+  
+  #allocation, trend line 
+  if (plot_trend & !is.na(p.value)) {
+    if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'blue'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c('solid', 'solid', 'dashed', 'solid'))))
+    } else { #without exceedances
+      g <- g + scale_color_manual("", values = c('black', 'black', 'blue'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c('solid'))))
+    }
+  } else {
+    if ('Exceeds' %in% unique(new_data$exceed)) {
+      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c('solid', 'solid', 'dashed'))))
+    } else {
+      g <- g + scale_color_manual("", values = c('black', 'black'),
+                                  guide = guide_legend(override.aes = list(
+                                  linetype = c('solid', 'solid'))))
+    }
+  } 
+  g 
+  
+}

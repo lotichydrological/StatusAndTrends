@@ -61,10 +61,10 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Total Phosphorus')
-input$select <- "Clackamas"
-input$dates <- c("2004-01-01", "2014-03-01")
-input$db <- c('DEQ', 'Water Quality Portal')
+input$parms <- c('Total Phosphorus', 'Total Suspended Solids', 'Bacteria', 'Temperature', 'pH', 'Dissolved Oxygen')
+input$select <- "Mid Coast"
+input$dates <- c("2010-01-01", "2017-01-01")
+input$db <- c('DEQ')
 input$selectStation <-  "10339 - "
 input$selectParameter <- 'Total Phosphorus'
 input$selectLogScale <- FALSE
@@ -242,6 +242,30 @@ lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]],
                                      'Listing_St' = 'Listing Status'))
 names(lstSummaryDfs)[6] <- "wq_limited"
 
+lstSummaryDfs[[8]] <- Stations_Status(df.all)
+names(lstSummaryDfs)[8] <- "Stations_Status"
+
+if(lstSummaryDfs[8] != 'No stations meet Status criteria') {
+  lstSummaryDfs[[8]] <- lstSummaryDfs[[8]]
+} else {
+  as.data.frame('No stations meet Status criteria')
+}
+
+lstSummaryDfs[[9]] <- Stations_Trend(df.all)
+names(lstSummaryDfs)[9] <- "Stations_Trend"
+
+if(lstSummaryDfs[[9]] == "No Stations Meet Trend Criteria") {
+  lstSummaryDfs[[9]] <- as.data.frame('No Stations Meet Trend Criteria')
+} else {
+  lstSummaryDfs[[9]] <- lstSummaryDfs[[9]]
+}
+
+lstSummaryDfs[[10]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[9]], 
+                                             status = lstSummaryDfs[[8]],
+                                             df.all = df.all)
+names(lstSummaryDfs)[10] <- "stns"
+
+
 lstSummaryDfs[[7]] <- Stations_Status(df.all)
 names(lstSummaryDfs)[7] <- "Stations_Status"
 
@@ -294,7 +318,8 @@ names(lstSummaryDfs)[9] <- "stns"
                      selectSpawning = input$selectSpawning,
                      selectUse = input$selectUse,
                      selectUseDO = input$selectUseDO,
-                     selectWQSTSS = input$selectWQSTSS)
+                     selectWQSTSS = input$selectWQSTSS,
+                     selectWQSTP = input$selectWQSTP)
   
   
   plot.TSS<-plot.TSS(new_data = new_data,
@@ -309,6 +334,22 @@ names(lstSummaryDfs)[9] <- "stns"
                      result_column = 'Result',
                      datetime_format = '%Y-%m-%d %H:%M:%S',
                      parm = 'Total Suspended Solids (mg/l)')
+  
+  
+  plot.TP<-plot.TP(new_data = new_data,
+                     df.all = df.all,
+                     selectWQSTP = input$selectWQSTP,
+                     sea_ken_table = SeaKen,
+                     plot_trend = input$plotTrend,
+                     analyte_column = 'Analyte',
+                     station_id_column = 'Station_ID',
+                     station_desc_column = 'Station_Description',
+                     datetime_column = 'Sampled',
+                     result_column = 'Result',
+                     datetime_format = '%Y-%m-%d %H:%M:%S',
+                     parm = 'Total Phosphorus (mg/l)')
+  
+  plot.TP
   
   
   # sea_ken_table <- SeaKen

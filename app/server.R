@@ -333,8 +333,8 @@ shinyServer(function(input, output, session) {
           lstSummaryDfs[[9]] <- Stations_Trend(df.all)
           names(lstSummaryDfs)[9] <- "Stations_Trend"
           
-          if(nrow(lstSummaryDfs[[9]]) == 0) {
-            lstSummaryDfs[[9]] <- as.data.frame('No stations meet criteria to assess trends')
+          if(lstSummaryDfs[[9]] == "No Stations Meet Trend Criteria") {
+            lstSummaryDfs[[9]] <- as.data.frame('No Stations Meet Trend Criteria')
           } else {
             lstSummaryDfs[[9]] <- lstSummaryDfs[[9]]
           }
@@ -575,6 +575,14 @@ shinyServer(function(input, output, session) {
          numericInput("selectWQSTSS", "TSS Allocation:", 0, min = 0, max = 100)
       })
       
+      output$TP <- renderUI({ 
+        validate(
+          need(input$selectParameter %in% c('Total Phosphorus'),
+               message = FALSE)
+        )
+        numericInput("selectWQSTP", "TP Allocation:", 0, min = 0, max = 50, step = 0.1)
+      })
+      
       output$selectLogScale = renderUI({
         validate(
           need(input$selectParameter %in% c('E. Coli','Enterococcus'),
@@ -607,7 +615,7 @@ shinyServer(function(input, output, session) {
       
       output$plotTrend <- renderUI({
         validate(
-          need(input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Total Suspended Solids', 'Dissolved Oxygen'), 
+          need(input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Total Phosphorus', 'Total Suspended Solids', 'Dissolved Oxygen'), 
                message = FALSE)
         )
         checkboxInput("plotTrend", 
@@ -762,10 +770,14 @@ shinyServer(function(input, output, session) {
             validate(
               need(!is.null(input$selectWQSTSS), message = FALSE)
             )
-          }
+          } else if (input$selectParameter == "Total Phosphorus") {
+            validate(
+              need(!is.null(input$selectWQSTP), message = FALSE)
+            )
+            }
         }
         
-        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Total Suspended Solids', 'Dissolved Oxygen')) {
+        if (input$selectParameter %in% c('pH', 'E. Coli', 'Enterococcus', 'Total Phosphorus', 'Total Suspended Solids', 'Dissolved Oxygen')) {
           tmp_df <- DataUse()
           tmp_df$day <- substr(tmp_df$Sampled, 1, 10)
           tmp_df$code <- paste(tmp_df$Station_ID, tmp_df$Analyte, tmp_df$day)
@@ -790,7 +802,8 @@ shinyServer(function(input, output, session) {
                            selectSpawning = input$selectSpawning,
                            selectUse = input$selectUse,
                            selectUseDO = input$selectUseDO,
-                           selectWQSTSS = input$selectWQSTSS)
+                           selectWQSTSS = input$selectWQSTSS,
+                           selectWQSTP = input$selectWQSTP)
       })
       
       # This handles the temp trend analysis
@@ -966,6 +979,28 @@ shinyServer(function(input, output, session) {
                               x = 1, y = 1)
                  }
                  g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
+               }), 
+               "Total Phosphorus" = ({
+                 df$Sampled <- as.POSIXct(strptime(df$Sampled, format = "%Y-%m-%d %H:%M:%S"))
+                 if (nrow(df) > 2) {
+                   g <- plot.TP(new_data = df,
+                                 df.all = df.all,
+                                 selectWQSTP = input$selectWQSTP,
+                                 sea_ken_table = SeaKen,
+                                 plot_trend = input$plotTrend,
+                                 analyte_column = 'Analyte',
+                                 station_id_column = 'Station_ID',
+                                 station_desc_column = 'Station_Description',
+                                 datetime_column = 'Sampled',
+                                 result_column = 'Result',
+                                 datetime_format = '%Y-%m-%d %H:%M:%S',
+                                 parm = 'Total Phosphorus (mg/l)')
+                 } else {
+                   g <- ggplot(data.frame()) + geom_point() + 
+                     annotate("text", label = "Insufficient data for plotting", 
+                              x = 1, y = 1)
+                 }
+                 g <- g + coord_cartesian(xlim = ranges$x, ylim = ranges$y)
                })
                
         )
@@ -1020,7 +1055,9 @@ shinyServer(function(input, output, session) {
           ggsave(plotInput(), file = file, height = 8, width = 8)
         })
       }
+  
   })
-  })
+})
 
 options(warn = 0)
+

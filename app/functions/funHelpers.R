@@ -322,36 +322,30 @@ Stations_Trend<-function(df.all){
   
   if(length(trend) != 0){
     trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
-  } else {
+    trend<-distinct(trend)  
+    } else {
     trend<-'No Stations Meet Trend Criteria'
   }
   
-  trend<-distinct(trend)
-  return(trend)
+ return(trend)
 }
 
 All_stns_fit_Criteria<-function(status, trend, df.all) {
   
-  if(status == "No stations meet Status criteria") {
+  if(status[1,1] == c("No stations meet Status criteria")) {
     status <- NULL
   } else {
     status = status
   }
   
+  if(trend[1,1] == c("No Stations Meet Trend Criteria")) {
+    trend <- NULL
+  } else {
+    trend = trend
+  }
+  
   status_stns<-unique(status$Station_ID)
   trend_stns<-unique(trend$Station_ID)
-  
-  # status_stns<-unique(c(as.character(lst_stat[[1]]$Station_ID), 
-  #                       as.character(lst_stat[[2]]$Station_ID),
-  #                       as.character(lst_stat[[3]]$Station_ID),
-  #                       as.character(lst_stat[[4]]$Station_ID)))
-  # 
-  # trend_stns<-unique(c(as.character(lstoutput[[1]]$Station_ID),
-  #                      as.character(lstoutput[[2]]$Station_ID),
-  #                      as.character(lstoutput[[3]]$Station_ID),
-  #                      as.character(lstoutput[[4]]$Station_ID)))
-  
-  
   
   unique_stns<-unique(c(status_stns, trend_stns))
   
@@ -359,6 +353,11 @@ All_stns_fit_Criteria<-function(status, trend, df.all) {
   stns<-stns %>%
     filter(Station_ID %in% unique_stns)
   stns<-unique(stns)
+  
+  if(nrow(stns) < 1) {
+    stns <- 'No Stations Meet Criteria for Status or Trends'
+  }
+  
   return(stns)
 }
 
@@ -971,11 +970,41 @@ EvaluateTSSWQS<-function(new_data,
   
 }
 
+EvaluateTPWQS<-function(new_data, 
+                         selectWQSTP) {
+  
+  
+  new_data$Sampled <- as.POSIXct(strptime(new_data$Sampled, format = '%Y-%m-%d')) 
+  new_data$Sampled<-as.Date(new_data$Sampled)
+  new_data$year<-as.numeric(format(new_data$Sampled, format="%Y"))
+  
+  if(selectWQSTP != 0) {
+    new_data$exceed<- ifelse(new_data$Result > selectWQSTP, 'Exceeds', "Meets")
+  } else {
+    new_data$exceed<-'Meets'
+  }
+  
+  exc<-new_data%>%
+    filter(exceed == 'Exceeds')
+  
+  ex_df <- data.frame("Station_ID" = (unique(new_data$Station_ID)),
+                      "Station_Description" = (unique(new_data$Station_Description)),
+                      "Min_Date" = min(new_data$year),
+                      "Max_Date" = max(new_data$year),
+                      "Obs" = c(nrow(new_data)),
+                      "Exceedances" = c(nrow(exc)))
+  
+  attr(new_data, "ex_df") <-ex_df
+  return(new_data)
+  
+}
+
 generate_exceed_df <- function(new_data, 
                                df.all,
                                parm, 
                                selectpHCrit, 
                                selectWQSTSS,
+                               selectWQSTP,
                                ph_crit, 
                                PlanName, 
                                selectStation, 
@@ -1038,6 +1067,11 @@ generate_exceed_df <- function(new_data,
     "Total Suspended Solids" = ({
       new_data = EvaluateTSSWQS(new_data, 
                                 selectWQSTSS = selectWQSTSS)
+      attr(new_data, "ex_df")
+    }),
+    "Total Phosphorus" = ({
+      new_data = EvaluateTPWQS(new_data, 
+                                selectWQSTP = selectWQSTP)
       attr(new_data, "ex_df")
     }))
   exceed_df$Percent_Exceed <- exceed_df$Exceedances/exceed_df$Obs * 100
