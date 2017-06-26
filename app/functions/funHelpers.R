@@ -250,7 +250,7 @@ Stations_Status<-function(df.all) {
   
   if(any(dta$year %in% statyear)){
     lst_stat <- list()
-    for (j in 1 : as.character(length(unique(dta$Analyte)))) {
+    for (j in 1 : (length(unique(dta$Analyte)))) {
     sub_data <- dta[dta$Analyte == unique(dta$Analyte)[j],]
     status<-sub_data%>%
       filter(year %in% statyear) %>%
@@ -259,7 +259,7 @@ Stations_Status<-function(df.all) {
       filter(n_years>2)
     stns<-c(as.character(unique(status$Station_ID)))
     #trend[trend$Station_ID %in% stns, ]
-    dta_stns<-dta%>%
+    dta_stns<-sub_data%>%
       dplyr::filter(Station_ID %in% stns) %>%
       filter(year %in% statyear)
     
@@ -268,15 +268,16 @@ Stations_Status<-function(df.all) {
     } else {
       lst_stat[[j]] <- dcast(dta_stns, Station_ID ~ year, value.var = 'year',
                              fun.aggregate = length)
-      lst_stat[[j]]$Analyte<-dta$Analyte[j]
-      dta_stns$Analyte<-as.character(dta_stns$Analyte)
+      lst_stat[[j]]$Analyte<-sub_data$Analyte[[j]]
+      dta_stns$Analyte<-as.character(dta_stns$Analyte[[j]])
       names(lst_stat)[j]<-unique(dta_stns$Analyte)[j]
           }
     }
     lst_stat[]
     #status<-lst_stat[]
     if(!is.null(names(lst_stat[]))) {
-      status<-ldply(lst_stat, data.frame, .id = NULL)
+      status<-rbind.fill(lst_stat)
+      #status<-ldply(lst_stat, data.frame, .id = NULL)
       status<-status[,c('Station_ID', sort(names(status)[!names(status) %in% c('Station_ID', 'Analyte')]),'Analyte')]
       status<-distinct(status)
     } else {
@@ -289,6 +290,7 @@ Stations_Status<-function(df.all) {
 }
 
 Stations_Trend<-function(df.all){
+  require(tidyr)
   dta<-df.all
   
   #remove data from Tribal land
@@ -306,19 +308,23 @@ Stations_Trend<-function(df.all){
       dplyr::summarise(n_years=length(unique(year))) %>%
       filter(n_years>8)
     stns<-c(as.character(unique(trend$Station_ID)))
-    dta_stns<-dta%>%
+    dta_stns<-sub_data%>%
       dplyr::filter(Station_ID %in% stns)
     
     if (nrow(trend) == 0) {
       lstoutput[[i]] <- NULL
     } else {
-      lstoutput[[i]] <- dcast(dta_stns, Station_ID ~ year, value.var = 'year',
-                              fun.aggregate = length)
-      lstoutput[[i]]$Analyte<-as.character(dta$Analyte[i])
+      lstoutput[[i]] <- dta_stns %>% dplyr::group_by(Station_ID, year) %>% 
+          summarise(n = n()) %>% spread(year, n)
+      
+      #lstoutput[[i]] <- dcast(dta_stns, Station_ID ~ year, value.var = 'year',
+                              #fun.aggregate = length)
+      lstoutput[[i]]$Analyte<-as.character(sub_data$Analyte[i])
     }
   }
   
-  trend<-ldply(lstoutput, data.frame, .id = NULL)
+  trend<-rbind.fill(lstoutput)
+  #trend<-ldply(lstoutput, data.frame, .id = NULL)
   
   if(length(trend) != 0){
     trend <- trend[,c('Station_ID', sort(names(trend)[!names(trend) %in% c('Station_ID', 'Analyte')]),'Analyte')]
@@ -332,13 +338,13 @@ Stations_Trend<-function(df.all){
 
 All_stns_fit_Criteria<-function(status, trend, df.all) {
   
-  if(status[1,1] == c("No stations meet Status criteria")) {
+  if(status[1] == c("No stations meet Status criteria")) {
     status <- NULL
   } else {
     status = status
   }
   
-  if(trend[1,1] == c("No Stations Meet Trend Criteria")) {
+  if(trend[1] == c("No Stations Meet Trend Criteria")) {
     trend <- NULL
   } else {
     trend = trend
@@ -1100,6 +1106,10 @@ fc2ec <- function(fc) {
 }
 
 gm_mean_30_day <- function(df, parameter, station) {
+                 #  df = new_data 
+                 # parameter = unique(new_data$Analyte)
+                 # station = unique(new_data$Station_ID)
+                 # 
   #sub <- df[df$Analyte == parameter &
   #           df$Station_ID == station,]
   
@@ -1111,7 +1121,7 @@ gm_mean_30_day <- function(df, parameter, station) {
     
     #sort(sub[,'Sampled'])
     
-    sub$Sampled <- as.POSIXct(strptime(sub$Sampled, format = "%Y-%m-%d %H:%M:%S"))
+    sub$Sampled <- as.POSIXct(strptime(sub$Sampled, format = "%Y-%m-%d")) #%H:%M:%S"))
     sub$day <- as.Date(sub$Sampled, format = "%Y-%m-%d")
     
     if ((as.Date(max(sub$Sampled)) - as.Date(min(sub$Sampled)) < 30)) {
@@ -1552,3 +1562,74 @@ Temp_trends_plot <- function(sdadm, selectStation, selectMonth) {
 GetURL <- function(service, host = "basemap.nationalmap.gov") {
   sprintf("https://%s/arcgis/services/%s/MapServer/WmsServer", host, service)
 }
+
+
+
+
+Delineation<-function(stns,
+                      outPath) {
+  
+  #stns <- dataframe with the columns containint ID, Lat, and Long
+  #outpath <- directory outpath identifying a folder for watersheds to be stored
+  # require(PythonInR)
+  require(plyr)
+  require(dplyr)
+  require(tidyr)
+  # autodetectPython("C:/Python27/ArcGISx6410.3/python.exe")
+  # pyConnect("C:/Python27/ArcGISx6410.3/python.exe")
+  # pyIsConnected()
+  
+  # User Input ------------------------------------------------------------------
+  # File path of the station .csv (MAKE SURE TO USE / AND NOT \"
+ 
+  if(any(stns == 'No Stations Meet Criteria for Status or Trends')){
+    Watersheds <- NULL
+  }
+  
+   # stationPath <- "T:/AgWQM/DataAnalysis/Mid Coast/Mid Coast_stns.csv"
+  
+  # insert output path here
+  outPath 
+   #outPath <- "T:/AgWQM/DataAnalysis/Mid Coast/Watersheds"
+  
+  
+  # Set Up ------------------------------------------------------------------
+  
+  long <- grep("long", colnames(stns), ignore.case = TRUE)
+  lat <- grep("lat", colnames(stns), ignore.case = TRUE)
+  ID <- grep("ID", colnames(stns), ignore.case = TRUE)
+  
+  stnList <- as.character(stns[,ID])
+  
+  # Start Loop Here ---------------------------------------------------------
+  
+  for(i in stnList){
+    
+    outName <- paste0(outPath, "/", i, "_Watershed")
+    
+    stn <- stns[stns[,ID] == i,]
+    
+    stnx <- as.character(stn[,long])
+    stny <- as.character(stn[,lat])
+    stnID <- as.character(stn[,ID])
+    
+    pySet("outPath", outPath)
+    pySet("outName", outName)
+    pySet("stnx", stnx)
+    pySet("stny", stny)
+    pySet("stnID", stnID)
+    pyTest <- tryCatch(
+      pyExecfile("//deqhq1/WQ-Share/ColinD/Watershed Delineation/NavigationDelineationServices.py"),
+      error = function(e) e,
+      finally = print("Delineation Finished")
+    )
+    pyTest
+  }
+  
+  pyExit()
+  #Your Watersheds can be found in: 
+  outPath
+  
+  return(Watersheds)
+
+  }
