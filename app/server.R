@@ -21,6 +21,9 @@ library(spatialEco)
 library(dplyr)
 library(lubridate)
 library(leaflet)
+library(tidyr)
+library(PythonInR)
+#library(shinyFiles)
 #library(xlsx)
 #library(RODBC)
 
@@ -33,6 +36,7 @@ source('functions/funClean.R')
 source('functions/funPlots.R')
 source('functions/funSeaKen.R')
 source('functions/funHelpers.R')
+#source('functions/directoryInput.R') #Added for watershed file directory input
 
 agwqma <- readOGR(dsn = './data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 hucs <- readOGR(dsn = './data/GIS', layer = 'WBD_HU8', verbose = FALSE)
@@ -314,8 +318,8 @@ shinyServer(function(input, output, session) {
           prog <- prog + 1/10
           #Pull in Stream Cat data for NLCD 2011 land use
           #these two lines cannot be commented if you want the land use analysis to run
-          # stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
-          # lstSummaryDfs[[7]] <-stn_nlcd_df
+          #stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
+          #lstSummaryDfs[[7]] <-stn_nlcd_df
           #This line has to be commented out if you want the land use analysis to run
           
           lstSummaryDfs[[7]] <- data.frame()
@@ -533,6 +537,47 @@ shinyServer(function(input, output, session) {
           write.csv(tbl_disp_input(), file, row.names = FALSE)
         }
       )
+      
+      
+      ###################################
+      ###################################
+      ####### Watershed Delineation Tab##
+      ###################################
+      ###################################
+     #autodetectPython("C:/Python27/ArcGISx6410.3/python.exe")
+     #pyConnect("C:/Python27/ArcGISx6410.3/python.exe")
+     
+      output$outPath <- eventReactive(
+        input$Download,{input$outPath})
+      
+        # # validate(
+        # #   need(!is.null(input$blah), message = FALSE)
+        # # )
+        outPath <- input$outPath
+        
+        # if(is.null(outPath)){
+        #   return(NULL)
+        # }
+
+
+        
+      
+     #Delineation(stns = lstSummaryDfs[[10]],
+      #              outpath = input$outPath)
+      
+      # output$action_button_watersheds <- renderUI({
+      #   validate(
+      #     need(!is.null(input$outPath), message = FALSE)
+      #   )
+      #   actionButton(inputId = 'action_button_watersheds',label = 'Download Watershed Delineations')
+      # })
+     
+      
+      
+    
+       
+        #"T:/AgWQM/DataAnalysis/Watersheds"
+      
       
       
       ###################################

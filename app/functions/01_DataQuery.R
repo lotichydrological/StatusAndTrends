@@ -1,8 +1,8 @@
 combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
-  # E <- elmData
-  # L <- lasarData
-  # W <- wqpData
-  # W <- wqp.data
+ # E <- elmData
+ # L <- lasarData
+ # W <- wqpData
+ # N <- nwisData
 
   if (is.data.frame(W)) {
     wqp.map <- c('MonitoringLocationIdentifier' = 'Station_ID',
@@ -116,7 +116,12 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
   
   if('Total Phosphorus' %in% df.all$Analyte) {
     df.all[df.all$Analyte == 'Phosphorus', 'Analyte'] <- 'Total Phosphorus'
-   }
+    df.all[df.all$Analyte == 'Phosphate, Total as P', 'Analyte'] <- 'Total Phosphorus'
+  }
+  
+  if('Total Suspended Solids' %in% df.all$Analyte){
+    df.all[df.all$Analyte == 'Total suspended solids', 'Analyte'] <- 'Total Suspended Solids'
+  }
   
   df.all$Analyte <- mapvalues(df.all$Analyte, 
                               from = c('Temperature, water','Escherichia coli',
@@ -148,7 +153,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
     # 
     # planArea <- 'South Santiam'
     # startDate <- "2000-03-01 00:00:00.000"
-    # endDate <- "2000-03-01 00:00:00.000"
+    # endDate <- "2017-03-01 00:00:00.000"
     # inParms <- c('Total Phosphorus')
     # input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
     # parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
@@ -188,7 +193,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
     qryParms<- c(qryParms, c('Total Suspended Solids'))
   }
   if(any(inParms == 'Total Phosphorus')) {
-    qryParms <- c(qryParms, c('Phosphorus, Total'))
+    qryParms <- c(qryParms, c('Phosphate, Total as P'))
   }
   qryParms <- paste(qryParms,collapse="','")
   #### Restrict Matrix to surface water ####
@@ -395,6 +400,7 @@ if(any(inParms == 'Bacteria')) {
   myParms <- myParms[-which(myParms == "Bacteria")] 
 }
 
+
 # #Expand DO to match database domain values
 # if (any(inParms == 'Dissolved Oxygen')) {
 #   myParms <-c(myParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
@@ -412,9 +418,9 @@ characteristics <- paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],col
 #Separate each value you want to query with the URL encoded semi-colon '%3B'.
 sampleMedia <- 'Water'
 
-if (any(myParms == "Total Suspended Solids")) {
-  sampleMedia <- 'Sediment'
-}
+# if (any(myParms == "Total Suspended Solids")) {
+#   sampleMedia <- 'Sediment'
+# }
 
 #### Pass the query to WQP ####
 wqp.data <- readWQPdata(#stateCode = myArea,
@@ -426,12 +432,22 @@ wqp.data <- readWQPdata(#stateCode = myArea,
   sampleMedia = sampleMedia,
   siteType = siteType)
 
-##REMOVE dissolved P##
+Wx <- attr(wqp.data, "siteInfo")
+# ##REMOVE dissolved P##
 if(any('Total Phosphorus' %in% c(myParms))) {
-wqp.data<-wqp.data %>%
-  filter(ResultSampleFractionText == 'Total') 
-}
+  wqp.data[c("ResultSampleFractionText")][is.na(wqp.data[c("ResultSampleFractionText")])] <- 'Total'
+  wqp.data<- wqp.data[wqp.data$ResultSampleFractionText == 'Total' , ]
+    if(any(unique(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'))){
+        wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasureValue'] <- 
+              (wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasureValue'])/1000
+    }
+  wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
+  wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'mg/kg as P'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
+  wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'mg/l as P'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
+  
+ }
 
+attr(wqp.data, "siteInfo") <- Wx
 
 #wqp.stations <- attr(wqp.data, 'siteInfo')
 

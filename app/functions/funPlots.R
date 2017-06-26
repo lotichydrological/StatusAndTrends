@@ -1365,7 +1365,18 @@ plot.TSS<-function(new_data,
   y.lab <- parm
 
   y.min <- floor(min(new_data[, result_column])) 
-  y.max <- ceiling(max(new_data[, result_column]))
+  
+  if(selectWQSTSS != 0){
+    if(max(new_data$Result) < selectWQSTSS) {
+      y.max<-ceiling(as.numeric(selectWQSTSS) + 0.1)
+    } else {
+      y.max <- ceiling(max(new_data[, result_column]))
+    }
+  } else {
+    y.max <- ceiling(max(new_data[, result_column]))
+  }
+  
+  #y.max <- ceiling(max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   y.median <- median(new_data[, result_column])
   slope <- suppressWarnings(
@@ -1455,7 +1466,7 @@ if(selectWQSTSS != 0){ #Allocation
                                        linetype = c('solid', 'solid', 'solid', 'solid'))))
         }
       } else { #without exceedances
-      g <- g + scale_color_manual("", values = c('blue'),
+      g <- g + scale_color_manual("", values = c('blue', 'black', 'black'),
                                     guide = guide_legend(override.aes = list(
                                     linetype = c('solid'))))
     }
@@ -1463,18 +1474,18 @@ if(selectWQSTSS != 0){ #Allocation
     if ('Exceeds' %in% unique(new_data$exceed)) {
       meet<-new_data %>% filter(exceed == 'Meets')
       if(nrow(meet) < 1) {
-          g <-g + scale_color_manual("", values = c('darkorange1', 'black'),
-                                     guide = guide_legend(override.aes = list(
-                                       linetype = c('solid'))))
+        g <-g + scale_color_manual("", values = c('darkorange1', 'black'),
+                                   guide = guide_legend(override.aes = list(
+                                     linetype = c('solid'))))
       } else {
         g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
                                     guide = guide_legend(override.aes = list(
                                       linetype = c('solid', 'solid', 'dashed'))))
-        }
+      }
     } else {
-      g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
+      g <- g + scale_color_manual("", values = c('blue', 'black', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
-                                    linetype = c('solid', 'solid', 'solid'))))
+                                    linetype = c('solid'))))
     }
   } 
   g 
@@ -1512,13 +1523,13 @@ plot.TP<-function(new_data,
   y.min <- floor(min(new_data[, result_column])) 
   
   if(selectWQSTP != 0){
-    if(max(new_data$Result) > selectWQSTP) {
-      y.max<-(as.numeric(selectWQSTP) + 0.1)
+    if(max(new_data$Result) < selectWQSTP) {
+      y.max<-ceiling(as.numeric(selectWQSTP) + 0.1)
     } else {
-      y.max <- (max(new_data[, result_column]))
+      y.max <- ceiling(max(new_data[, result_column]))
     }
   } else {
-      y.max <- (max(new_data[, result_column]))
+    y.max <- ceiling(max(new_data[, result_column]))
   }
   
   y.lim <- c(y.min, y.max)
@@ -1594,28 +1605,72 @@ plot.TP<-function(new_data,
     g <- g + geom_line(aes(x = x, y = y, color = variable), data = df_trend_line)  
   }
   
-  #allocation, trend line 
   if (plot_trend & !is.na(p.value)) {
     if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
-      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'blue'),
-                                  guide = guide_legend(override.aes = list(
-                                    linetype = c('solid', 'solid', 'dashed', 'solid'))))
+      meet<-new_data %>% filter(exceed == 'Meets') 
+      if (nrow(meet) < 1) {
+        g <-g + scale_color_manual("", values = c('darkorange1','blue', 'black'),
+                                   guide = guide_legend(override.aes = list(
+                                     linetype = c('solid')))) 
+      } else {
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
+                                    guide = guide_legend(override.aes = list(
+                                      linetype = c('solid', 'solid', 'solid', 'solid'))))
+      }
     } else { #without exceedances
-      g <- g + scale_color_manual("", values = c('black', 'black', 'blue'),
+      g <- g + scale_color_manual("", values = c('blue', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
                                     linetype = c('solid'))))
     }
   } else {
     if ('Exceeds' %in% unique(new_data$exceed)) {
-      g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
-                                  guide = guide_legend(override.aes = list(
-                                    linetype = c('solid', 'solid', 'dashed'))))
+      meet<-new_data %>% filter(exceed == 'Meets')
+      if(nrow(meet) < 1) {
+        g <-g + scale_color_manual("", values = c('darkorange1', 'black'),
+                                   guide = guide_legend(override.aes = list(
+                                     linetype = c('solid'))))
+      } else {
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+                                    guide = guide_legend(override.aes = list(
+                                      linetype = c('solid', 'solid', 'dashed'))))
+      }
     } else {
-      g <- g + scale_color_manual("", values = c('black', 'black'),
+      g <- g + scale_color_manual("", values = c('black', 'black', 'black', 'black'),
                                   guide = guide_legend(override.aes = list(
-                                  linetype = c('solid', 'solid'))))
+                                    linetype = c('solid', 'solid'))))
     }
   } 
   g 
   
 }
+  
+  
+  
+  
+
+  
+  #allocation, trend line 
+#   if (plot_trend & !is.na(p.value)) {
+#     if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
+#       g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'blue'),
+#                                   guide = guide_legend(override.aes = list(
+#                                     linetype = c('solid', 'solid', 'dashed', 'solid'))))
+#     } else { #without exceedances
+#       g <- g + scale_color_manual("", values = c('black', 'black', 'blue'),
+#                                   guide = guide_legend(override.aes = list(
+#                                     linetype = c('solid'))))
+#     }
+#   } else {
+#     if ('Exceeds' %in% unique(new_data$exceed)) {
+#       g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'black'),
+#                                   guide = guide_legend(override.aes = list(
+#                                     linetype = c('solid', 'solid', 'dashed'))))
+#     } else {
+#       g <- g + scale_color_manual("", values = c('black', 'black'),
+#                                   guide = guide_legend(override.aes = list(
+#                                   linetype = c('solid', 'solid'))))
+#     }
+#   } 
+#   g 
+#   
+# }
