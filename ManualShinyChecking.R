@@ -47,6 +47,7 @@ source('app/functions/funClean.R')
 source('app/functions/funPlots.R')
 source('app/functions/funSeaKen.R')
 source('app/functions/funHelpers.R')
+#source('app/functions/directoryInput.R')
 
 agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
 hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
@@ -61,11 +62,11 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Total Phosphorus', 'Total Suspended Solids', 'Bacteria', 'Temperature', 'pH', 'Dissolved Oxygen')
-input$select <- "Mid Coast"
-input$dates <- c("2010-01-01", "2017-01-01")
-input$db <- c('DEQ')
-input$selectStation <-  "10339 - "
+input$parms <- c('Bacteria')
+input$select <- "Hood River"
+input$dates <- c("2016-01-01", "2017-01-01")
+input$db <- c('DEQ', 'Water Quality Portal')
+input$selectStation <-  "10764 - "
 input$selectParameter <- 'Total Phosphorus'
 input$selectLogScale <- FALSE
 input$selectSpawning <- 'No spawning'#'January 1-May 15'
@@ -95,7 +96,7 @@ if ('Water Quality Portal' %in% input$db) {
                                endDate = input$dates[2]),
                       error = function(err) {err <- geterrmessage()})
   
-  if (any(c('Temperature', 'pH', 'Dissolved Oxygen', 'Total Suspended Solids') %in% input$parms)) {
+  if (any(c('Temperature', 'pH', 'Dissolved Oxygen', 'Total Suspended Solids', 'Total Phosphorus') %in% input$parms)) {
     nwisData <- tryCatch(nwisQuery(planArea = input$select,
                                    HUClist = HUClist,
                                    inParms = input$parms,
@@ -254,7 +255,7 @@ if(lstSummaryDfs[8] != 'No stations meet Status criteria') {
 lstSummaryDfs[[9]] <- Stations_Trend(df.all)
 names(lstSummaryDfs)[9] <- "Stations_Trend"
 
-if(lstSummaryDfs[[9]] == "No Stations Meet Trend Criteria") {
+if(lstSummaryDfs[9] == "No Stations Meet Trend Criteria") {
   lstSummaryDfs[[9]] <- as.data.frame('No Stations Meet Trend Criteria')
 } else {
   lstSummaryDfs[[9]] <- lstSummaryDfs[[9]]
@@ -266,14 +267,22 @@ lstSummaryDfs[[10]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[9]],
 names(lstSummaryDfs)[10] <- "stns"
 
 
-lstSummaryDfs[[7]] <- Stations_Status(df.all)
-names(lstSummaryDfs)[7] <- "Stations_Status"
+library(PythonInR)
+autodetectPython("C:/Python27/ArcGISx6410.3/python.exe")
+pyConnect("C:/Python27/ArcGISx6410.3/python.exe")
+# pyIsConnected()
+Delineation(stns = lstSummaryDfs[[10]],
+                         outPath = "T:/AgWQM/DataAnalysis/Watersheds")
 
-lstSummaryDfs[[8]] <- Stations_Trend(df.all)
-names(lstSummaryDfs)[8] <- "Stations_Trend"
 
-lstSummaryDfs[[9]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[8]], status = lstSummaryDfs[[7]], df.all = df.all)
-names(lstSummaryDfs)[9] <- "stns"
+# lstSummaryDfs[[7]] <- Stations_Status(df.all)
+# names(lstSummaryDfs)[7] <- "Stations_Status"
+# 
+# lstSummaryDfs[[8]] <- Stations_Trend(df.all)
+# names(lstSummaryDfs)[8] <- "Stations_Trend"
+# 
+# lstSummaryDfs[[9]] <- All_stns_fit_Criteria(trend = lstSummaryDfs[[8]], status = lstSummaryDfs[[7]], df.all = df.all)
+# names(lstSummaryDfs)[9] <- "stns"
 
 #Pull in Stream Cat data for NLCD 2011 land use
 # stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
@@ -324,9 +333,9 @@ names(lstSummaryDfs)[9] <- "stns"
   
   plot.TSS<-plot.TSS(new_data = new_data,
                      df.all = df.all,
-                     selectWQSTSS = input$selectWQSTSS,
+                     selectWQSTSS = 5,
                      sea_ken_table = SeaKen,
-                     plot_trend = input$plotTrend,
+                     plot_trend = TRUE,
                      analyte_column = 'Analyte',
                      station_id_column = 'Station_ID',
                      station_desc_column = 'Station_Description',
@@ -334,6 +343,8 @@ names(lstSummaryDfs)[9] <- "stns"
                      result_column = 'Result',
                      datetime_format = '%Y-%m-%d %H:%M:%S',
                      parm = 'Total Suspended Solids (mg/l)')
+  plot.TSS
+
   
   
   plot.TP<-plot.TP(new_data = new_data,
@@ -358,11 +369,11 @@ names(lstSummaryDfs)[9] <- "stns"
   # plan_area <- input$select
   # 
   # new_data$Sampled <- as.POSIXct(strptime(new_data$Sampled, format = "%Y-%m-%d %H:%M:%S"))
-  # plot.bacteria(new_data = new_data,
-  #                    sea_ken_table = SeaKen,
-  #                    plot_trend = input$plotTrend,
-  #                    plot_log = input$selectLogScale,
-  #                    parm = 'E. Coli')
+  plot.bacteria(new_data = new_data,
+                     sea_ken_table = SeaKen,
+                     plot_trend = input$plotTrend,
+                     plot_log = input$selectLogScale,
+                     parm = 'E. Coli')
   # 
   # plot.ph(new_data = new_data,
   #         sea_ken_table = SeaKen,
@@ -433,6 +444,108 @@ names(lstSummaryDfs)[9] <- "stns"
   
   #ggsave("g.png", height = 6, width = 6)
   
-
+  ####prism#############################################
+# library(devtools)
+# install_github(repo = 'prism', username = 'ropensci')
+# library(prism)
+#   
+# get_prism_monthlys(type = 'ppt', year = 2000:2017, mon = 1:12)
+# p<-prism_slice(c(-123.7224,44.44074), ls_prism_data()[,1])
+# p+ggtitle('Monthy Precipitation Totals for the South Santiam AgWQ Management Area')
+# #ggsave('T:/AgWQM/DataAnalysis/South Santiam/Precipitation.png', height = 7, width = 9)
+  # new_data <- ecoli
+  # 
+  # new_data$exceed <- as.vector(ifelse(new_data[, 'Result'] > 130, 1, 0))
+  # ss_ex_df <- new_data %>%
+  #   group_by(Station_ID, Station_Description, year) %>%
+  #   summarise(Sample = 'Single Sample',
+  #             Obs = n(),
+  #             Exceedances = sum(exceed))
+  # 
+  # entero_gm_eval <- gm_mean_90_day(new_data, 
+  #                                  unique(new_data$Analyte), 
+  #                                  unique(new_data$Station_ID))
+  # entero_gm_eval$year <- year(entero_gm_eval$day)
+  # if (nrow(entero_gm_eval) > 0) {
+  #   entero_gm_eval$exceed <- ifelse(entero_gm_eval$gm > 35, 1, 0)
+  #   gm_ex_df <- entero_gm_eval %>% 
+  #     group_by(id, year) %>%
+  #     summarise(Sample = 'Geometric Mean',
+  #               Obs = n(),
+  #               Exceedances = sum(exceed)) %>%
+  #     rename(Station_ID = id)
+  #   
+  #   gm_ex_df <- merge(gm_ex_df, 
+  #                     unique(new_data[,c('Station_ID', 'Station_Description')]), 
+  #                     by = 'Station_ID', 
+  #                     all.x = TRUE)
+  # } else {
+  #   gm_ex_df <- ss_ex_df
+  #   gm_ex_df$Obs <- 0
+  #   gm_ex_df$Exceedances <- 0
+  # }
+  # 
+  # ex_df <- rbind(as.data.frame(ss_ex_df), as.data.frame(gm_ex_df)) %>% arrange(Station_ID)
+  # attr(new_data, "entero_gm_eval") <- entero_gm_eval
+  # attr(new_data, "ex_df") <- ex_df
+  # 
+  # 
+  # mydata<-df.all
+  # 
+  # mydata$year <- as.numeric(format(mydata$Sampled, format = "%Y"))
+  # entero <- mydata[mydata$Analyte == 'Enterococcus',]
+  # ecoli <- mydata[mydata$Analyte == 'E. Coli',]
+  # 
+  # ecoli <- EvaluateEColiWQS(ecoli)
+  # ecoli_eval <- attr(ecoli, "ex_df")
+  # #write.csv(ecoli_eval, 'ecoli_evaluated.csv', row.names = FALSE)
+  # 
+  # entero <- EvaluateEnteroWQS(entero)
+  # entero_eval <- attr(entero, "ex_df")
+  # #write.csv(entero_eval, 'entero_evaluated.csv', row.names = FALSE)
+  # 
+  # trend_summary <- mydata %>% dplyr::group_by(Station_ID, year) %>% 
+  #   summarise(n = n()) %>% spread(year, n)
+  # 
+  # #Outout data summary to csv
+  # #write.csv(x = trend_summary, file = 'data_summary.csv', row.names = FALSE)
+  # 
+  # #Ths is where the seasonal kendall analysis is run
+  # results_seaken_ecoli <- run_seaKen(ecoli)
+  # results_seaken_entero <- run_seaKen(entero)
+  # results_seaken <- rbind(results_seaken_ecoli, results_seaken_entero)
+  # stns <- unique(results_seaken$Station_ID)
+  # for (i in 1:length(stns)) {
+  #   mydata_sub <- mydata[mydata$Station_ID == stns[i],]
+  #   
+  #   if (!grepl("Not Significant", results_seaken[results_seaken$Station_ID == stns[i],'signif'])) {
+  #     trend = TRUE
+  #   } else {
+  #     trend = FALSE
+  #   }
+  #   
+  #   setwd("C:/Users/MRubens/Desktop/plots_test")
+  #   
+  #   b <- plot.bacteria(new_data=mydata_sub,
+  #                      sea_ken_table=results_seaken ,
+  #                      plot_trend = trend,
+  #                      plot_log = FALSE,
+  #                      parm = unique(mydata_sub$Analyte))
+  #   
+  #   fname <- paste(stns[i], "trend_plot_untran.jpg", sep = "-")
+  #   ggsave(b, file = fname, height = 8, width = 8, device = 'jpeg')
+  #   
+  #   b <- plot.bacteria(new_data=mydata_sub,
+  #                      sea_ken_table=results_seaken ,
+  #                      plot_trend = FALSE,
+  #                      plot_log = TRUE,
+  #                      parm = unique(mydata_sub$Analyte))
+  #   
+  #   
+  #   fname <- paste(stns[i], "trend_plot_log.jpg", sep = "-")
+  #   ggsave(b, file = fname, height = 8, width = 8, device = 'jpeg')
+  # }
+  
+  
 
   
