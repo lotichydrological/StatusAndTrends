@@ -238,7 +238,7 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
 # inParms <- c('Total Phosphorus')
   
   #### Establish connection to database ####
-  channel <- odbcConnect('LASAR2_GIS')
+  channel <- odbcConnect('DEQLEAD-LIMS')
   
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
   if (is.null(planArea)) {
