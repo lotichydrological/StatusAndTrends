@@ -28,7 +28,7 @@ shinyUI(fluidPage(
       tabPanel("Data Query", fluidRow(
         column(4, 
                radioButtons("query_area", label = h3("Geographic Area Type"),
-                                  choices = c('8-digit HUC', 'ODA Agricultural Plan Area'))
+                            choices = c('8-digit HUC', 'ODA Agricultural Plan Area'))
         ),
         column(3,
                checkboxGroupInput("parms",label = h3("Parameter(s) to Query"),
@@ -43,8 +43,8 @@ shinyUI(fluidPage(
         column(4,
                selectInput("select",label = h3('Geographic Area'),           
                            choices = c("Choose one" = "")
-                           )                       
-               ),
+               )                       
+        ),
         column(3,
                checkboxGroupInput('db', label = h3('Database(s) to Query'),
                                   c('Water Quality Portal','DEQ'),
@@ -57,7 +57,7 @@ shinyUI(fluidPage(
                #                    choices = c('A', 'B', 'C', 'E'),
                #                    selected = c('A', 'B', 'C', 'E'),
                #                    inline = TRUE)
-               )
+        )
       ),
       
       # fluidRow(
@@ -80,87 +80,104 @@ shinyUI(fluidPage(
         column(6,
                tableOutput('all_totals')),
         column(3, 
-#                conditionalPanel(condition = "output.text2 == ''",
-#                                 "Click here to download the data",
-#                                 downloadButton('downloadData','Download')
-                                uiOutput('downloadData')
+               #                conditionalPanel(condition = "output.text2 == ''",
+               #                                 "Click here to download the data",
+               #                                 downloadButton('downloadData','Download')
+               uiOutput('downloadData')
                # )
-               ),
+        ),
         column(3,
                uiOutput("action_button_map")
-               )
+        )
       )
       
       ,
-
+      
       #uiOutput("mymap")
       leafletOutput("mymap", height = 800)
-    ),
-    tabPanel("Review Data", 
-             fluidRow(column(3,
-                             uiOutput('review_control'),
-                             uiOutput('wq_lim_link'),
-                             uiOutput('Note_text')
-             ),
-             column(9,
-                    DT::dataTableOutput("display")
-             )
-             ),
-             fluidRow(column(3),
-                      column(9,
-                             downloadButton('dlReviewTab', 'Download the data'))
-             )
-             ),
-    tabPanel("Plot Status and Trend", fluidRow(
-      column(3,
-             uiOutput('selectStation'),
-             br(),
-             uiOutput('selectParameter'),
-             br(),
-             uiOutput('value'),
-             #numericInput("selectWQSTSS", "TSS Allocation:", 0, min = 0, max = 100),
-             #verbatimTextOutput("value"),
-             uiOutput('selectLogScale'),
-             uiOutput('plotTrend'),
-             uiOutput('selectpHCrit'),
-             uiOutput('selectSpawning'),
-             br(),
-             uiOutput('selectUse'),
-             uiOutput('selectUseDO'),
-             uiOutput('fish_use_link_DO'),
-             br(),
-             uiOutput('selectRange'),
-             br(),
-             uiOutput('fish_use_link'),
-             uiOutput('checkSpawning'),
-             br(),
-             uiOutput('selectMonth')
-            ),
-      column(9,
-             conditionalPanel(condition = "input.selectParameter",
-                              renderText("ts_plot_text")),
-             conditionalPanel(condition = "input.selectParameter",
-                              plotOutput('ts_plot', dblclick = "plot1_dblclick",
-                                        brush = brushOpts(
-                                          id = "plot1_brush",
-                                          resetOnNew = TRUE
-                                        )
-                              )),
-                              #plotOutput("ts_plot"))
-             conditionalPanel(
-               condition = "input.selectParameter",
-               downloadButton(outputId = "downloadPlot", label = "Save plot")
+      ),
+      tabPanel("Review Data", 
+               fluidRow(column(3,
+                               uiOutput('review_control'),
+                               uiOutput('wq_lim_link'),
+                               uiOutput('Note_text')
                ),
-             br(),
-             conditionalPanel(condition = "input.selectParameter",
-                              DT::dataTableOutput("exceed_df")),
-             br(),
-             conditionalPanel(condition = "input.selectMonth",
-                              plotOutput('temp_trend_plot'))
-             )
-             )
+               column(9,
+                      DT::dataTableOutput("display")
+               )
+               ),
+               fluidRow(column(3),
+                        column(9,
+                               downloadButton('dlReviewTab', 'Download the data'))
+               )
+      ),
+      tabPanel("Watershed Delineation",
+               
+              fileInput(("outPath"), label = 'Choose directory', accept = "folder"),
+               
+               actionButton('Download', "")
+      
+               
+               # textInput("outPath", label = h3("Output Directory File Path"),
+               #           placeholder = "Enter text..."),
+               # 
+               # textOutput("outPath"),
+               # 
+               # fluidRow(column(5,
+               #                 uiOutput("action_button_watersheds")))
+               
+      ),
+      tabPanel("Plot Status and Trend", fluidRow(
+        column(3,
+               uiOutput('selectStation'),
+               br(),
+               uiOutput('selectParameter'),
+               br(),
+               uiOutput('value'),
+               uiOutput('TP'),
+               #numericInput("selectWQSTSS", "TSS Allocation:", 0, min = 0, max = 100),
+               #verbatimTextOutput("value"),
+               uiOutput('selectLogScale'),
+               uiOutput('plotTrend'),
+               uiOutput('selectpHCrit'),
+               uiOutput('selectSpawning'),
+               br(),
+               uiOutput('selectUse'),
+               uiOutput('selectUseDO'),
+               uiOutput('fish_use_link_DO'),
+               br(),
+               uiOutput('selectRange'),
+               br(),
+               uiOutput('fish_use_link'),
+               uiOutput('checkSpawning'),
+               br(),
+               uiOutput('selectMonth')
+        ),
+        column(9,
+               conditionalPanel(condition = "input.selectParameter",
+                                renderText("ts_plot_text")),
+               conditionalPanel(condition = "input.selectParameter",
+                                plotOutput('ts_plot', dblclick = "plot1_dblclick",
+                                           brush = brushOpts(
+                                             id = "plot1_brush",
+                                             resetOnNew = TRUE
+                                           )
+                                )),
+               #plotOutput("ts_plot"))
+               conditionalPanel(
+                 condition = "input.selectParameter",
+                 downloadButton(outputId = "downloadPlot", label = "Save plot")
+               ),
+               br(),
+               conditionalPanel(condition = "input.selectParameter",
+                                DT::dataTableOutput("exceed_df")),
+               br(),
+               conditionalPanel(condition = "input.selectMonth",
+                                plotOutput('temp_trend_plot'))
+        )
       )
       )
-   )
+    )
   )
+)
 )
