@@ -793,7 +793,7 @@ EvaluateDOWQS<-function(new_data,
   new_data$Result <- as.numeric(new_data$Result)
   new_data$Sampled <- as.POSIXct(strptime(new_data[, datetime_column],
                                           format = datetime_format))
-  new_data$Sampled<-as.Date(new_data$Sampled)
+  #new_data$Sampled<-as.Date(new_data$Sampled)
   new_data$year<-as.numeric(format(new_data$Sampled, format="%Y"))
   
   
