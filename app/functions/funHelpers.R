@@ -759,7 +759,7 @@ EvaluateEColiWQS <- function(new_data) {
 }
 
 EvaluateEnteroWQS <- function(new_data) {
-  new_data$exceed <- ifelse(new_data[, 'Result'] > 158, 1, 0)
+  new_data$exceed <- ifelse(new_data[, 'Result'] > 130, 1, 0) #updated from 158 for coastal contact recreation and NPDES permits
   entero_gm_eval <- gm_mean_30_day(new_data, 
                                    unique(new_data$Analyte), 
                                    unique(new_data$Station_ID))
