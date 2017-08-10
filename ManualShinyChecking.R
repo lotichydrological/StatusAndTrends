@@ -62,9 +62,9 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('Bacteria')
-input$select <- "Hood River"
-input$dates <- c("2016-01-01", "2017-01-01")
+input$parms <- c('pH')
+input$select <- "Clackamas"
+input$dates <- c("2006-01-01", "2017-01-01")
 input$db <- c('DEQ', 'Water Quality Portal')
 input$selectStation <-  "10764 - "
 input$selectParameter <- 'Total Phosphorus'
