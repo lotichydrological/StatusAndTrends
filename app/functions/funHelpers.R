@@ -210,12 +210,12 @@ extract_303d <- function (df.all, wq_limited, selectedPlanArea) {
   
   #Bring in the shpaefile of the wq limited waters from the IR
   if (grepl("[0-9].", selectedPlanArea)) {
-    wq_limited <- wq_limited[wq_limited$Pollutant %in% 
+    wq_limited <- wq_limited[wq_limited$POLLUTANT %in% 
                                unique(df.all$Analyte) & 
                                wq_limited$HUC_4th_Co == strsplit(selectedPlanArea, 
                                                                  split = " - ")[[1]][1],]  
   } else {
-    wq_limited <- wq_limited[wq_limited$Pollutant %in% 
+    wq_limited <- wq_limited[wq_limited$POLLUTANT %in% 
                                unique(df.all$Analyte) & 
                                wq_limited$PlanName == selectedPlanArea,]
   }

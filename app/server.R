@@ -59,7 +59,7 @@ ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x 
 parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 
 #Pre-extracted 303(d) with PlanName added
-wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
+wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO_TP_Sediment_2012.csv')
 
 # Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
 # load('data/NLCD2011_OR.Rdata')
@@ -304,15 +304,15 @@ shinyServer(function(input, output, session) {
           #Extract 303(d) segments in the plan area for parameters
           #returned in the query
           wq_lim_whole <- extract_303d(df.all, wq_limited, input$select)
-          lstSummaryDfs[[6]] <- wq_lim_whole[,c('Stream_Lak', 'LLID_Strea',
-                                                'Miles', 'Pollutant', 'Season',
-                                                'Assessme_1', 'Criteria',
-                                                'Listing_St')]
-          lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]],
-                                             c('Stream_Lak' = 'Waterbody',
-                                               'LLID_Strea' = 'LLID',
-                                               'Assessme_1' = 'Year Assessed',
-                                               'Listing_St' = 'Listing Status'))
+          lstSummaryDfs[[6]] <- wq_lim_whole[,c('STREAM_LAK', 'LLID_STREA', 
+                                                'MILES', 'POLLUTANT', 'SEASON', 
+                                                'ASSESSME_1', 'CRITERIA', 
+                                                'LISTING_ST')]
+          lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]], 
+                                             c('STREAM_LAK' = 'Waterbody',
+                                               'LLID_STREA' = 'LLID',
+                                               'ASSESSME_1' = 'Year Assessed',
+                                               'LISTING_ST' = 'Listing Status'))
           names(lstSummaryDfs)[6] <- "wq_limited"
           
           incProgress(1/10, detail = "Performing Land Use Analysis")

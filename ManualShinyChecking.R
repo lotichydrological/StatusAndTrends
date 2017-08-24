@@ -57,7 +57,7 @@ stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
 ph_crit <- read.csv('app/data/PlanOWRDBasinpH_LU.csv')
 ph_crit <- merge(ph_crit, HUClist, by.x = 'plan_name', by.y = 'PlanName', all.x = TRUE)
 parms <- read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv')
+wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_TP_Sediment_2012.csv')
 
 #For app purposes set up input 
 input <- list(action_button = c(0))
@@ -232,15 +232,15 @@ if (!grepl("[0-9].", input$select)) {
 #Extract 303(d) segments in the plan area for parameters
 #returned in the query
 wq_lim_whole <- extract_303d(df.all, wq_limited, input$select)
-lstSummaryDfs[[6]] <- wq_lim_whole[,c('Stream_Lak', 'LLID_Strea', 
-                                      'Miles', 'Pollutant', 'Season', 
-                                      'Assessme_1', 'Criteria', 
-                                      'Listing_St')]
+lstSummaryDfs[[6]] <- wq_lim_whole[,c('STREAM_LAK', 'LLID_STREA', 
+                                      'MILES', 'POLLUTANT', 'SEASON', 
+                                      'ASSESSME_1', 'CRITERIA', 
+                                      'LISTING_ST')]
 lstSummaryDfs[[6]] <- plyr::rename(lstSummaryDfs[[6]], 
-                                   c('Stream_Lak' = 'Waterbody',
-                                     'LLID_Strea' = 'LLID',
-                                     'Assessme_1' = 'Year Assessed',
-                                     'Listing_St' = 'Listing Status'))
+                                   c('STREAM_LAK' = 'Waterbody',
+                                     'LLID_STREA' = 'LLID',
+                                     'ASSESSME_1' = 'Year Assessed',
+                                     'LISTING_ST' = 'Listing Status'))
 names(lstSummaryDfs)[6] <- "wq_limited"
 
 lstSummaryDfs[[8]] <- Stations_Status(df.all)

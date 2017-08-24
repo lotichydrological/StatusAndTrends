@@ -9,9 +9,9 @@ wq_limited <- readOGR(dsn = 'GIS',
                       layer = 'OR_Streams_WaterQuality_2012_WQLimited', 
                       verbose = FALSE)
 
-wq_limited <- wq_limited[wq_limited$Pollutant %in% 
+wq_limited <- wq_limited[wq_limited$POLLUTANT %in% 
                            c("Temperature", "pH", "Fecal Coliform", "E. Coli",
-                             "Enterococcus", "Dissolved Oxygen", 'Sedimentation'),]
+                             "Enterococcus", "Dissolved Oxygen", 'Sedimentation', "Phosphorus"),]
 wq_limited <- spTransform(wq_limited, CRS("+init=epsg:4269"))
 
 for (i in 1:length(unique(agwqma$PlanName))) {
@@ -35,4 +35,4 @@ for (i in 1:length(unique(agwqma$PlanName))) {
   rm(ag_sub, wq_limited_sub, wq_limited_sub_df)
 }
 
-#write.csv(wq_limited_df, 'app/data/GIS/wq_limited_df_temp_bact_ph_DO_2012.csv', row.names = FALSE)
+#write.csv(wq_limited_df, 'app/data/GIS/wq_limited_df_temp_bact_ph_DO_TP_Sediment_2012.csv', row.names = FALSE)
