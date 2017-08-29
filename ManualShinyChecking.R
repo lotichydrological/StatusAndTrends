@@ -62,14 +62,14 @@ wq_limited <- read.csv('app/data/GIS/wq_limited_df_temp_bact_ph_DO_TP_Sediment_2
 #For app purposes set up input 
 input <- list(action_button = c(0))
 input$action_button <- 1
-input$parms <- c('pH')
+input$parms <- c('Total Phosphorus', 'Total Suspended Solids', 'Dissolved Oxygen')
 input$select <- "Clackamas"
 input$dates <- c("2006-01-01", "2017-01-01")
 input$db <- c('DEQ', 'Water Quality Portal')
 input$selectStation <-  "10764 - "
-input$selectParameter <- 'Total Phosphorus'
+input$selectParameter <- c('Total Suspended Solids')
 input$selectLogScale <- FALSE
-input$selectSpawning <- 'No spawning'#'January 1-May 15'
+input$selectSpawning <- 'January 1-May 15'
 input$selectUse <- 'Core Cold Water Habitat'
 input$selectpHCrit <- 'Willamette - All other basin waters'#'John Day - All other basin waters'
 input$plotTrend <- TRUE
@@ -333,7 +333,7 @@ Delineation(stns = lstSummaryDfs[[10]],
   
   plot.TSS<-plot.TSS(new_data = new_data,
                      df.all = df.all,
-                     selectWQSTSS = 5,
+                     selectWQSTSS = 50,
                      sea_ken_table = SeaKen,
                      plot_trend = TRUE,
                      analyte_column = 'Analyte',
@@ -429,7 +429,7 @@ Delineation(stns = lstSummaryDfs[[10]],
  
   
   
-  plot.DO<-plot.DO(new_data = DO,
+  plot.DO<-plot.DO(new_data = new_data,
                    df.all = df.all,
                    selectUseDO = input$selectUseDO,
                    selectSpawning = input$selectSpawning,
