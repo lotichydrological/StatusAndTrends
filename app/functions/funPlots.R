@@ -948,8 +948,8 @@ plot.DO<-function(new_data,
                   variable = rep("Estuarine Waters", 2))
   }
   
-  y.min <- floor(min(new_data[, result_column])) #(unique(d$y) - 1) #unique(sdata$numcrit)[1] 
-  y.max <- ceiling(max(new_data[, result_column]))
+  y.min <- ifelse(min(new_data$Result) < selectUseDO, unique(d$y), min(new_data$Result)) 
+  y.max <- (max(new_data[, result_column]))
   y.lim <- c(y.min, y.max)
   y.median <- median(new_data[, result_column])
   slope <- suppressWarnings(
