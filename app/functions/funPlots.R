@@ -1368,12 +1368,12 @@ plot.TSS<-function(new_data,
   
   if(selectWQSTSS != 0){
     if(max(new_data$Result) < selectWQSTSS) {
-      y.max<-ceiling(as.numeric(selectWQSTSS) + 0.1)
+      y.max<-(as.numeric(selectWQSTSS))
     } else {
-      y.max <- ceiling(max(new_data[, result_column]))
+      y.max <- (max(new_data[, result_column]))
     }
   } else {
-    y.max <- ceiling(max(new_data[, result_column]))
+    y.max <- (max(new_data[, result_column]))
   }
   
   #y.max <- ceiling(max(new_data[, result_column]))
@@ -1458,16 +1458,21 @@ if(selectWQSTSS != 0){ #Allocation
       meet<-new_data %>% filter(exceed == 'Meets') 
       if (nrow(meet) < 1) {
         g <-g + scale_color_manual("", values = c('darkorange1','blue', 'black'),
-                                     guide = guide_legend(override.aes = list(
+                                   guide = guide_legend(override.aes = list(
                                      linetype = c('solid')))) 
-       } else {
-         g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
-                                       guide = guide_legend(override.aes = list(
-                                       linetype = c('solid', 'solid', 'solid', 'solid'))))
-        }
-      } else { #without exceedances
-      g <- g + scale_color_manual("", values = c('blue', 'black', 'black'),
+      } else {
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
                                     guide = guide_legend(override.aes = list(
+                                      linetype = c('solid', 'solid', 'solid', 'solid'))))
+      }
+      
+    }else if (selectWQSTSS == 0) {
+      g <- g + scale_color_manual("", values = c('blue'),
+                                  guide = guide_legend(override.aes = list(
+                                    linetype = c('solid'))))
+    } else { #without exceedances
+      g <- g + scale_color_manual("", values = c('black', 'blue', 'black'),
+                                  guide = guide_legend(override.aes = list(
                                     linetype = c('solid'))))
     }
   } else {
@@ -1483,7 +1488,7 @@ if(selectWQSTSS != 0){ #Allocation
                                       linetype = c('solid', 'solid', 'dashed'))))
       }
     } else {
-      g <- g + scale_color_manual("", values = c('blue', 'black', 'black', 'black'),
+      g <- g + scale_color_manual("", values = c('black', 'black'),
                                   guide = guide_legend(override.aes = list(
                                     linetype = c('solid'))))
     }
