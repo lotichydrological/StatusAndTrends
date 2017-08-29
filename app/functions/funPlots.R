@@ -1524,12 +1524,12 @@ plot.TP<-function(new_data,
   
   if(selectWQSTP != 0){
     if(max(new_data$Result) < selectWQSTP) {
-      y.max<-ceiling(as.numeric(selectWQSTP) + 0.1)
+      y.max<-as.numeric(selectWQSTP)
     } else {
-      y.max <- ceiling(max(new_data[, result_column]))
+      y.max <- (max(new_data[, result_column]))
     }
   } else {
-    y.max <- ceiling(max(new_data[, result_column]))
+    y.max <- (max(new_data[, result_column]))
   }
   
   y.lim <- c(y.min, y.max)
@@ -1609,20 +1609,24 @@ plot.TP<-function(new_data,
     if ('Exceeds' %in% unique(new_data$exceed)) { #with exceedances
       meet<-new_data %>% filter(exceed == 'Meets') 
       if (nrow(meet) < 1) {
-        g <-g + scale_color_manual("", values = c('darkorange1','blue', 'black'),
+        g <-g + scale_color_manual("", values = c('darkorange1','black', 'black', 'blue'),
                                    guide = guide_legend(override.aes = list(
                                      linetype = c('solid')))) 
       } else {
-        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'blue', 'black'),
+        g <- g + scale_color_manual("", values = c('darkorange1', 'black', 'black', 'blue'),
                                     guide = guide_legend(override.aes = list(
-                                      linetype = c('solid', 'solid', 'solid', 'solid'))))
+                                 linetype = c('solid', 'solid', 'solid', 'solid'))))
       }
-    } else { #without exceedances
-      g <- g + scale_color_manual("", values = c('blue', 'black', 'black'),
-                                  guide = guide_legend(override.aes = list(
-                                    linetype = c('solid'))))
-    }
-  } else {
+  } else if (selectWQSTP == 0) {
+    g <- g + scale_color_manual("", values = c('blue'),
+                                guide = guide_legend(override.aes = list(
+                                  linetype = c('solid'))))
+  } else { #without exceedances
+    g <- g + scale_color_manual("", values = c('black', 'black', 'blue'),
+                                guide = guide_legend(override.aes = list(
+                                  linetype = c('solid'))))
+  }
+} else {
     if ('Exceeds' %in% unique(new_data$exceed)) {
       meet<-new_data %>% filter(exceed == 'Meets')
       if(nrow(meet) < 1) {

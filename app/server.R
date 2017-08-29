@@ -62,8 +62,8 @@ parms <- read.csv('data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
 wq_limited <- read.csv('data/GIS/wq_limited_df_temp_bact_ph_DO_TP_Sediment_2012.csv')
 
 # Need to bring in the NLCD and OR catchments for getting associated StreamCat Land Use summary
-# load('data/NLCD2011_OR.Rdata')
-# load('data/OR_cats.Rdata')
+ load('data/NLCD2011_OR.Rdata')
+ load('data/OR_cats.Rdata')
 
 shinyServer(function(input, output, session) { 
   ###################################
@@ -319,11 +319,11 @@ shinyServer(function(input, output, session) {
           prog <- prog + 1/10
           #Pull in Stream Cat data for NLCD 2011 land use
           #these two lines cannot be commented if you want the land use analysis to run
-          #stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
-          #lstSummaryDfs[[7]] <-stn_nlcd_df
+          stn_nlcd_df <- landUseAnalysis(all.sp, cats, NLCD2011)
+          lstSummaryDfs[[7]] <-stn_nlcd_df
           #This line has to be commented out if you want the land use analysis to run
           
-          lstSummaryDfs[[7]] <- data.frame()
+          #lstSummaryDfs[[7]] <- data.frame()
           names(lstSummaryDfs)[[7]] <- 'stn_nlcd_df'
           
           lstSummaryDfs[[8]] <- Stations_Status(df.all)
