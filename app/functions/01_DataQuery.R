@@ -1,9 +1,9 @@
 combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
- # E <- elmData
- # L <- lasarData
- # W <- wqpData
- # N <- nwisData
-
+  # E <- elmData
+  # L <- lasarData
+  # W <- wqpData
+  # N <- nwisData
+  
   if (is.data.frame(W)) {
     wqp.map <- c('MonitoringLocationIdentifier' = 'Station_ID',
                  'OrganizationFormalName' = 'Client',
@@ -140,23 +140,23 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   
   options(stringsAsFactors = FALSE)
   
-    #For testing
-    # library(sp)
-    # library(rgdal)
-    # library(rgeos)
-    # agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-    # agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
-    # HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
-    # HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
-    # HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
-    # names(HUClist) <- agwqma$PlanName
-    # 
-    # planArea <- 'South Santiam'
-    # startDate <- "2000-03-01 00:00:00.000"
-    # endDate <- "2017-03-01 00:00:00.000"
-    # inParms <- c('Total Phosphorus')
-    # input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
-    # parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+  #For testing
+  # library(sp)
+  # library(rgdal)
+  # library(rgeos)
+  # agwqma <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+  # agwqma <- spTransform(agwqma, CRS("+proj=longlat +datum=NAD83"))
+  # HUC <- readOGR(dsn = 'AgWQMA_DataRetrieval/data/GIS', layer = 'huc250k_a_or', verbose = FALSE)
+  # HUC <- spTransform(HUC, CRS("+proj=longlat +datum=NAD83"))
+  # HUClist <- lapply(as.list(agwqma$PlanName),function(x) {HUC[agwqma[agwqma$PlanName == x,],]})
+  # names(HUClist) <- agwqma$PlanName
+  # 
+  # planArea <- 'South Santiam'
+  # startDate <- "2000-03-01 00:00:00.000"
+  # endDate <- "2017-03-01 00:00:00.000"
+  # inParms <- c('Total Phosphorus')
+  # input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
+  # parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
   
   #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
   
@@ -167,7 +167,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   } else {
     myHUCs <- HUClist[HUClist$PlanName == planArea,'HUC8']
   }
-
+  
   elm <- odbcConnect('ELEMENT')
   
   st <- stations_wbd[stations_wbd$HUC8 %in% myHUCs,]
@@ -195,6 +195,9 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   if(any(inParms == 'Total Phosphorus')) {
     qryParms <- c(qryParms, c('Phosphate, Total as P'))
   }
+  if(any(inParms == 'Total Nitrogen')) {
+    qryParms <- c(qryParms, c('Nitrogen', 'Total Nitrogen'))
+  }
   qryParms <- paste(qryParms,collapse="','")
   #### Restrict Matrix to surface water ####
   siteType <- c("'River/Stream','Estuary','Ocean','Lake'")
@@ -214,7 +217,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
                   by.x = 'Station_ID', by.y = 'STATION_KEY', all.x = TRUE)
   
   odbcCloseAll()
-
+  
   return(myData)
 }
 
@@ -224,18 +227,18 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   
   options(stringsAsFactors = FALSE)
   
-#   #For testing
-# library(sp)
-# library(rgdal)
-# library(rgeos)
-# agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
-# hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
-# HUClist <- read.csv('app/data/PlanHUC_LU.csv')
-# stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
-# planArea <- 'South Santiam'
-# startDate <- "2000-01-01 00:00:00.000"
-# endDate <- "2010-03-01 00:00:00.000"
-# inParms <- c('Total Phosphorus')
+  #   #For testing
+  # library(sp)
+  # library(rgdal)
+  # library(rgeos)
+  # agwqma <- readOGR(dsn = 'app/data/GIS', layer = 'ODA_AgWQMA', verbose = FALSE)
+  # hucs <- readOGR(dsn = 'app/data/GIS', layer = 'WBD_HU8', verbose = FALSE)
+  # HUClist <- read.csv('app/data/PlanHUC_LU.csv')
+  # stations_huc <- read.csv('app/data/station_wbd_12132016.csv')
+  # planArea <- 'Tualatin River Subbasin'
+  # startDate <- "2000-01-01 00:00:00.000"
+  # endDate <- "2010-03-01 00:00:00.000"
+  # inParms <- c('Total Nitrogen')
   
   #### Establish connection to database ####
   channel <- odbcConnect('DEQLEAD-LIMS')
@@ -270,7 +273,7 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
     qryParms <- c(qryParms, unique(AllParms[grep('[Tt]emperature',AllParms$PARAMETER_NM),'PARAMETER_NM']))
   }
   if(any(inParms == 'Bacteria')) {
-   qryParms <-  c(qryParms, unique(AllParms[grep('E. [Cc]oli|Fecal [Cc]oliform|[Ee]nterococcus',AllParms$PARAMETER_NM),'PARAMETER_NM']))
+    qryParms <-  c(qryParms, unique(AllParms[grep('E. [Cc]oli|Fecal [Cc]oliform|[Ee]nterococcus',AllParms$PARAMETER_NM),'PARAMETER_NM']))
   }
   if (any(inParms == 'pH')) {
     qryParms <- c(qryParms, 'pH')
@@ -284,6 +287,9 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   if(any(inParms =='Total Phosphorus')) {
     qryParms <- c(qryParms, 'Total Phosphorus', 'Total Total Phosphorus')
   }
+  if(any(inParms == 'Total Nitrogen')) {
+    qryParms <- c(qryParms, 'Nitrogen')
+  }
   qryParms <- paste(qryParms, collapse = "','")
   
   #### Build the query ####
@@ -295,51 +301,51 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate,
   #               pm3.ABBREVIATION as PARAMETER_SUFFIX_1,
   #               pm4.ABBREVIATION as PARAMETER_SUFFIX_2")
   # qry <- gsub('\n','',qry)  
-
-qry <- paste0("SELECT r.RESULT_KEY,
-                     r.STATION,
-               s.LOCATION_DESCRIPTION,
-               s.DECIMAL_LAT,
-               s.DECIMAL_LONG,
-               s.DATUM,
-               a.AREA_ABBREVIATION,
-               o.NAME,
-               r.SAMPLE_DATE_TIME,
-               d.DATA_DESCRIPTION,
-               pm1.ABBREVIATION as PARAMETER_PREFIX_1,
-               pm2.ABBREVIATION as PARAMETER_PREFIX_2,
-               p.PARAMETER_NM,
-               pm3.ABBREVIATION as PARAMETER_SUFFIX_1,
-               pm4.ABBREVIATION as PARAMETER_SUFFIX_2,
-               r.RESULT,
-               u.UNIT,
-               st.STATUS,
-               qa.QA_QC_TYPE,
-               sm.SAMPLE_MATRIX_NAME,
-               pr.METHOD_DETECTION_LIMIT,
-               pr.METHOD_REPORTING_LIMIT
-               FROM Result r LEFT JOIN
-               STATION s on r.STATION = s.STATION_KEY LEFT JOIN
-               (SELECT DISTINCT a.AREA_ABBREVIATION, sa.STATION FROM STATION_AREA sa LEFT JOIN
-               XLU_AREA a on sa.XLU_AREA = a.AREA_KEY WHERE AREA_CLASS = 18) a on r.STATION = a.STATION  LEFT JOIN
-               XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
-               XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
-               PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
-               PARAMETER_MODIFIER pm2 on p.PARAMETER_PREFIX_2 = pm2.MODIFIER_KEY LEFT JOIN
-               PARAMETER_MODIFIER pm3 on p.PARAMETER_SUFFIX_1 = pm3.MODIFIER_KEY LEFT JOIN
-               PARAMETER_MODIFIER pm4 on p.PARAMETER_SUFFIX_2 = pm4.MODIFIER_KEY LEFT JOIN
-               UNIT u on p.UNIT = u.UNIT_KEY LEFT JOIN
-               XLU_STATUS st on r.QA_QC_STATUS = st.XLU_STATUS_KEY LEFT JOIN
-               XLU_QA_QC_TYPE qa on r.QA_QC_TYPE = qa.QA_QC_TYPE_KEY LEFT JOIN
-               SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
-               PARAMETER_RESULT pr on r.PARAMETER_RESULT = pr.PARAMETER_RESULT_KEY LEFT JOIN
-               ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY
-               WHERE r.STATION in ('", myStations, "') AND
-               r.SAMPLE_DATE_TIME >= '", startDate, "' AND
-               r.SAMPLE_DATE_TIME <= '", endDate, "' AND
-               st.STATUS in (", myDQL, ") AND
-               sm.SAMPLE_MATRIX_NAME in (", siteType, ") AND
-               p.PARAMETER_NM in ('", qryParms, "')")
+  
+  qry <- paste0("SELECT r.RESULT_KEY,
+                r.STATION,
+                s.LOCATION_DESCRIPTION,
+                s.DECIMAL_LAT,
+                s.DECIMAL_LONG,
+                s.DATUM,
+                a.AREA_ABBREVIATION,
+                o.NAME,
+                r.SAMPLE_DATE_TIME,
+                d.DATA_DESCRIPTION,
+                pm1.ABBREVIATION as PARAMETER_PREFIX_1,
+                pm2.ABBREVIATION as PARAMETER_PREFIX_2,
+                p.PARAMETER_NM,
+                pm3.ABBREVIATION as PARAMETER_SUFFIX_1,
+                pm4.ABBREVIATION as PARAMETER_SUFFIX_2,
+                r.RESULT,
+                u.UNIT,
+                st.STATUS,
+                qa.QA_QC_TYPE,
+                sm.SAMPLE_MATRIX_NAME,
+                pr.METHOD_DETECTION_LIMIT,
+                pr.METHOD_REPORTING_LIMIT
+                FROM Result r LEFT JOIN
+                STATION s on r.STATION = s.STATION_KEY LEFT JOIN
+                (SELECT DISTINCT a.AREA_ABBREVIATION, sa.STATION FROM STATION_AREA sa LEFT JOIN
+                XLU_AREA a on sa.XLU_AREA = a.AREA_KEY WHERE AREA_CLASS = 18) a on r.STATION = a.STATION  LEFT JOIN
+                XLU_LASAR_DATA d on r.DATA_TYPE = d.LASAR_DATA_KEY LEFT JOIN
+                XLU_LASAR_PARAMETERS p on r.XLU_LASAR_PARAMETER = p.XLU_LASAR_PARAMETERS_KEY LEFT JOIN
+                PARAMETER_MODIFIER pm1 on p.PARAMETER_PREFIX_1 = pm1.MODIFIER_KEY LEFT JOIN
+                PARAMETER_MODIFIER pm2 on p.PARAMETER_PREFIX_2 = pm2.MODIFIER_KEY LEFT JOIN
+                PARAMETER_MODIFIER pm3 on p.PARAMETER_SUFFIX_1 = pm3.MODIFIER_KEY LEFT JOIN
+                PARAMETER_MODIFIER pm4 on p.PARAMETER_SUFFIX_2 = pm4.MODIFIER_KEY LEFT JOIN
+                UNIT u on p.UNIT = u.UNIT_KEY LEFT JOIN
+                XLU_STATUS st on r.QA_QC_STATUS = st.XLU_STATUS_KEY LEFT JOIN
+                XLU_QA_QC_TYPE qa on r.QA_QC_TYPE = qa.QA_QC_TYPE_KEY LEFT JOIN
+                SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
+                PARAMETER_RESULT pr on r.PARAMETER_RESULT = pr.PARAMETER_RESULT_KEY LEFT JOIN
+                ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY
+                WHERE r.STATION in ('", myStations, "') AND
+                r.SAMPLE_DATE_TIME >= '", startDate, "' AND
+                r.SAMPLE_DATE_TIME <= '", endDate, "' AND
+                st.STATUS in (", myDQL, ") AND
+                sm.SAMPLE_MATRIX_NAME in (", siteType, ") AND
+                p.PARAMETER_NM in ('", qryParms, "')")
   qry <- gsub('\n','',qry)
   
   #### Pass the query ####
@@ -349,15 +355,15 @@ qry <- paste0("SELECT r.RESULT_KEY,
 }
 
 wqpQuery <- function(planArea = NULL, HUClist, inParms, luParms, startDate, endDate) {
-library(RCurl)
-library(XML)
-library(dataRetrieval)
-library(plyr)
-library(sp)
-library(rgdal)
-library(raster)
-library(rgeos)
-#library(RODBC)
+  library(RCurl)
+  library(XML)
+  library(dataRetrieval)
+  library(plyr)
+  library(sp)
+  library(rgdal)
+  library(raster)
+  library(rgeos)
+  #library(RODBC)
   
   # planArea <- input$select
   # inParms <- input$parms
@@ -366,106 +372,109 @@ library(rgeos)
   # endDate <- input$dates[2]
   
   
-
-options(stringsAsFactors = FALSE)
-
-#### Define Geographic Area using myArea from 01_DataQueryUI.R ####
-if (is.null(planArea)) {
-  myHUCs <- URLencode.PTB(paste(HUClist, collapse = ";"))
-} else if (grepl("[0-9].", planArea)) {
-  myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
-} else {
-  myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';')
-}
-
-#### Define site types to query ####
-#Returns list of available domain values for site type
-#wqp.siteTypes <- WQP.domain.get('Sitetype')
-
-#Using the wqp.siteTypes enter the values you want to query for in siteType.
-#Separate each value with the URL encoded semi-colon '%3B'. For values with commas use the URL encoded value '%2C+'
-siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
-
-#### Get characteristics ####
-#The entire list of parameters that match to a criteria
-#luParms<-read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
-parms <- luParms
-
-#Take the inputs and write them to another vector for editing
-myParms <- inParms
-
-#Expand bacteria to include fecal and enterococcus
-if(any(inParms == 'Bacteria')) {
-  myParms <- c(myParms, c('E. coli','Fecal coliform','Enterococci'))
-  myParms <- myParms[-which(myParms == "Bacteria")] 
-}
-
-
-# #Expand DO to match database domain values
-# if (any(inParms == 'Dissolved Oxygen')) {
-#   myParms <-c(myParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
-#   myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
-# } 
-
-#grab just the parameters we want
-#characteristics<- URLencode.PTB(paste(myParms))
-#characteristics <- URLencode.PTB(paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';'))
-characteristics <- paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';')
-
-#### Define sample media to query ####
-#wqp.sampleMedia <- WQP.domain.get('Samplemedia')
-
-#Separate each value you want to query with the URL encoded semi-colon '%3B'.
-sampleMedia <- 'Water'
-
-# if (any(myParms == "Total Suspended Solids")) {
-#   sampleMedia <- 'Sediment'
-# }
-
-#### Pass the query to WQP ####
-wqp.data <- readWQPdata(#stateCode = myArea,
-  #countycode = myArea,
-  huc = myHUCs, 
-  characteristicName = characteristics, 
-  startDate = startDate, 
-  endDate = endDate,
-  sampleMedia = sampleMedia,
-  siteType = siteType)
-
-Wx <- attr(wqp.data, "siteInfo")
-# ##REMOVE dissolved P##
-if(any('Total Phosphorus' %in% c(myParms))) {
-  wqp.data[c("ResultSampleFractionText")][is.na(wqp.data[c("ResultSampleFractionText")])] <- 'Total'
-  wqp.data<- wqp.data[wqp.data$ResultSampleFractionText == 'Total' , ]
-    if(any(unique(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'))){
-        wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasureValue'] <- 
-              (wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasureValue'])/1000
-    }
-  wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
-  wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'mg/kg as P'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
-  wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'mg/l as P'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
   
- }
-
-attr(wqp.data, "siteInfo") <- Wx
-
-#wqp.stations <- attr(wqp.data, 'siteInfo')
-
-# #Write query output to .csv
-# timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
-# 
-# wqp.data.filename <- paste('./Data/wqpData',timestamp,'.csv',sep='')
-# write.csv(wqp.data,wqp.data.filename)
-# 
-# wqp.stations.filename <- paste('./Data/wqpStations',timestamp,'.csv',sep='')
-# write.csv(wqp.stations,wqp.stations.filename)
-
-# if (is.null(wqp.data)) {
-#   wqp.data <- "No data"
-# }
-
-#### ####
-return(wqp.data)
+  options(stringsAsFactors = FALSE)
+  
+  #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
+  if (is.null(planArea)) {
+    myHUCs <- URLencode.PTB(paste(HUClist, collapse = ";"))
+  } else if (grepl("[0-9].", planArea)) {
+    myHUCs <- strsplit(planArea, split = " - ")[[1]][1]
+  } else {
+    myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse=';')
+  }
+  
+  #### Define site types to query ####
+  #Returns list of available domain values for site type
+  #wqp.siteTypes <- WQP.domain.get('Sitetype')
+  
+  #Using the wqp.siteTypes enter the values you want to query for in siteType.
+  #Separate each value with the URL encoded semi-colon '%3B'. For values with commas use the URL encoded value '%2C+'
+  siteType = 'Estuary;Ocean;Stream;Lake, Reservoir, Impoundment'
+  
+  #### Get characteristics ####
+  #The entire list of parameters that match to a criteria
+  #luParms<-read.csv('app/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
+  parms <- luParms
+  
+  #Take the inputs and write them to another vector for editing
+  myParms <- inParms
+  
+  #Expand bacteria to include fecal and enterococcus
+  if(any(inParms == 'Bacteria')) {
+    myParms <- c(myParms, c('E. coli','Fecal coliform','Enterococci'))
+    myParms <- myParms[-which(myParms == "Bacteria")] 
+  }
+  
+  
+  # #Expand DO to match database domain values
+  # if (any(inParms == 'Dissolved Oxygen')) {
+  #   myParms <-c(myParms, c('Dissolved oxygen', 'Dissolved oxygen (DO)'))
+  #   myParms <- myParms[-which(myParms == 'Dissolved Oxygen')]
+  # } 
+  
+  #grab just the parameters we want
+  #characteristics<- URLencode.PTB(paste(myParms))
+  #characteristics <- URLencode.PTB(paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';'))
+  characteristics <- paste(parms[parms$DEQ.Table.name %in% myParms,'WQP.Name'],collapse=';')
+  
+  #### Define sample media to query ####
+  #wqp.sampleMedia <- WQP.domain.get('Samplemedia')
+  
+  #Separate each value you want to query with the URL encoded semi-colon '%3B'.
+  sampleMedia <- 'Water'
+  
+  # if (any(myParms == "Total Suspended Solids")) {
+  #   sampleMedia <- 'Sediment'
+  # }
+  
+  #### Pass the query to WQP ####
+  wqp.data <- readWQPdata(#stateCode = myArea,
+    #countycode = myArea,
+    huc = myHUCs, 
+    characteristicName = characteristics, 
+    startDate = startDate, 
+    endDate = endDate,
+    sampleMedia = sampleMedia,
+    siteType = siteType)
+  
+  Wx <- attr(wqp.data, "siteInfo")
+  
+  # ##REMOVE dissolved P##
+  if(any('Total Phosphorus' %in% c(myParms))) {
+    wqp.data[c("ResultSampleFractionText")][is.na(wqp.data[c("ResultSampleFractionText")])] <- 'Total'
+    
+    wqp.data<- wqp.data[wqp.data$ResultSampleFractionText == 'Total' , ]
+    if(unique(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l' & !is.na(wqp.data$ResultMeasure.MeasureUnitCode))){
+      wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasureValue'] <- 
+        (wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasureValue'])/1000
+    }
+    
+    wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'ug/l'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
+    wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'mg/kg as P'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
+    wqp.data[which(wqp.data$ResultMeasure.MeasureUnitCode == 'mg/l as P'), 'ResultMeasure.MeasureUnitCode'] <- 'mg/l'
+    
+  }
+  
+  attr(wqp.data, "siteInfo") <- Wx
+  
+  #wqp.stations <- attr(wqp.data, 'siteInfo')
+  
+  # #Write query output to .csv
+  # timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
+  # 
+  # wqp.data.filename <- paste('./Data/wqpData',timestamp,'.csv',sep='')
+  # write.csv(wqp.data,wqp.data.filename)
+  # 
+  # wqp.stations.filename <- paste('./Data/wqpStations',timestamp,'.csv',sep='')
+  # write.csv(wqp.stations,wqp.stations.filename)
+  
+  # if (is.null(wqp.data)) {
+  #   wqp.data <- "No data"
+  # }
+  
+  #### ####
+  return(wqp.data)
 }
 
 URLencode.PTB <- function (URL, reserved = FALSE) 
@@ -527,6 +536,8 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   TSS_data<-NULL
   TP_sites<-NULL
   TP_data<-NULL
+  TN_sites <- NULL
+  TN_data <- NULL
   
   #### Define parameters to query ####
   if ('Temperature' %in% inParms) {
@@ -603,11 +614,11 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   if('Total Suspended Solids' %in% inParms) {
     parmatercode<-c('00530', '70293', '70299')
     TSS_data <- readNWISdata(service = "iv",
-                            huc=myHUCs,
-                            siteTypeCd=siteTypeCd,
-                            startDate=startDate,
-                            endDate=endDate,
-                            parameterCd = parmatercode)
+                             huc=myHUCs,
+                             siteTypeCd=siteTypeCd,
+                             startDate=startDate,
+                             endDate=endDate,
+                             parameterCd = parmatercode)
     if (nrow(TSS_data) > 0) {
       TSS_sites <- attr(TSS_data, 'siteInfo')
       TSS_data <- TSS_data[,names(TSS_data) != 'tz_cd']
@@ -625,11 +636,11 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
   if('Total Phosphorus' %in% inParms) {
     parmatercode<-c('99891', '99893')
     TP_data <- readNWISdata(service = "iv",
-                             huc=myHUCs,
-                             siteTypeCd=siteTypeCd,
-                             startDate=startDate,
-                             endDate=endDate,
-                             parameterCd = parmatercode)
+                            huc=myHUCs,
+                            siteTypeCd=siteTypeCd,
+                            startDate=startDate,
+                            endDate=endDate,
+                            parameterCd = parmatercode)
     if (nrow(TP_data) > 0) {
       TP_sites <- attr(TP_data, 'siteInfo')
       TP_data <- TP_data[,names(TP_data) != 'tz_cd']
@@ -644,6 +655,27 @@ nwisQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
     }
   }
   
+  if('Total Nitrogen' %in% inParms) {
+    parmatercode <- c('00600', '00601', '00602')
+    TN_data <- readNWISdata(service = "iv",
+                            huc=myHUCs,
+                            siteTypeCd=siteTypeCd,
+                            startDate=startDate,
+                            endDate=endDate,
+                            parameterCd = parmatercode)
+    if (nrow(TN_data) > 0) {
+      TN_sites <- attr(TN_data, 'siteInfo')
+      TN_data <- TN_data[,names(TN_data) != 'tz_cd']
+      TN_data$Analyte <- 'Total Nitrogen'
+      TN_data$Unit <- 'mg/l'
+      TN_data$SampleType <- 'grab'
+      if (any(grepl('Mid|Lower', names(TN_data)))) {
+        TN_data <- TN_data[,-grep('Mid|Lower', names(TN_data))]
+      }
+    } else {
+      TN_data <- NULL 
+    }
+  }
   
   df_list <- list(temp_data_c, temp_data_f, ph_data, DO_data, TSS_data)
   df_list_rows <- lapply(df_list, nrow)
