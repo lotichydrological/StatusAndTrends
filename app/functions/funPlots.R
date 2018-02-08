@@ -148,7 +148,7 @@ plot.Temperature <- function(new_data,
                              plot_trend = FALSE) {
   require(ggplot2)
   
-  new_data <- temp_evaluate
+  new_data <- EvaluateTempWQS(new_data, selectUse, selectSpawning, "Station_ID") 
   new_data$Sampled <- as.POSIXct(strptime(new_data[,datetime_column], 
                                           format = datetime_format))  
   new_data[!is.na(new_data$sdadm) & is.na(new_data$exceed), 'exceed'] <- FALSE
